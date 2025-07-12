@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Version } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { ScrapsService } from '../../scraps/scraps.service';
 import { CreateScrapDto } from './dto/create-scrap.dto';
 import { UpdateScrapDto } from './dto/update-scrap.dto';
@@ -9,34 +9,130 @@ export class ScrapsController {
 
   @Version('1')
   @Post()
-  create(@Body() createScrapDto: CreateScrapDto) {
-    // TODO: Get userId from auth token, articleId from request
-    const userId = 1; // temporary
-    const articleId = undefined; // temporary
-    return this.scrapsService.create(createScrapDto, userId, articleId);
+  async create(
+    @Body() createScrapDto: CreateScrapDto,
+    @Query('userId') userId?: number, // TODO: Replace with auth token
+  ) {
+    try {
+      const resolvedUserId = userId || 1; // TODO: Get from auth token
+      const { articleId, ...scrapData } = createScrapDto;
+      
+      return await this.scrapsService.create(scrapData, resolvedUserId, articleId);
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
   }
 
-  @Version('1')
+  /**
+   * GET /api/v1/scraps - 스크랩 목록 조회 (populate로 관계 데이터 로드)
+   */
   @Get()
-  findAll() {
-    return this.scrapsService.findAll();
+  async findAll(
+    @Query('userId') userId?: number,
+    @Query('articleId') articleId?: number,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    try {
+      if (search) {
+        return await this.scrapsService.search(search, userId);
+      }
+
+      if (articleId) {
+        return await this.scrapsService.findByArticle(articleId);
+      }
+
+      if (userId) {
+        return await this.scrapsService.findByUser(userId);
+      }
+
+      return await this.scrapsService.findAll();
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
+  /**
+   * GET /api/v1/scraps/:scrapId - 스크랩 상세 조회
+   */
   @Version('1')
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.scrapsService.findOne(+id);
+  @Get(':scrapId')
+  async findOne(@Param('scrapId', ParseIntPipe) scrapId: number) {
+    try {
+      const scrap = await this.scrapsService.findOne(scrapId);
+      if (!scrap) {
+        throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
+      }
+      return scrap;
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
+  /**
+   * PUT /api/v1/scraps/:key - 스크랩 수정
+   */
   @Version('1')
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateScrapDto: UpdateScrapDto) {
-    return this.scrapsService.update(+id, updateScrapDto);
+  @Put(':scrapId')
+  async update(
+    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Body() updateScrapDto: UpdateScrapDto,
+  ) {
+    try {
+      const scrap = await this.scrapsService.update(scrapId, updateScrapDto);
+      if (!scrap) {
+        throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
+      }
+      return scrap;
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
+  /**
+   * DELETE /api/v1/scraps/:key - 스크랩 삭제
+   */
   @Version('1')
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.scrapsService.remove(+id);
+  @Delete(':scrapId')
+  async remove(@Param('scrapId', ParseIntPipe) scrapId: number) {
+    try {
+      await this.scrapsService.remove(scrapId);
+      return { message: 'Scrap deleted successfully' };
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * GET /api/v1/scraps/user/:userId - 특정 사용자의 스크랩 목록
+   */
+  @Version('1')
+  @Get('user/:userId')
+  async findByUser(@Param('userId', ParseIntPipe) userId: number) {
+    try {
+      return await this.scrapsService.findByUser(userId);
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * GET /api/v1/scraps/article/:articleId - 특정 기사의 스크랩 목록
+   */
+  @Version('1')
+  @Get('article/:articleId')
+  async findByArticle(@Param('articleId', ParseIntPipe) articleId: number) {
+    try {
+      return await this.scrapsService.findByArticle(articleId);
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 }

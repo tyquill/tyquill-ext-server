@@ -13,33 +13,36 @@ export class TagsService {
     private readonly tagRepository: EntityRepository<Tag>,
   ) {}
 
-  create(createTagDto: CreateTagDto) {
+  async create(createTagDto: CreateTagDto): Promise<Tag> {
     const tag = new Tag();
     Object.assign(tag, createTagDto);
-    this.tagRepository.create(tag);
-    this.em.persist(tag);
-    this.em.flush();
+    await this.em.persistAndFlush(tag);
     return tag;
   }
 
-  findAll() {
-    return this.tagRepository.findAll();
+  async findAll(): Promise<Tag[]> {
+    return await this.tagRepository.findAll();
   }
 
-  findOne(id: number) {
-    return this.tagRepository.findOne({ tagId: id });
+  async findOne(id: number) {
+    const tag = await this.tagRepository.findOne({ tagId: id });
+
+    return tag ?? null;
   }
 
-  update(id: number, updateTagDto: UpdateTagDto) {
-    const tag = this.tagRepository.findOne({ tagId: id });
+  async update(id: number, updateTagDto: UpdateTagDto) {
+    const tag: Tag | null = await this.tagRepository.findOne({ tagId: id });
+    if (!tag) {
+      return null;
+    }
     Object.assign(tag, updateTagDto);
-    this.em.persist(tag);
-    this.em.flush();
-    return tag;
+    await this.em.flush();
   }
 
-  remove(id: number) {
-    const tag = this.tagRepository.findOne({ tagId: id });
-    this.em.removeAndFlush(tag);
+  async remove(id: number) {
+    const tag = await this.tagRepository.findOne({ tagId: id });
+    if (tag) {
+      await this.em.removeAndFlush(tag);
+    }
   }
 }

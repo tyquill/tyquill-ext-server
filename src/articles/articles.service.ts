@@ -13,28 +13,34 @@ export class ArticlesService {
     private readonly articleRepository: EntityRepository<Article>,
   ) {}
 
-  async create(createArticleDto: CreateArticleDto) {
+  async create(createArticleDto: CreateArticleDto): Promise<Article> {
     const article = Article.fromCreateArticleDto(createArticleDto);
-    this.articleRepository.create(article);
     await this.em.persistAndFlush(article);
     return article;
   }
 
-  findAll() {
-    return this.articleRepository.findAll();
+  async findAll(): Promise<Article[]> {
+    return await this.articleRepository.findAll();
   }
 
-  findOne(id: number) {
-    return this.articleRepository.findOne({ articleId: id });
+  async findOne(id: number): Promise<Article | null> {
+    return await this.articleRepository.findOne({ articleId: id });
   }
 
-  update(id: number, updateArticleDto: UpdateArticleDto) {
-    return `This action updates a #${id} article`;
-  }
-
-  remove(id: number) {
-    const article = this.articleRepository.findOne({ articleId: id });
-    this.em.removeAndFlush(article);
+  async update(id: number, updateArticleDto: UpdateArticleDto): Promise<Article | null> {
+    const article = await this.articleRepository.findOne({ articleId: id });
+    if (!article) {
+      return null;
+    }
+    Object.assign(article, updateArticleDto);
+    await this.em.flush();
     return article;
+  }
+
+  async remove(id: number): Promise<void> {
+    const article = await this.articleRepository.findOne({ articleId: id });
+    if (article) {
+      await this.em.removeAndFlush(article);
+    }
   }
 }

@@ -17,26 +17,32 @@ export class ScrapsService {
   async create(createScrapDto: CreateScrapDto): Promise<Scrap> {
     const scrap: Scrap = new Scrap();
     Object.assign(scrap, createScrapDto);
-    this.scrapRepository.create(scrap);
+    await this.em.persistAndFlush(scrap);
     return scrap;
   }
 
-  findAll() {
-    return this.scrapRepository.findAll();
+  async findAll(): Promise<Scrap[]> {
+    return await this.scrapRepository.findAll();
   }
 
-  findOne(id: number) {
-    const scrap = this.scrapRepository.findOne({ scrapId: id });
-    return scrap;
+  async findOne(id: number): Promise<Scrap | null> {
+    return await this.scrapRepository.findOne({ scrapId: id });
   }
 
-  update(id: number, updateScrapDto: UpdateScrapDto) {
-    const scrap = this.scrapRepository.findOne({ scrapId: id });
+  async update(id: number, updateScrapDto: UpdateScrapDto): Promise<Scrap | null> {
+    const scrap = await this.scrapRepository.findOne({ scrapId: id });
+    if (!scrap) {
+      return null;
+    }
     Object.assign(scrap, updateScrapDto);
+    await this.em.flush();
     return scrap;
   }
 
-  remove(id: number) {
-    this.em.remove(this.scrapRepository.findOne({ scrapId: id }));
+  async remove(id: number): Promise<void> {
+    const scrap = await this.scrapRepository.findOne({ scrapId: id });
+    if (scrap) {
+      await this.em.removeAndFlush(scrap);
+    }
   }
 }

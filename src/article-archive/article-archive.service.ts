@@ -13,28 +13,35 @@ export class ArticleArchiveService {
     private readonly articleArchiveRepository: EntityRepository<ArticleArchive>,
   ) {}
 
-  create(createArticleArchiveDto: CreateArticleArchiveDto) {
+  async create(createArticleArchiveDto: CreateArticleArchiveDto): Promise<ArticleArchive> {
     const articleArchive = new ArticleArchive();
-    this.articleArchiveRepository.create(articleArchive);
-    this.em.persistAndFlush(articleArchive);
-    return 'This action adds a new articleArchive';
+    Object.assign(articleArchive, createArticleArchiveDto);
+    await this.em.persistAndFlush(articleArchive);
+    return articleArchive;
   }
 
-  findAll() {
-    return this.articleArchiveRepository.findAll();
+  async findAll(): Promise<ArticleArchive[]> {
+    return await this.articleArchiveRepository.findAll();
   }
 
-  findOne(id: number) {
-    return this.articleArchiveRepository.findOne({ articleArchiveId: id });
+  async findOne(id: number): Promise<ArticleArchive | null> {
+    return await this.articleArchiveRepository.findOne({ articleArchiveId: id });
   }
 
-  update(id: number, updateArticleArchiveDto: UpdateArticleArchiveDto) {
-    return `This action updates a #${id} articleArchive`;
+  async update(id: number, updateArticleArchiveDto: UpdateArticleArchiveDto): Promise<ArticleArchive | null> {
+    const articleArchive = await this.articleArchiveRepository.findOne({ articleArchiveId: id });
+    if (!articleArchive) {
+      return null;
+    }
+    Object.assign(articleArchive, updateArticleArchiveDto);
+    await this.em.flush();
+    return articleArchive;
   }
 
-  remove(id: number) {
-    const articleArchive = this.articleArchiveRepository.findOne({ articleArchiveId: id });
-    this.em.removeAndFlush(articleArchive)
-    return `This action removes a #${id} articleArchive`;
+  async remove(id: number): Promise<void> {
+    const articleArchive = await this.articleArchiveRepository.findOne({ articleArchiveId: id });
+    if (articleArchive) {
+      await this.em.removeAndFlush(articleArchive);
+    }
   }
 }

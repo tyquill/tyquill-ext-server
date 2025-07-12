@@ -10,7 +10,10 @@ export class CreateScrapDto {
   title: string;
 
   @IsString()
-  content: string;
+  content: string; // 텍스트 추출된 내용
+
+  @IsString()
+  htmlContent: string; // 전체 HTML 내용
 
   @IsOptional()
   @IsString()

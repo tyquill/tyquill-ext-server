@@ -17,6 +17,9 @@ export class Scrap {
     @Property({ name: 'content'})
     content: string;
 
+    @Property({ name: 'html_content', type: 'text' })
+    htmlContent: string;
+
     @Property({ name: 'user_comment' })
     userComment?: string;
 

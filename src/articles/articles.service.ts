@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateArticleDto } from '../api/articles/dto/create-article.dto';
+import { CreateArticleDto, GenerateArticleDto, ScrapComment } from '../api/articles/dto/create-article.dto';
 import { UpdateArticleDto } from '../api/articles/dto/update-article.dto';
-import { GenerateArticleDto } from '../api/articles/dto/generate-article.dto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
@@ -9,6 +8,7 @@ import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { AiGenerationService } from './ai-generation.service';
+import { ScrapCombinationService } from './scrap-combination.service';
 
 @Injectable()
 export class ArticlesService {
@@ -23,6 +23,7 @@ export class ArticlesService {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private readonly aiGenerationService: AiGenerationService,
+    private readonly scrapCombinationService: ScrapCombinationService,
   ) {}
 
   async create(createArticleDto: CreateArticleDto): Promise<Article> {
@@ -51,19 +52,27 @@ export class ArticlesService {
       throw new NotFoundException('선택된 스크랩을 찾을 수 없습니다');
     }
 
+    // 스크랩과 코멘트 조합
+    const scrapsWithComments = scraps.map(scrap => {
+      const comment = generateDto.scrapComments?.find(c => c.scrapId === scrap.scrapId);
+      return {
+        scrap,
+        userComment: comment?.userComment,
+      };
+    });
+
     // AI 아티클 생성
     const generatedContent = await this.aiGenerationService.generateArticle({
       topic: generateDto.topic,
       keyInsight: generateDto.keyInsight,
-      scraps,
-      userComment: generateDto.userComment,
+      scrapsWithComments,
       generationParams: generateDto.generationParams,
     });
 
     // Article 엔티티 생성
     const article = new Article();
     article.topic = generateDto.topic;
-    article.keyInsight = generateDto.keyInsight;
+    article.keyInsight = generateDto.keyInsight || '';
     article.generationParams = generateDto.generationParams;
     article.user = user;
 

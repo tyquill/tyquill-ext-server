@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScrapsController } from './scraps.controller';
-import { ScrapsService } from './scraps.service';
+import { ScrapsService } from '../../scraps/scraps.service';
 
 describe('ScrapsController', () => {
   let controller: ScrapsController;

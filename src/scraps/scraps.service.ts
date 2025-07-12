@@ -1,26 +1,48 @@
 import { Injectable } from '@nestjs/common';
-import { CreateScrapDto } from './dto/create-scrap.dto';
-import { UpdateScrapDto } from './dto/update-scrap.dto';
+import { CreateScrapDto } from '../api/scraps/dto/create-scrap.dto';
+import { UpdateScrapDto } from '../api/scraps/dto/update-scrap.dto';
+import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
+import { Scrap } from './entities/scrap.entity';
+import { InjectRepository } from '@mikro-orm/nestjs';
 
 @Injectable()
 export class ScrapsService {
-  create(createScrapDto: CreateScrapDto) {
-    return 'This action adds a new scrap';
+
+  constructor(
+    private readonly em: EntityManager,
+    @InjectRepository(Scrap)
+    private readonly scrapRepository: EntityRepository<Scrap>,
+  ) {}
+
+  async create(createScrapDto: CreateScrapDto): Promise<Scrap> {
+    const scrap: Scrap = new Scrap();
+    Object.assign(scrap, createScrapDto);
+    await this.em.persistAndFlush(scrap);
+    return scrap;
   }
 
-  findAll() {
-    return `This action returns all scraps`;
+  async findAll(): Promise<Scrap[]> {
+    return await this.scrapRepository.findAll();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} scrap`;
+  async findOne(id: number): Promise<Scrap | null> {
+    return await this.scrapRepository.findOne({ scrapId: id });
   }
 
-  update(id: number, updateScrapDto: UpdateScrapDto) {
-    return `This action updates a #${id} scrap`;
+  async update(id: number, updateScrapDto: UpdateScrapDto): Promise<Scrap | null> {
+    const scrap = await this.scrapRepository.findOne({ scrapId: id });
+    if (!scrap) {
+      return null;
+    }
+    Object.assign(scrap, updateScrapDto);
+    await this.em.flush();
+    return scrap;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} scrap`;
+  async remove(id: number): Promise<void> {
+    const scrap = await this.scrapRepository.findOne({ scrapId: id });
+    if (scrap) {
+      await this.em.removeAndFlush(scrap);
+    }
   }
 }

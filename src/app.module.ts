@@ -1,13 +1,22 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { I } from './i/i';
+import mikroOrmConfig from './mikro-orm.config';
+import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { ScrapsModule } from './scraps/scraps.module';
-import { ScrapsModule } from './scraps/scraps.module';
+import { TagsModule } from './tags/tags.module';
+import { ArticlesModule } from './articles/articles.module';
+import { ArticleArchiveModule } from './article-archive/article-archive.module';
 
 @Module({
-  imports: [ScrapsModule],
+  imports: [
+    MikroOrmModule.forRoot(mikroOrmConfig),
+    ScrapsModule,
+    TagsModule,
+    ArticlesModule,
+    ArticleArchiveModule,    
+  ],
   controllers: [AppController],
-  providers: [AppService, I],
+  providers: [AppService],
 })
 export class AppModule {}

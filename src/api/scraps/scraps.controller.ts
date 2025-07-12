@@ -134,11 +134,8 @@ export class ScrapsController {
   @Get(':scrapId')
   async findOne(@Param('scrapId', ParseIntPipe) scrapId: number) {
     try {
-      const scrap = await this.scrapsService.findOne(scrapId);
-      if (!scrap) {
-        throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
-      }
-      return scrap;
+      await this.validateScrapExists(scrapId);
+      return await this.scrapsService.findOne(scrapId);
     } catch (error: any) {
       if (error instanceof HttpException) {
         throw error;
@@ -157,11 +154,8 @@ export class ScrapsController {
     @Body() updateScrapDto: UpdateScrapDto,
   ) {
     try {
-      const scrap = await this.scrapsService.update(scrapId, updateScrapDto);
-      if (!scrap) {
-        throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
-      }
-      return scrap;
+      await this.validateScrapExists(scrapId);
+      return await this.scrapsService.update(scrapId, updateScrapDto);
     } catch (error: any) {
       if (error instanceof HttpException) {
         throw error;
@@ -226,10 +220,7 @@ export class ScrapsController {
       const resolvedUserId = userId || 1; // TODO: Get from auth token
       
       // 스크랩 존재 확인
-      const scrap = await this.scrapsService.findOne(scrapId);
-      if (!scrap) {
-        throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
-      }
+      await this.validateScrapExists(scrapId);
 
       // 태그 생성 (scrapKey와 함께)
       const tagData = { ...createTagDto, scrapId };
@@ -242,6 +233,13 @@ export class ScrapsController {
     }
   }
 
+  private async validateScrapExists(scrapId: number) {
+    const scrap = await this.scrapsService.findOne(scrapId);
+    if (!scrap) {
+      throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
+    }
+  }
+
   /**
    * GET /api/v1/scraps/:scrapKey/tags - 스크랩의 태그 목록 조회
    */
@@ -250,10 +248,7 @@ export class ScrapsController {
   async getScrapTags(@Param('scrapId', ParseIntPipe) scrapId: number) {
     try {
       // 스크랩 존재 확인
-      const scrap = await this.scrapsService.findOne(scrapId);
-      if (!scrap) {
-        throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
-      }
+      await this.validateScrapExists(scrapId);
 
       return await this.tagsService.findByScrap(scrapId);
     } catch (error: any) {

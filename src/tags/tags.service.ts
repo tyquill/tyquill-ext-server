@@ -114,7 +114,11 @@ export class TagsService {
    * 태그명으로 검색
    */
   async searchByName(name: string, userId?: number): Promise<Tag[]> {
-    const query: any = { name: { $ilike: `%${name}%` } };
+    interface TagSearchQuery {
+      name: { $ilike: string };
+      user?: { userId: number };
+    }
+    const query: TagSearchQuery = { name: { $ilike: `%${name}%` } };
     if (userId) {
       query.user = { userId };
     }

@@ -8,5 +8,5 @@ export class CreateTagDto {
 
   @IsOptional()
   @IsNumber()
-  scrapKey?: number;
+  scrapId?: number;
 }

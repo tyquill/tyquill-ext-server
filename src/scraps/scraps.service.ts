@@ -41,6 +41,7 @@ export class ScrapsService {
     if (!user) {
       throw new Error('User not found');
     }
+    
 
     const article = articleId ? await this.articleRepository.findOne({ articleId }) : null;
     if (!article) {

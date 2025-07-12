@@ -13,22 +13,27 @@ export class ArticleArchiveService {
     private readonly articleArchiveRepository: EntityRepository<ArticleArchive>,
   ) {}
 
-  async create(createArticleArchiveDto: CreateArticleArchiveDto): Promise<ArticleArchive> {
+  async create(createArticleArchiveDto: CreateArticleArchiveDto) {
     const articleArchive = new ArticleArchive();
     Object.assign(articleArchive, createArticleArchiveDto);
     await this.em.persistAndFlush(articleArchive);
     return articleArchive;
   }
 
-  async findAll(): Promise<ArticleArchive[]> {
-    return await this.articleArchiveRepository.findAll();
+  async findAll() {
+    const articleArchives = await this.articleArchiveRepository.findAll();
+    return articleArchives;
   }
 
-  async findOne(id: number): Promise<ArticleArchive | null> {
-    return await this.articleArchiveRepository.findOne({ articleArchiveId: id });
+  async findOne(id: number) {
+    const articleArchive = await this.articleArchiveRepository.findOne({ articleArchiveId: id });
+    if (!articleArchive) {
+      return null;
+    }
+    return articleArchive;
   }
 
-  async update(id: number, updateArticleArchiveDto: UpdateArticleArchiveDto): Promise<ArticleArchive | null> {
+  async update(id: number, updateArticleArchiveDto: UpdateArticleArchiveDto) {
     const articleArchive = await this.articleArchiveRepository.findOne({ articleArchiveId: id });
     if (!articleArchive) {
       return null;
@@ -38,7 +43,7 @@ export class ArticleArchiveService {
     return articleArchive;
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number) {
     const articleArchive = await this.articleArchiveRepository.findOne({ articleArchiveId: id });
     if (articleArchive) {
       await this.em.removeAndFlush(articleArchive);

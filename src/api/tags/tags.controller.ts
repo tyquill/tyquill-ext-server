@@ -10,7 +10,10 @@ export class TagsController {
   @Version('1')
   @Post()
   create(@Body() createTagDto: CreateTagDto) {
-    return this.tagsService.create(createTagDto);
+    // TODO: Get userId from auth token, scrapKey from request
+    const userId = 1; // temporary
+    const scrapKey = 1; // temporary
+    return this.tagsService.create(createTagDto, userId, scrapKey);
   }
 
   @Version('1')

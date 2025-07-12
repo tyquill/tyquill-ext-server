@@ -10,7 +10,10 @@ export class ScrapsController {
   @Version('1')
   @Post()
   create(@Body() createScrapDto: CreateScrapDto) {
-    return this.scrapsService.create(createScrapDto);
+    // TODO: Get userId from auth token, articleId from request
+    const userId = 1; // temporary
+    const articleId = undefined; // temporary
+    return this.scrapsService.create(createScrapDto, userId, articleId);
   }
 
   @Version('1')

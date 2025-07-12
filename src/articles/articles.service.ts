@@ -20,15 +20,19 @@ export class ArticlesService {
   }
 
   async findAll(): Promise<Article[]> {
-    return await this.articleRepository.findAll();
+    return await this.articleRepository.findAll({
+      populate: ['articleArchives']
+    });
   }
 
-  async findOne(id: number): Promise<Article | null> {
-    return await this.articleRepository.findOne({ articleId: id });
+  async findOne(articleId: number): Promise<Article | null> {
+    return await this.articleRepository.findOne({ articleId }, {
+      populate: ['articleArchives']
+    });
   }
 
-  async update(id: number, updateArticleDto: UpdateArticleDto): Promise<Article | null> {
-    const article = await this.articleRepository.findOne({ articleId: id });
+  async update(articleId: number, updateArticleDto: UpdateArticleDto): Promise<Article | null> {
+    const article = await this.articleRepository.findOne({ articleId });
     if (!article) {
       return null;
     }
@@ -37,8 +41,8 @@ export class ArticlesService {
     return article;
   }
 
-  async remove(id: number): Promise<void> {
-    const article = await this.articleRepository.findOne({ articleId: id });
+  async remove(articleId: number): Promise<void> {
+    const article = await this.articleRepository.findOne({ articleId });
     if (article) {
       await this.em.removeAndFlush(article);
     }

@@ -5,9 +5,13 @@ import { ScrapsService } from './scraps.service';
 import { ScrapsController } from '../api/scraps/scraps.controller';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
+import { TagsModule } from '../tags/tags.module';
 
 @Module({
-  imports: [MikroOrmModule.forFeature([Scrap, User, Article])],
+  imports: [
+    MikroOrmModule.forFeature([Scrap, User, Article]),
+    TagsModule,
+  ],
   controllers: [ScrapsController],
   providers: [ScrapsService],
   exports: [ScrapsService],

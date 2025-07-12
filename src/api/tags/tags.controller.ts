@@ -15,42 +15,33 @@ export class TagsController {
   async create(
     @Body() createTagDto: CreateTagDto,
     @Query('userId') userId?: number, // TODO: Replace with auth token
+    @Query('scrapId') scrapId?: number,
   ) {
     try {
       const resolvedUserId = userId || 1; // TODO: Get from auth token
-      const { scrapKey, ...tagData } = createTagDto;
-      
-      if (!scrapKey) {
-        throw new HttpException('scrapKey is required', HttpStatus.BAD_REQUEST);
-      }
-      
-      return await this.tagsService.create(tagData, resolvedUserId, scrapKey);
+      return await this.tagsService.create(createTagDto, resolvedUserId, scrapId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
     }
   }
 
   /**
-   * GET /api/v1/tags - 사용자별 태그 목록
+   * GET /api/v1/tags - 태그 목록 조회 (기본 검색 포함)
    */
   @Version('1')
   @Get()
   async findAll(
     @Query('userId') userId?: number,
-    @Query('scrapKey') scrapKey?: number,
     @Query('name') name?: string,
+    @Query('scrapId') scrapId?: number,
   ) {
     try {
       if (name && userId) {
         return await this.tagsService.getTagsByName(userId, name);
       }
 
-      if (userId && scrapKey) {
-        return await this.tagsService.findByUserAndScrap(userId, scrapKey);
-      }
-
-      if (scrapKey) {
-        return await this.tagsService.findByScrap(scrapKey);
+      if (userId && scrapId) {
+        return await this.tagsService.findByUserAndScrap(userId, scrapId);
       }
 
       if (userId) {
@@ -134,13 +125,13 @@ export class TagsController {
   }
 
   /**
-   * GET /api/v1/tags/user/:userId/names - 특정 사용자의 고유 태그 이름 목록
+   * GET /api/v1/tags/user/:userId/names - 특정 사용자의 고유 태그명 목록
    */
   @Version('1')
   @Get('user/:userId/names')
-  async getUniqueTagNames(@Param('userId', ParseIntPipe) userId: number) {
+  async getUserTagNames(@Param('userId', ParseIntPipe) userId: number) {
     try {
-      return await this.tagsService.getUniqueTagNames(userId);
+      return await this.tagsService.getUserTagNames(userId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }

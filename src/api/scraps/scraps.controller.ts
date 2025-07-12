@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
-import { ScrapsService } from '../../scraps/scraps.service';
+import { ScrapsService, SearchOptions, PaginationOptions } from '../../scraps/scraps.service';
 import { TagsService } from '../../tags/tags.service';
 import { CreateScrapDto } from './dto/create-scrap.dto';
 import { UpdateScrapDto } from './dto/update-scrap.dto';
@@ -32,8 +32,9 @@ export class ScrapsController {
   }
 
   /**
-   * GET /api/v1/scraps - 스크랩 목록 조회 (populate로 관계 데이터 로드)
+   * GET /api/v1/scraps - 스크랩 목록 조회 (기본 검색)
    */
+  @Version('1')
   @Get()
   async findAll(
     @Query('userId') userId?: number,
@@ -57,6 +58,71 @@ export class ScrapsController {
 
       return await this.scrapsService.findAll();
     } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * GET /api/v1/scraps/search/advanced - 고급 검색 및 필터링
+   */
+  @Version('1')
+  @Get('search/advanced')
+  async advancedSearch(
+    @Query('query') query?: string,
+    @Query('userId') userId?: number,
+    @Query('articleId') articleId?: number,
+    @Query('tags') tags?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title',
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    try {
+      const searchOptions: SearchOptions = {
+        query,
+        userId,
+        articleId,
+        tags: tags ? tags.split(',').map(tag => tag.trim()) : undefined,
+        dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+        dateTo: dateTo ? new Date(dateTo) : undefined,
+        sortBy: sortBy || 'created_at',
+        sortOrder: sortOrder || 'DESC',
+      };
+
+      const paginationOptions: PaginationOptions = {
+        page: page || 1,
+        limit: limit || 20,
+      };
+
+      return await this.scrapsService.advancedSearch(searchOptions, paginationOptions);
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  /**
+   * GET /api/v1/scraps/search/tags - 태그 기반 필터링
+   */
+  @Version('1')
+  @Get('search/tags')
+  async findByTags(
+    @Query('tags') tags: string,
+    @Query('userId') userId?: number,
+    @Query('matchAll') matchAll?: boolean,
+  ) {
+    try {
+      if (!tags || tags.trim().length === 0) {
+        throw new HttpException('Tags parameter is required', HttpStatus.BAD_REQUEST);
+      }
+
+      const tagNames = tags.split(',').map(tag => tag.trim());
+      return await this.scrapsService.findByTags(tagNames, userId, matchAll || false);
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -150,9 +216,9 @@ export class ScrapsController {
    * POST /api/v1/scraps/:scrapKey/tags - 스크랩에 태그 추가
    */
   @Version('1')
-  @Post(':scrapKey/tags')
+  @Post(':scrapId/tags')
   async addTagToScrap(
-    @Param('scrapKey', ParseIntPipe) scrapKey: number,
+    @Param('scrapId', ParseIntPipe) scrapId: number,
     @Body() createTagDto: CreateTagDto,
     @Query('userId') userId?: number, // TODO: Replace with auth token
   ) {
@@ -160,14 +226,14 @@ export class ScrapsController {
       const resolvedUserId = userId || 1; // TODO: Get from auth token
       
       // 스크랩 존재 확인
-      const scrap = await this.scrapsService.findOne(scrapKey);
+      const scrap = await this.scrapsService.findOne(scrapId);
       if (!scrap) {
         throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
       }
 
       // 태그 생성 (scrapKey와 함께)
-      const tagData = { ...createTagDto, scrapKey };
-      return await this.tagsService.create(tagData, resolvedUserId, scrapKey);
+      const tagData = { ...createTagDto, scrapId };
+      return await this.tagsService.create(tagData, resolvedUserId, scrapId);
     } catch (error: any) {
       if (error instanceof HttpException) {
         throw error;
@@ -180,16 +246,16 @@ export class ScrapsController {
    * GET /api/v1/scraps/:scrapKey/tags - 스크랩의 태그 목록 조회
    */
   @Version('1')
-  @Get(':scrapKey/tags')
-  async getScrapTags(@Param('scrapKey', ParseIntPipe) scrapKey: number) {
+  @Get(':scrapId/tags')
+  async getScrapTags(@Param('scrapId', ParseIntPipe) scrapId: number) {
     try {
       // 스크랩 존재 확인
-      const scrap = await this.scrapsService.findOne(scrapKey);
+      const scrap = await this.scrapsService.findOne(scrapId);
       if (!scrap) {
         throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
       }
 
-      return await this.tagsService.findByScrap(scrapKey);
+      return await this.tagsService.findByScrap(scrapId);
     } catch (error: any) {
       if (error instanceof HttpException) {
         throw error;
@@ -202,7 +268,7 @@ export class ScrapsController {
    * DELETE /api/v1/scraps/:scrapKey/tags/:tagId - 스크랩에서 태그 제거
    */
   @Version('1')
-  @Delete(':scrapKey/tags/:tagId')
+  @Delete(':scrapId/tags/:tagId')
   async removeTagFromScrap(
     @Param('scrapId', ParseIntPipe) scrapId: number,
     @Param('tagId', ParseIntPipe) tagId: number,

@@ -19,21 +19,23 @@ export class TagsService {
     private readonly scrapRepository: EntityRepository<Scrap>,
   ) {}
 
-  async create(createTagDto: CreateTagDto, userId: number, scrapKey: number): Promise<Tag> {
+  async create(createTagDto: CreateTagDto, userId: number, scrapId?: number): Promise<Tag> {
     const user = await this.userRepository.findOne({ userId });
     if (!user) {
       throw new Error('User not found');
     }
 
-    const scrap = await this.scrapRepository.findOne({ scrapId: scrapKey });
-    if (!scrap) {
+    const scrap = scrapId ? await this.scrapRepository.findOne({ scrapId }) : null;
+    if (scrapId && !scrap) {
       throw new Error('Scrap not found');
     }
 
     const tag = new Tag();
     Object.assign(tag, createTagDto);
     tag.user = user;
-    tag.scrap = scrap;
+    if (scrap) {
+      tag.scrap = scrap;
+    }
     
     await this.em.persistAndFlush(tag);
     return tag;
@@ -62,18 +64,18 @@ export class TagsService {
     );
   }
 
-  async findByScrap(scrapKey: number): Promise<Tag[]> {
+  async findByScrap(scrapId: number): Promise<Tag[]> {
     return await this.tagRepository.find(
-      { scrap: { scrapId: scrapKey } },
+      { scrap: { scrapId } },
       { populate: ['user', 'scrap'] }
     );
   }
 
-  async findByUserAndScrap(userId: number, scrapKey: number): Promise<Tag[]> {
+  async findByUserAndScrap(userId: number, scrapId: number): Promise<Tag[]> {
     return await this.tagRepository.find(
       { 
         user: { userId },
-        scrap: { scrapId: scrapKey }
+        scrap: { scrapId }
       },
       { populate: ['user', 'scrap'] }
     );
@@ -96,11 +98,11 @@ export class TagsService {
     }
   }
 
-  async removeFromScrap(userId: number, scrapKey: number, tagId: number): Promise<void> {
+  async removeFromScrap(userId: number, scrapId: number, tagId: number): Promise<void> {
     const tag = await this.tagRepository.findOne({
       tagId,
       user: { userId },
-      scrap: { scrapId: scrapKey }
+      scrap: { scrapId }
     });
     
     if (tag) {
@@ -108,17 +110,24 @@ export class TagsService {
     }
   }
 
-  async getTagsByName(userId: number, name: string): Promise<Tag[]> {
-    return await this.tagRepository.find(
-      { 
-        user: { userId },
-        name: { $ilike: `%${name}%` }
-      },
-      { populate: ['scrap'] }
-    );
+  /**
+   * 태그명으로 검색
+   */
+  async searchByName(name: string, userId?: number): Promise<Tag[]> {
+    const query: any = { name: { $ilike: `%${name}%` } };
+    if (userId) {
+      query.user = { userId };
+    }
+    
+    return await this.tagRepository.find(query, { 
+      populate: ['user', 'scrap'] 
+    });
   }
 
-  async getUniqueTagNames(userId: number): Promise<string[]> {
+  /**
+   * 사용자별 고유 태그명 목록
+   */
+  async getUserTagNames(userId: number): Promise<string[]> {
     const qb = this.em.createQueryBuilder(Tag, 't');
     
     const result = await qb
@@ -127,5 +136,14 @@ export class TagsService {
       .getResult();
     
     return result.map(r => r.name);
+  }
+
+  // Legacy method names for backward compatibility
+  async getTagsByName(userId: number, name: string): Promise<Tag[]> {
+    return this.searchByName(name, userId);
+  }
+
+  async getUniqueTagNames(userId: number): Promise<string[]> {
+    return this.getUserTagNames(userId);
   }
 }

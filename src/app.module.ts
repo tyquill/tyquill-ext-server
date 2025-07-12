@@ -7,10 +7,12 @@ import { ScrapsModule } from './scraps/scraps.module';
 import { TagsModule } from './tags/tags.module';
 import { ArticlesModule } from './articles/articles.module';
 import { ArticleArchiveModule } from './article-archive/article-archive.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     MikroOrmModule.forRoot(mikroOrmConfig),
+    UsersModule,
     ScrapsModule,
     TagsModule,
     ArticlesModule,

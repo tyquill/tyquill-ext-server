@@ -1,20 +1,21 @@
-    import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { Scrap } from '../../scraps/entities/scrap.entity';
+import { User } from '../../users/entities/user.entity';
 
-@Entity()
+@Entity({ tableName: 'Tags' })
 export class Tag {
     @PrimaryKey({ name: 'tag_id' })
     tagId: number;
 
-    @Property({ name: 'name' })
+    @Property({ name: 'name', type: 'varchar', length: 100 })
     name: string;
     
     @Property({ name: 'created_at' })
     createdAt: Date = new Date();
 
-    @Property({ name: 'updated_at', onUpdate: () => new Date() })
-    updatedAt: Date = new Date();
+    @ManyToOne(() => User, { fieldName: 'user_id' })
+    user: User;
 
-    @ManyToOne(() => Scrap)
+    @ManyToOne(() => Scrap, { fieldName: 'Key' })
     scrap: Scrap;
 }

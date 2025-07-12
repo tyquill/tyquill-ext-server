@@ -1,4 +1,5 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
+import { Collection, Entity, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
+import { Tag } from '../../tags/entities/tag.entity';
 
 @Entity()
 export class Scrap {
@@ -17,6 +18,9 @@ export class Scrap {
     @Property({ name: 'created_at', type: 'date'})
     createdAt: Date;
 
-    @Property({ name: 'updated_at', type: 'date'})
+    @Property({ name: 'updated_at', type: 'date', onUpdate: () => new Date() })
     updatedAt: Date;
+
+    @OneToMany(() => Tag, tag => tag.scrap)
+    tags: Collection<Tag> = new Collection<Tag>(this);
 }

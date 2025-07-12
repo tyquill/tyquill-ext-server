@@ -1,35 +1,46 @@
-import { Collection, Entity, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
+import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
 import { CreateArticleDto } from '../../api/articles/dto/create-article.dto';
 import { ArticleArchive } from '../../article-archive/entities/article-archive.entity';
+import { User } from '../../users/entities/user.entity';
+import { Scrap } from '../../scraps/entities/scrap.entity';
 
-@Entity()
+@Entity({ tableName: 'Articles' })
 export class Article {
-  @PrimaryKey({ name: 'article_id' })
-  articleId: number;
+  @PrimaryKey({ fieldName: 'article_id' })
+  articleId!: number;
 
-  @Property({ name: 'generation_params' })
-  generationParams: string;
+  @Property({ fieldName: 'topic', type: 'varchar', length: 100 })
+  topic!: string;
 
-  @Property({ name: 'topic' })
-  topic: string;
+  @Property({ fieldName: 'key_insight', type: 'text' })
+  keyInsight: string;
 
-  @Property({ name: 'key_insights' })
-  keyInsights: string;
+  @Property({ fieldName: 'generation_params', type: 'text', nullable: true })
+  generationParams?: string; // AI 생성 설정 JSON
 
-  @Property({ name: 'created_at' })
-  createdAt: Date = new Date();
+  @Property({ fieldName: 'created_at', onCreate: () => new Date() })
+  createdAt = new Date();
 
-  @Property({ name: 'updated_at', onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  @Property({ fieldName: 'updated_at', onUpdate: () => new Date() })
+  updatedAt = new Date();
 
-  @OneToMany(() => ArticleArchive, articleArchive => articleArchive.article)
-  articleArchives: Collection<ArticleArchive> = new Collection<ArticleArchive>(this);
+  @ManyToOne(() => User, { fieldName: 'user_id' })
+  user!: User;
 
-  static fromCreateArticleDto(createArticleDto: CreateArticleDto) {
+  @OneToMany(() => ArticleArchive, archive => archive.article)
+  archives = new Collection<ArticleArchive>(this);
+
+  @OneToMany(() => Scrap, scrap => scrap.article)
+  scraps = new Collection<Scrap>(this);
+
+  /**
+   * CreateArticleDto로부터 Article 인스턴스를 생성합니다
+   */
+  static fromCreateArticleDto(createArticleDto: CreateArticleDto): Article {
     const article = new Article();
-    article.generationParams = createArticleDto.generationParams;
     article.topic = createArticleDto.topic;
-    article.keyInsights = createArticleDto.keyInsights;
+    article.keyInsight = createArticleDto.keyInsights;
+    article.generationParams = createArticleDto.generationParams;
     return article;
   }
 }

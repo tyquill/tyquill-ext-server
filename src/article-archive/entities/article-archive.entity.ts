@@ -1,23 +1,23 @@
 import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { Article } from '../../articles/entities/article.entity';
 
-@Entity()
+@Entity({ tableName: 'ArticleArchive' })
 export class ArticleArchive {
-  @PrimaryKey({ name: 'article_archive_id' })
-  articleArchiveId: number;
+  @PrimaryKey({ fieldName: 'article_archive_id' })
+  articleArchiveId!: number;
 
-  @Property({ name: 'title' })
-  title: string;
+  @Property({ fieldName: 'title', type: 'varchar', length: 500 })
+  title!: string;
 
-  @Property({ name: 'content' })
-  content: string;
+  @Property({ fieldName: 'content', type: 'text' })
+  content!: string;
 
-  @Property({ name: 'version_number' })
-  versionNumber: number = 1;
+  @Property({ fieldName: 'version_number', type: 'int', nullable: true })
+  versionNumber?: number;
 
-  @Property({ name: 'created_at' })
-  createdAt: Date = new Date();
+  @Property({ fieldName: 'created_at', onCreate: () => new Date() })
+  createdAt = new Date();
 
-  @ManyToOne(() => Article)
-  article: Article;
+  @ManyToOne(() => Article, { fieldName: 'article_id' })
+  article!: Article;
 }

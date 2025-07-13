@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import { ScrapsService, SearchOptions, PaginationOptions } from '../../scraps/scraps.service';
 import { TagsService } from '../../tags/tags.service';
 import { CreateScrapDto } from './dto/create-scrap.dto';
 import { UpdateScrapDto } from './dto/update-scrap.dto';
 import { CreateTagDto } from '../tags/dto/create-tag.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('scraps')
 export class ScrapsController {
   constructor(

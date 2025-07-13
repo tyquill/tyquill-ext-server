@@ -1,6 +1,7 @@
 import { Entity, OneToMany, PrimaryKey, Property, Collection } from '@mikro-orm/core';
 import { Scrap } from '../../scraps/entities/scrap.entity';
 import { Tag } from '../../tags/entities/tag.entity';
+import { UserOAuth } from './user-oauth.entity';
 
 @Entity({ tableName: 'Users' })
 export class User {
@@ -24,4 +25,7 @@ export class User {
 
   @OneToMany(() => Tag, tag => tag.user)
   tags: Collection<Tag> = new Collection<Tag>(this);
+
+  @OneToMany(() => UserOAuth, oauth => oauth.user)
+  oauthAccounts: Collection<UserOAuth> = new Collection<UserOAuth>(this);
 } 

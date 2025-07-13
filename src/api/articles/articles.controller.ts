@@ -8,14 +8,17 @@ import {
   Delete,
   Query,
   Version,
+  UseGuards,
 } from '@nestjs/common';
 import { ArticlesService } from '../../articles/articles.service';
 import { CreateArticleDto, GenerateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ApiBody, ApiCreatedResponse, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Article } from 'src/articles/entities/article.entity';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('articles')
+@UseGuards(JwtAuthGuard)
 export class ArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}
 

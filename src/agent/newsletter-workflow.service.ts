@@ -5,14 +5,15 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import { ScrapCombinationService, ScrapWithComment } from './scrap-combination.service';
 import { NewsletterToolsService, ToolResult } from './newsletter-tools.service';
 import { NewsletterPromptTemplatesService } from './newsletter-prompt-templates.service';
-import { NewsletterAgentService, AgentPersona, MultiAgentInput } from './newsletter-agent.service';
+import { NewsletterAgentService } from './newsletter-agent.service';
 import { 
   NewsletterQualityService, 
   QualityMetrics, 
-  ReflectionResult,
-  QualityValidationInput,
-  SelfCorrectionInput 
-} from './newsletter-quality.service';
+  ReflectionResult} from './newsletter-quality.service';
+import { ToolNodesService } from './node/tool-nodes.service';
+import { AgentNodesService } from './node/agent-nodes.service';
+import { QualityNodesService } from './node/quality-nodes.service';
+import { ContentParser } from '../utils/content-parser.util';
 
 /**
  * 뉴스레터 워크플로우 설정 인터페이스
@@ -202,6 +203,10 @@ export class NewsletterWorkflowService {
     private readonly promptTemplatesService: NewsletterPromptTemplatesService,
     private readonly agentService: NewsletterAgentService,
     private readonly qualityService: NewsletterQualityService,
+    // 새로운 노드 서비스들 주입
+    private readonly toolNodesService: ToolNodesService,
+    private readonly agentNodesService: AgentNodesService,
+    private readonly qualityNodesService: QualityNodesService,
   ) {
     // 메인 모델 (일반적인 생성 작업용)
     this.model = new ChatGoogleGenerativeAI({
@@ -340,177 +345,24 @@ export class NewsletterWorkflowService {
   }
 
   /**
-   * 도구 사용 필요성 평가 노드 (새로 추가)
+   * 도구 사용 필요성 평가 노드 (ToolNodesService에 위임)
    */
   private async assessToolNeedsNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'tool_needs_assessment'];
-    const reasoning = [...(state.reasoning || [])];
-    
-    try {
-      const assessmentTemplate = this.promptTemplatesService.getToolEnabledTemplate();
-      const chain = assessmentTemplate.pipe(this.strategistModel).pipe(new StringOutputParser());
-      
-      const result = await chain.invoke({
-        topic: state.topic,
-        keyInsight: state.keyInsight || '없음',
-        newsletterType: state.newsletterType || 'unknown',
-        generationParams: state.generationParams || '없음',
-      });
-
-      // 결과 파싱 - 단순화된 로직
-      const needsTools = result.toLowerCase().includes('도구') || result.toLowerCase().includes('tool');
-      const recommendedTools = needsTools ? ['web_search', 'fact_check'] : [];
-
-      reasoning.push(`도구 필요성 평가: ${needsTools ? 'YES' : 'NO'}`);
-      if (recommendedTools.length > 0) {
-        reasoning.push(`권장 도구: ${recommendedTools.join(', ')}`);
-      }
-
-      return {
-        needsTools,
-        recommendedTools,
-        processingSteps,
-        reasoning,
-      };
-    } catch (error) {
-      console.error('도구 필요성 평가 오류:', error);
-      return {
-        error: '도구 필요성 평가 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-        needsTools: false,
-        recommendedTools: [],
-      };
-    }
+    return this.toolNodesService.assessToolNeeds(state);
   }
 
   /**
-   * 도구 실행 노드 (리팩토링됨)
+   * 도구 실행 노드 (ToolNodesService에 위임)
    */
   private async executeToolsNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'tools_execution'];
-    const reasoning = [...(state.reasoning || [])];
-    
-    try {
-      const recommendedTools = state.recommendedTools || [];
-      
-      if (recommendedTools.length === 0) {
-        reasoning.push('권장된 도구가 없어 도구 실행을 건너뜁니다.');
-        return {
-          processingSteps,
-          reasoning,
-          toolResults: [],
-        };
-      }
-
-      reasoning.push(`${recommendedTools.length}개 도구 실행 시작`);
-
-      // 도구별 입력 준비
-      const toolRequests = recommendedTools.map((toolName: string) => {
-        let input: string;
-        
-        switch (toolName) {
-          case 'web_search':
-          case 'analyze_trends':
-          case 'competitor_analysis':
-            input = state.topic;
-            break;
-          case 'fact_check':
-            input = state.keyInsight || state.topic;
-            break;
-          case 'sentiment_analysis':
-          case 'extract_keywords':
-          case 'generate_image_description':
-            input = state.scrapContent || state.topic;
-            break;
-          case 'extract_url_content':
-            const urls = state.scrapsWithComments?.map(sc => sc.scrap.url).filter(url => url) || [];
-            input = urls.length > 0 ? urls[0] : 'https://example.com';
-            break;
-          default:
-            input = state.topic;
-        }
-
-        return { toolName, input };
-      });
-
-      // 도구 서비스를 통해 병렬 실행
-      const toolResults = await this.toolsService.executeToolsParallel(toolRequests);
-
-      const successfulTools = toolResults.filter(r => r.success).length;
-      reasoning.push(`도구 실행 완료: ${successfulTools}/${toolResults.length} 성공`);
-
-      // 각 도구별 결과를 상태에 저장
-      const webSearchResult = toolResults.find(r => r.toolName === 'web_search');
-      const urlContentResult = toolResults.find(r => r.toolName === 'extract_url_content');
-      const keywordResult = toolResults.find(r => r.toolName === 'extract_keywords');
-      const factCheckResult = toolResults.find(r => r.toolName === 'fact_check');
-
-      return {
-        toolResults,
-        webSearchResults: webSearchResult?.output,
-        urlContentResults: urlContentResult?.output,
-        keywordResults: keywordResult?.output ? [keywordResult.output] : [],
-        factCheckResults: factCheckResult?.output,
-        processingSteps,
-        reasoning,
-      };
-    } catch (error) {
-      console.error('도구 실행 오류:', error);
-      return {
-        error: '도구 실행 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-        toolResults: [],
-      };
-    }
+    return this.toolNodesService.executeTools(state);
   }
 
   /**
-   * 도구 결과 통합 노드 (새로 추가)
+   * 도구 결과 통합 노드 (ToolNodesService에 위임)
    */
   private async integrateToolResultsNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'tool_results_integration'];
-    const reasoning = [...(state.reasoning || [])];
-    
-    try {
-      const toolResults = state.toolResults || [];
-      
-      if (toolResults.length === 0) {
-        reasoning.push('통합할 도구 결과가 없습니다.');
-        return {
-          processingSteps,
-          reasoning,
-        };
-      }
-
-      // 도구 결과를 스크랩 콘텐츠에 통합
-      let enhancedScrapContent = state.scrapContent || '';
-      
-      enhancedScrapContent += '\n\n## 🔧 도구 분석 결과\n';
-      
-      toolResults.forEach((result, index) => {
-        if (result.success) {
-          enhancedScrapContent += `\n### ${index + 1}. ${result.toolName} 결과\n`;
-          enhancedScrapContent += `${result.output}\n`;
-        }
-      });
-
-      reasoning.push(`${toolResults.length}개 도구 결과를 스크랩 콘텐츠에 통합`);
-
-      return {
-        scrapContent: enhancedScrapContent,
-        processingSteps,
-        reasoning,
-      };
-    } catch (error) {
-      console.error('도구 결과 통합 오류:', error);
-      return {
-        error: '도구 결과 통합 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-      };
-    }
+    return this.toolNodesService.integrateToolResults(state);
   }
 
   /**
@@ -599,47 +451,10 @@ export class NewsletterWorkflowService {
   }
 
   /**
-   * 멀티 에이전트 생성 노드 (리팩토링됨)
+   * 멀티 에이전트 생성 노드 (AgentNodesService에 위임)
    */
   private async multiAgentGenerationNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'multi_agent_execution'];
-    const reasoning = [...(state.reasoning || [])];
-    
-    try {
-      console.log('🤖 멀티 에이전트 시스템 실행');
-      
-      const agentInput: MultiAgentInput = {
-        topic: state.topic,
-        keyInsight: state.keyInsight,
-        newsletterType: state.newsletterType || 'curation',
-        scrapContent: state.scrapContent,
-        webSearchResults: state.webSearchResults,
-        factCheckResults: state.factCheckResults,
-        keywordResults: state.keywordResults,
-      };
-
-      // 모든 에이전트를 병렬로 실행
-      const agentResults = await this.agentService.executeAllAgents(agentInput);
-      
-      reasoning.push('멀티 에이전트 시스템 활성화: 4개 전문가 에이전트 병렬 실행 완료');
-
-      return {
-        writerOutput: agentResults.find(r => r.agentType === AgentPersona.WRITER)?.output,
-        editorOutput: agentResults.find(r => r.agentType === AgentPersona.EDITOR)?.output,
-        reviewerOutput: agentResults.find(r => r.agentType === AgentPersona.REVIEWER)?.output,
-        strategistOutput: agentResults.find(r => r.agentType === AgentPersona.STRATEGIST)?.output,
-        processingSteps,
-        reasoning,
-        selfCorrectionAttempts: 0,
-      };
-    } catch (error) {
-      console.error('멀티 에이전트 실행 오류:', error);
-      return {
-        error: '멀티 에이전트 실행 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-      };
-    }
+    return this.agentNodesService.executeMultiAgentGeneration(state);
   }
 
   /**
@@ -692,127 +507,24 @@ export class NewsletterWorkflowService {
   }
 
   /**
-   * 멀티 에이전트 결과 종합 노드 (리팩토링됨)
+   * 에이전트 결과 종합 노드 (AgentNodesService에 위임)
    */
   private async synthesizeOutputsNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'multi_agent_synthesis'];
-    const reasoning = [...(state.reasoning || [])];
-    
-    try {
-      // 에이전트 결과 수집
-      const agentResults = [
-        { agentType: AgentPersona.WRITER, output: state.writerOutput || '', processingTime: 0, confidence: 85 },
-        { agentType: AgentPersona.EDITOR, output: state.editorOutput || '', processingTime: 0, confidence: 90 },
-        { agentType: AgentPersona.REVIEWER, output: state.reviewerOutput || '', processingTime: 0, confidence: 80 },
-        { agentType: AgentPersona.STRATEGIST, output: state.strategistOutput || '', processingTime: 0, confidence: 88 },
-      ];
-
-      // 에이전트 서비스를 통해 결과 종합
-      const synthesisResult = await this.agentService.synthesizeAgentResults(agentResults);
-      
-      reasoning.push('멀티 에이전트 결과 종합 완료');
-
-      return {
-        title: synthesisResult.title,
-        content: synthesisResult.content,
-        draftTitle: synthesisResult.title,
-        draftContent: synthesisResult.content,
-        processingSteps,
-        reasoning,
-      };
-    } catch (error) {
-      console.error('멀티 에이전트 종합 오류:', error);
-      return {
-        error: '멀티 에이전트 결과 종합 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-      };
-    }
+    return this.agentNodesService.synthesizeAgentOutputs(state);
   }
 
   /**
-   * 리플렉션 분석 노드 (리팩토링됨)
+   * 리플렉션 분석 노드 (QualityNodesService에 위임)
    */
   private async reflectionAnalysisNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'reflection_analysis'];
-    const reasoning = [...(state.reasoning || [])];
-    
-    try {
-      const qualityInput: QualityValidationInput = {
-        title: state.title || '',
-        content: state.content || '',
-        newsletterType: state.newsletterType || 'curation',
-        topic: state.topic,
-      };
-
-      // 품질 서비스를 통해 리플렉션 분석 실행
-      const reflectionResult = await this.qualityService.performReflectionAnalysis(qualityInput);
-
-      reasoning.push(`리플렉션 분석 완료: 신뢰도 ${reflectionResult.confidence}%, 수정 필요 ${reflectionResult.needsRevision ? 'YES' : 'NO'}`);
-
-      return {
-        reflectionResult,
-        processingSteps,
-        reasoning,
-      };
-    } catch (error) {
-      console.error('리플렉션 분석 오류:', error);
-      return {
-        error: '리플렉션 분석 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-      };
-    }
+    return this.qualityNodesService.performReflectionAnalysis(state);
   }
 
   /**
-   * 자기 교정 노드 (리팩토링됨)
+   * 자기 교정 노드 (QualityNodesService에 위임)
    */
   private async selfCorrectionNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'self_correction'];
-    const reasoning = [...(state.reasoning || [])];
-    const attempts = (state.selfCorrectionAttempts || 0) + 1;
-    
-    // 최대 2번까지만 자기 교정 시도
-    if (attempts > this.config.retryLimits.maxSelfCorrectionAttempts) {
-      reasoning.push('자기 교정 시도 한계 도달, 현재 버전으로 완료');
-      return {
-        processingSteps,
-        reasoning,
-        selfCorrectionAttempts: attempts,
-        warnings: [...(state.warnings || []), '자기 교정이 여러 번 시도되었습니다.'],
-      };
-    }
-    
-    try {
-      const correctionInput: SelfCorrectionInput = {
-        originalTitle: state.title || '',
-        originalContent: state.content || '',
-        weaknesses: state.reflectionResult?.weaknesses || [],
-        improvements: state.reflectionResult?.improvements || [],
-      };
-
-      // 품질 서비스를 통해 자기 교정 실행
-      const correctionResult = await this.qualityService.performSelfCorrection(correctionInput);
-      
-      reasoning.push(`자기 교정 완료 (${attempts}번째 시도)`);
-
-      return {
-        title: correctionResult.correctedTitle,
-        content: correctionResult.correctedContent,
-        selfCorrectionAttempts: attempts,
-        processingSteps,
-        reasoning,
-      };
-    } catch (error) {
-      console.error('자기 교정 오류:', error);
-      return {
-        error: '자기 교정 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-        selfCorrectionAttempts: attempts,
-      };
-    }
+    return this.qualityNodesService.performSelfCorrection(state);
   }
 
   /**
@@ -834,71 +546,17 @@ export class NewsletterWorkflowService {
   }
 
   /**
-   * 리플렉션 결과 기반 라우팅 함수 (리팩토링됨)
+   * 리플렉션 결과 기반 라우팅 함수 (QualityNodesService에 위임)
    */
   private routeByReflectionResult(state: typeof NewsletterStateAnnotation.State): string {
-    if (state.error) {
-      return 'error';
-    }
-    
-    const reflection = state.reflectionResult;
-    const qualityMetrics = state.qualityMetrics;
-    if (!reflection || !qualityMetrics) {
-      return 'error';
-    }
-
-    // 재시도 횟수 확인 (최대 2회)
-    const attempts = state.selfCorrectionAttempts || 0;
-    if (attempts >= this.config.retryLimits.maxSelfCorrectionAttempts) {
-      console.log('🔄 최대 재시도 횟수에 도달했습니다. 현재 결과로 종료합니다.');
-      return 'high_quality';
-    }
-
-    // 품질 서비스의 판단 로직 사용
-    const needsRevision = this.qualityService.needsRevisionByReflection(reflection, qualityMetrics, attempts);
-    
-    if (needsRevision) {
-      return 'needs_improvement';
-    } else {
-      return 'high_quality';
-    }
+    return this.qualityNodesService.routeByReflectionResult(state);
   }
 
   /**
-   * 품질 검증 노드 (리팩토링됨)
+   * 품질 검증 노드 (QualityNodesService에 위임)
    */
   private async validateQualityNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'quality_validation'];
-    const reasoning = [...(state.reasoning || [])];
-    
-    try {
-      const qualityInput: QualityValidationInput = {
-        title: state.title || '',
-        content: state.content || '',
-        newsletterType: state.newsletterType || 'curation',
-        topic: state.topic,
-      };
-
-      // 품질 서비스를 통해 종합 품질 검사 실행
-      const qualityResult = await this.qualityService.performComprehensiveQualityCheck(qualityInput);
-
-      reasoning.push(`품질 검증 완료: 전체 ${qualityResult.qualityMetrics.overall}/10, 신뢰도 ${qualityResult.qualityMetrics.confidence}%`);
-
-      return {
-        qualityMetrics: qualityResult.qualityMetrics,
-        validationIssues: qualityResult.validationIssues,
-        suggestions: [...(state.suggestions || []), ...qualityResult.suggestions],
-        processingSteps,
-        reasoning,
-      };
-    } catch (error) {
-      console.error('품질 검증 오류:', error);
-      return {
-        error: '품질 검증 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-      };
-    }
+    return this.qualityNodesService.validateQuality(state);
   }
 
   /**
@@ -943,63 +601,10 @@ export class NewsletterWorkflowService {
   }
 
   /**
-   * 생성된 콘텐츠 파싱 (향상된 파싱)
+   * 생성된 콘텐츠에서 제목과 본문 파싱 (ContentParser 유틸리티에 위임)
    */
   private parseGeneratedContent(content: string): { title: string; content: string } {
-    // 1. 기존 형식 우선 시도
-    const titleMatch = content.match(/TITLE:\s*(.+)/);
-    const contentMatch = content.match(/CONTENT:\s*([\s\S]+)/);
-
-    if (titleMatch && contentMatch) {
-      return {
-        title: titleMatch[1].trim(),
-        content: contentMatch[1].trim(),
-      };
-    }
-
-    // 2. 멀티 에이전트 형식 파싱
-    const solutionMatch = content.match(/INTEGRATED_SOLUTION:\s*([\s\S]+)/i);
-    let targetContent = solutionMatch ? solutionMatch[1].trim() : content;
-
-    // **제목** 형식의 제목 찾기
-    const boldTitleMatch = targetContent.match(/\*\*([^*]+)\*\*/);
-    if (boldTitleMatch) {
-      const title = boldTitleMatch[1].trim();
-      const contentWithoutTitle = targetContent.replace(/\*\*[^*]+\*\*/, '').trim();
-      return {
-        title,
-        content: contentWithoutTitle || targetContent,
-      };
-    }
-
-    // 3. # 제목 형식 찾기
-    const hashTitleMatch = targetContent.match(/^#\s*(.+)/m);
-    if (hashTitleMatch) {
-      const title = hashTitleMatch[1].trim();
-      const contentWithoutTitle = targetContent.replace(/^#\s*.+/m, '').trim();
-      return {
-        title,
-        content: contentWithoutTitle || targetContent,
-      };
-    }
-
-    // 4. 첫 번째 줄을 제목으로 사용 (최후 수단)
-    const lines = targetContent.split('\n');
-    const firstLine = lines[0]?.trim();
-    
-    if (firstLine && firstLine.length > 0 && firstLine.length < 100) {
-      const restContent = lines.slice(1).join('\n').trim();
-      return {
-        title: firstLine.replace(/[#*]/g, '').trim(),
-        content: restContent || targetContent,
-      };
-    }
-
-    // 5. 기본값 반환
-    return {
-      title: '생성된 뉴스레터',
-      content: targetContent,
-    };
+    return ContentParser.parseNewsletterContent(content);
   }
 
   /**

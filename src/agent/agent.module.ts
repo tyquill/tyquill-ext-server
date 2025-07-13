@@ -5,6 +5,9 @@ import { NewsletterToolsService } from './newsletter-tools.service';
 import { NewsletterPromptTemplatesService } from './newsletter-prompt-templates.service';
 import { NewsletterAgentService } from './newsletter-agent.service';
 import { NewsletterQualityService } from './newsletter-quality.service';
+import { ToolNodesService } from './node/tool-nodes.service';
+import { AgentNodesService } from './node/agent-nodes.service';
+import { QualityNodesService } from './node/quality-nodes.service';
 
 @Module({
   providers: [
@@ -14,6 +17,10 @@ import { NewsletterQualityService } from './newsletter-quality.service';
     NewsletterPromptTemplatesService,
     NewsletterAgentService,
     NewsletterQualityService,
+    // 새로운 노드 서비스들 추가
+    ToolNodesService,
+    AgentNodesService,
+    QualityNodesService,
   ],
   exports: [
     ScrapCombinationService, 
@@ -22,6 +29,10 @@ import { NewsletterQualityService } from './newsletter-quality.service';
     NewsletterPromptTemplatesService,
     NewsletterAgentService,
     NewsletterQualityService,
+    // 새로운 노드 서비스들 export
+    ToolNodesService,
+    AgentNodesService,
+    QualityNodesService,
   ],
 })
 export class AgentModule {} 

@@ -6,6 +6,7 @@ import { Scrap } from './entities/scrap.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
+import { ScrapCombinationService } from '../agent/scrap-combination.service';
 
 export interface SearchOptions {
   query?: string;
@@ -34,6 +35,7 @@ export class ScrapsService {
     private readonly userRepository: EntityRepository<User>,
     @InjectRepository(Article)
     private readonly articleRepository: EntityRepository<Article>,
+    private readonly scrapCombinationService: ScrapCombinationService,
   ) {}
 
   async create(createScrapDto: CreateScrapDto, userId: number, articleId?: number): Promise<Scrap> {
@@ -42,15 +44,25 @@ export class ScrapsService {
       throw new Error('User not found');
     }
     
-
     const article = articleId ? await this.articleRepository.findOne({ articleId }) : null;
-    if (!article) {
+    if (articleId && !article) {
       throw new Error('Article not found');
     }
     
+    // HTML에서 텍스트 추출
+    const extractedText = this.extractTextFromHtml(createScrapDto.htmlContent);
+    
+    // AI 기반 요약 생성
+    const aiSummary = await this.generateAiSummary(extractedText);
+    
     const scrap = new Scrap();
-    Object.assign(scrap, createScrapDto);
+    scrap.url = createScrapDto.url;
+    scrap.title = createScrapDto.title;
+    scrap.content = aiSummary; // AI 기반 요약된 텍스트
+    scrap.htmlContent = createScrapDto.htmlContent; // 원본 HTML
+    scrap.userComment = createScrapDto.userComment;
     scrap.user = user;
+    
     if (article) {
       scrap.article = article;
     }
@@ -94,6 +106,14 @@ export class ScrapsService {
     if (!scrap) {
       return null;
     }
+    
+    // htmlContent가 변경되면 content도 다시 생성
+    if (updateScrapDto.htmlContent && updateScrapDto.htmlContent !== scrap.htmlContent) {
+      const extractedText = this.extractTextFromHtml(updateScrapDto.htmlContent);
+      const aiSummary = await this.generateAiSummary(extractedText);
+      scrap.content = aiSummary;
+    }
+    
     Object.assign(scrap, updateScrapDto);
     await this.em.flush();
     return scrap;
@@ -238,5 +258,49 @@ export class ScrapsService {
     }
 
     return await qb.getResult();
+  }
+
+  /**
+   * HTML에서 순수 텍스트를 추출합니다
+   */
+  private extractTextFromHtml(htmlContent: string): string {
+    if (!htmlContent) {
+      return '';
+    }
+    
+    // 기본적인 HTML 태그 제거
+    let text = htmlContent
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // 스크립트 제거
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // 스타일 제거
+      .replace(/<[^>]*>/g, ' ') // 모든 HTML 태그 제거
+      .replace(/&nbsp;/g, ' ') // HTML 엔티티 변환
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ') // 연속된 공백 제거
+      .trim();
+    
+    return text;
+  }
+
+  /**
+   * 추출된 텍스트를 AI를 통해 요약합니다
+   */
+  private async generateAiSummary(text: string): Promise<string> {
+    if (!text || text.length < 50) {
+      return text; // 짧은 텍스트는 그대로 반환
+    }
+    
+    try {
+      // ScrapCombinationService의 AI 요약 기능 활용
+      const summary = await this.scrapCombinationService['createAiSummary'](text);
+      return summary || text;
+    } catch (error) {
+      console.error('AI 요약 생성 실패:', error);
+      // 실패 시 원본 텍스트의 일부만 반환
+      return text.length > 500 ? text.substring(0, 500) + '...' : text;
+    }
   }
 }

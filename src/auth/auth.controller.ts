@@ -16,6 +16,7 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  Version,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthService, GoogleAuthDto, AuthResponse, ChromeExtensionTokenDto } from './auth.service';
@@ -89,6 +90,7 @@ export class AuthController {
   /**
    * 크롬 익스텐션 OAuth 인증
    */
+  @Version('1')
   @Post('chrome-extension/auth')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 

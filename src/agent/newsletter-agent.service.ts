@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
+import { ContentParser, ParsedContent } from '../utils/content-parser.util';
 
 // 멀티 에이전트 페르소나 정의
 export enum AgentPersona {
@@ -496,75 +497,23 @@ Begin synthesis:
   }
 
   /**
-   * 생성된 콘텐츠에서 제목과 본문 파싱
+   * 생성된 콘텐츠에서 제목과 본문 파싱 (ContentParser 유틸리티에 위임)
    */
   private parseGeneratedContent(content: string): { title: string; content: string } {
-    // 1. INTEGRATED_SOLUTION 섹션에서 추출
-    const solutionMatch = content.match(/INTEGRATED_SOLUTION:\s*([\s\S]+)/i);
-    let targetContent = solutionMatch ? solutionMatch[1].trim() : content;
-
-    // 2. **제목** 형식의 제목 찾기
-    const boldTitleMatch = targetContent.match(/\*\*([^*]+)\*\*/);
-    if (boldTitleMatch) {
-      const title = boldTitleMatch[1].trim();
-      const contentWithoutTitle = targetContent.replace(/\*\*[^*]+\*\*/, '').trim();
-      return {
-        title,
-        content: contentWithoutTitle || targetContent,
-      };
-    }
-
-    // 3. # 제목 형식 찾기
-    const hashTitleMatch = targetContent.match(/^#\s*(.+)/m);
-    if (hashTitleMatch) {
-      const title = hashTitleMatch[1].trim();
-      const contentWithoutTitle = targetContent.replace(/^#\s*.+/m, '').trim();
-      return {
-        title,
-        content: contentWithoutTitle || targetContent,
-      };
-    }
-
-    // 4. 첫 번째 줄을 제목으로 사용
-    const lines = targetContent.split('\n');
-    const firstLine = lines[0]?.trim();
-    
-    if (firstLine && firstLine.length > 0 && firstLine.length < 100) {
-      const restContent = lines.slice(1).join('\n').trim();
-      return {
-        title: firstLine.replace(/[#*]/g, '').trim(),
-        content: restContent || targetContent,
-      };
-    }
-
-    // 5. 기본값 반환
-    return {
-      title: '생성된 뉴스레터',
-      content: targetContent,
-    };
+    return ContentParser.parseNewsletterContent(content);
   }
 
   /**
-   * 출력에서 신뢰도 점수 추출
+   * 출력에서 신뢰도 점수 추출 (ContentParser 유틸리티에 위임)
    */
   private extractConfidenceFromOutput(output: string, defaultValue: number = 80): number {
-    const confidenceMatch = output.match(/(?:CONFIDENCE|신뢰도|SYNTHESIS_CONFIDENCE):\s*(\d+)/i);
-    if (confidenceMatch) {
-      const confidence = parseInt(confidenceMatch[1]);
-      return Math.min(Math.max(confidence, 0), 100); // 0-100 범위로 제한
-    }
-    return defaultValue;
+    return ContentParser.extractConfidenceScore(output, defaultValue);
   }
 
   /**
-   * 출력에서 리스트 추출
+   * 출력에서 리스트 추출 (ContentParser 유틸리티에 위임)
    */
   private extractListFromOutput(output: string, fieldName: string): string[] {
-    const pattern = new RegExp(`${fieldName}:\\s*(.+)`, 'i');
-    const match = output.match(pattern);
-    if (match) {
-      return match[1].split('|').map(item => item.trim()).filter(item => item.length > 0);
-    }
-    return [];
+    return ContentParser.extractListFromOutput(output, fieldName);
   }
 } 

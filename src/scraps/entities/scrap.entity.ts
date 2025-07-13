@@ -11,13 +11,16 @@ export class Scrap {
     @Property({ name: 'url', type: 'varchar', length: 2000 })
     url: string;
 
-    @Property({ name: 'title'})
+    @Property({ name: 'title', type: 'text' })
     title: string;
 
-    @Property({ name: 'content'})
+    @Property({ name: 'content', type: 'text' })
     content: string;
 
-    @Property({ name: 'user_comment' })
+    @Property({ name: 'html_content', type: 'text' })
+    htmlContent: string;
+
+    @Property({ name: 'user_comment', type: 'text', nullable: true })
     userComment?: string;
 
     @Property({ name: 'created_at' })
@@ -29,8 +32,8 @@ export class Scrap {
     @ManyToOne(() => User, { fieldName: 'user_id' })
     user: User;
 
-    @ManyToOne(() => Article, { fieldName: 'article_id' })
-    article: Article;
+    @ManyToOne(() => Article, { fieldName: 'article_id', nullable: true })
+    article?: Article;
 
     @OneToMany(() => Tag, tag => tag.scrap)
     tags: Collection<Tag> = new Collection<Tag>(this);

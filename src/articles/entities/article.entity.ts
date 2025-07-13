@@ -1,35 +1,55 @@
-import { Collection, Entity, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
+import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
 import { CreateArticleDto } from '../../api/articles/dto/create-article.dto';
 import { ArticleArchive } from '../../article-archive/entities/article-archive.entity';
+import { User } from '../../users/entities/user.entity';
+import { Scrap } from '../../scraps/entities/scrap.entity';
 
-@Entity()
+@Entity({ tableName: 'Articles' })
 export class Article {
-  @PrimaryKey({ name: 'article_id' })
-  articleId: number;
+  @PrimaryKey({ fieldName: 'article_id' })
+  articleId!: number;
 
-  @Property({ name: 'generation_params' })
-  generationParams: string;
+  // 뉴스레터 제목과 내용 추가
+  @Property({ fieldName: 'title', type: 'varchar', length: 500, nullable: true })
+  title?: string;
 
-  @Property({ name: 'topic' })
-  topic: string;
+  @Property({ fieldName: 'content', type: 'text', nullable: true })
+  content?: string;
 
-  @Property({ name: 'key_insights' })
-  keyInsights: string;
+  @Property({ fieldName: 'topic', type: 'varchar', length: 100 })
+  topic!: string;
 
-  @Property({ name: 'created_at' })
-  createdAt: Date = new Date();
+  @Property({ fieldName: 'key_insight', type: 'text' })
+  keyInsight: string;
 
-  @Property({ name: 'updated_at', onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  @Property({ fieldName: 'generation_params', type: 'text', nullable: true })
+  generationParams?: string; // AI 생성 설정 JSON
 
-  @OneToMany(() => ArticleArchive, articleArchive => articleArchive.article)
-  articleArchives: Collection<ArticleArchive> = new Collection<ArticleArchive>(this);
+  @Property({ fieldName: 'created_at', onCreate: () => new Date() })
+  createdAt = new Date();
 
-  static fromCreateArticleDto(createArticleDto: CreateArticleDto) {
+  @Property({ fieldName: 'updated_at', onUpdate: () => new Date() })
+  updatedAt = new Date();
+
+  @ManyToOne(() => User, { fieldName: 'user_id' })
+  user!: User;
+
+  @OneToMany(() => ArticleArchive, archive => archive.article)
+  archives = new Collection<ArticleArchive>(this);
+
+  @OneToMany(() => Scrap, scrap => scrap.article)
+  scraps = new Collection<Scrap>(this);
+
+  /**
+   * CreateArticleDto로부터 Article 인스턴스를 생성합니다
+   */
+  static fromCreateArticleDto(createArticleDto: CreateArticleDto): Article {
     const article = new Article();
-    article.generationParams = createArticleDto.generationParams;
     article.topic = createArticleDto.topic;
-    article.keyInsights = createArticleDto.keyInsights;
+    article.keyInsight = createArticleDto.keyInsights;
+    article.generationParams = createArticleDto.generationParams;
+    article.title = createArticleDto.title;
+    article.content = createArticleDto.content;
     return article;
   }
 }

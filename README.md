@@ -1,98 +1,201 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Tyquill Extension Server
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+AI 기반 뉴스레터 생성 서비스의 백엔드 서버입니다.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 주요 기능
 
-## Description
+- 🤖 AI 기반 아티클 생성 (LangChain + Google Gemini)
+- 📄 스크랩 데이터 관리 및 조합
+- 📚 아티클 버전 관리
+- 🏷️ 태그 시스템
+- 👥 사용자 관리
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 기술 스택
 
-## Project setup
+- **Framework**: NestJS
+- **Database**: PostgreSQL + MikroORM
+- **AI**: LangChain + Google Gemini API
+- **Language**: TypeScript
+
+## 설치 및 실행
+
+### 1. 의존성 설치
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+### 2. 환경 변수 설정
+
+`.env` 파일을 생성하고 다음 내용을 설정하세요:
+
+```env
+# 데이터베이스 설정
+DATABASE_URL=postgresql://username:password@localhost:5432/tyquill_db
+
+# AI 서비스 설정
+GOOGLE_API_KEY=your_google_gemini_api_key_here
+
+# 애플리케이션 설정
+NODE_ENV=development
+PORT=3000
+
+# 로그 레벨
+LOG_LEVEL=debug
+```
+
+### 3. 데이터베이스 마이그레이션
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# 마이그레이션 실행
+npx mikro-orm migration:up
 ```
 
-## Run tests
+### 4. 애플리케이션 실행
 
 ```bash
-# unit tests
-$ npm run test
+# 개발 모드
+npm run start:dev
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# 프로덕션 모드
+npm run start:prod
 ```
 
-## Deployment
+## API 엔드포인트
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### 아티클 생성 (AI)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```http
+POST /api/v1/articles/generate?userId=1
+Content-Type: application/json
+
+{
+  "topic": "AI 기술 동향 분석",
+  "keyInsight": "AI 기술의 급속한 발전과 산업 적용 사례",
+  "scrapIds": [1, 2, 3],
+  "scrapComments": [
+    {
+      "scrapId": 1,
+      "userComment": "최신 AI 기술 동향에 대한 깊이 있는 분석이 필요합니다."
+    }
+  ],
+  "generationParams": "비즈니스 관점에서 실용적인 인사이트를 포함해주세요."
+}
+```
+
+### 아티클 버전 조회
+
+```http
+GET /api/v1/articles/1/versions
+```
+
+## 테스트
+
+### 단위 테스트
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# 모든 단위 테스트 실행
+npm run test
+
+# 테스트 감시 모드
+npm run test:watch
+
+# 커버리지 포함 테스트
+npm run test:cov
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### E2E 테스트
 
-## Resources
+```bash
+# 모든 E2E 테스트 실행
+npm run test:e2e
 
-Check out a few resources that may come in handy when working with NestJS:
+# 아티클 관련 E2E 테스트만 실행
+npm run test:e2e:articles
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### 프로덕션 환경 테스트
 
-## Support
+실제 API 키를 사용하여 프로덕션 환경과 동일한 조건에서 AI 생성 기능을 테스트합니다:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+# 프로덕션 환경 테스트 실행
+npm run test:production
+```
 
-## Stay in touch
+**주의**: 프로덕션 테스트를 실행하기 전에 다음 사항을 확인하세요:
+- ✅ `.env` 파일에 유효한 `GOOGLE_API_KEY` 설정
+- ✅ 데이터베이스 연결 정상 작동
+- ✅ 필요한 테이블 생성 완료
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+#### 프로덕션 테스트 내용
 
-## License
+1. **🤖 기본 AI 생성 테스트**
+   - 실제 Gemini API를 사용한 아티클 생성
+   - 응답 시간 및 품질 검증
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+2. **🧠 복잡한 콘텐츠 생성 테스트**
+   - 긴 스크랩 데이터를 활용한 고품질 콘텐츠 생성
+   - 키워드 포함 여부 및 구조화 품질 검증
+
+3. **⚡ 성능 테스트**
+   - 다양한 길이의 콘텐츠 생성 성능 측정
+   - 초당 생성량 계산
+
+4. **🔍 품질 검증 테스트**
+   - 주제별 콘텐츠 품질 검증
+   - 제목 관련성 및 내용 일치성 확인
+
+#### 테스트 결과 예시
+
+```
+🚀 프로덕션 환경 AI 생성 테스트 시작...
+
+📝 테스트 데이터 준비 중...
+   👤 사용자 생성 완료: Production Test User (ID: 1)
+   📄 스크랩 2개 생성 완료
+✅ 테스트 데이터 준비 완료
+
+🤖 기본 AI 생성 테스트 시작...
+   ⏱️  실행 시간: 8500ms
+   📝 아티클 ID: 1
+   📋 주제: AI 기술 동향과 비즈니스 적용 전략
+   💡 핵심 인사이트: AI 기술의 급속한 발전이 다양한 산업에 미치는 영향과 기회
+   🔗 연결된 스크랩: 2개
+   📄 생성된 제목: "AI 혁신의 새로운 물결: 비즈니스 성공을 위한 전략적 접근"
+   📊 콘텐츠 길이: 1,247자
+   🔢 버전: 1
+✅ 기본 AI 생성 테스트 완료
+
+🎉 모든 테스트가 성공적으로 완료되었습니다!
+```
+
+## 개발 가이드
+
+### 코드 스타일
+
+- TypeScript 사용
+- ESLint + Prettier 설정
+- 함수명은 동사로 시작
+- 클래스명은 PascalCase
+- 파일명은 kebab-case
+
+### 아키텍처
+
+```
+src/
+├── api/                 # API 컨트롤러
+│   ├── articles/
+│   ├── scraps/
+│   └── tags/
+├── articles/           # 아티클 서비스 로직
+│   ├── ai-generation.service.ts
+│   ├── scrap-combination.service.ts
+│   └── entities/
+├── shared/             # 공통 서비스
+└── users/              # 사용자 관리
+```
+
+## 라이선스
+
+MIT License

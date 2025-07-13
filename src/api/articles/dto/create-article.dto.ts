@@ -1,9 +1,37 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsArray, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateArticleDto {
-    generationParams: string;
+    @ApiProperty()
+    @IsString()
     topic: string;
+
+    @ApiProperty()
+    @IsString()
     keyInsights: string;
+
+    @ApiProperty()
+    @IsOptional()
+    @IsString()
+    generationParams?: string;
+
+    @ApiProperty()
+    @IsOptional()
+    @IsString()
+    title?: string;
+
+    @ApiProperty()
+    @IsOptional()
+    @IsString()
+    content?: string;
+
+    @ApiProperty()
+    @IsNumber()
+    userId: number;
+
+    @ApiProperty()
+    @IsArray()
+    @IsNumber({}, { each: true })
     scrapIds: number[];
 }
 
@@ -19,20 +47,25 @@ export interface ScrapComment {
  * AI 아티클 생성 요청 DTO
  */
 export class GenerateArticleDto {
+    @ApiProperty()
     @IsString()
     topic: string;
 
+    @ApiProperty()
     @IsString()
     keyInsight: string;
 
+    @ApiProperty()
     @IsArray()
     @IsNumber({}, { each: true })
     scrapIds: number[];
 
+    @ApiProperty()
     @IsOptional()
     @IsArray()
     scrapComments?: ScrapComment[];
 
+    @ApiProperty()
     @IsOptional()
     @IsString()
     generationParams?: string;

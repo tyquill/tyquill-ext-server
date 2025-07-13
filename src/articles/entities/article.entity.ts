@@ -9,6 +9,13 @@ export class Article {
   @PrimaryKey({ fieldName: 'article_id' })
   articleId!: number;
 
+  // 뉴스레터 제목과 내용 추가
+  @Property({ fieldName: 'title', type: 'varchar', length: 500, nullable: true })
+  title?: string;
+
+  @Property({ fieldName: 'content', type: 'text', nullable: true })
+  content?: string;
+
   @Property({ fieldName: 'topic', type: 'varchar', length: 100 })
   topic!: string;
 
@@ -41,6 +48,8 @@ export class Article {
     article.topic = createArticleDto.topic;
     article.keyInsight = createArticleDto.keyInsights;
     article.generationParams = createArticleDto.generationParams;
+    article.title = createArticleDto.title;
+    article.content = createArticleDto.content;
     return article;
   }
 }

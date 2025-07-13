@@ -14,6 +14,46 @@ import {
   SelfCorrectionInput 
 } from './newsletter-quality.service';
 
+/**
+ * 뉴스레터 워크플로우 설정 인터페이스
+ * 
+ * @description 뉴스레터 생성 워크플로우의 동작을 제어하는 설정값들을 정의합니다.
+ * 이 설정들을 통해 품질 관리, 재시도 로직, 라우팅 결정 등을 조정할 수 있습니다.
+ */
+interface WorkflowConfig {
+  /**
+   * 신뢰도 기반 라우팅을 위한 임계값 설정
+   */
+  confidenceThresholds: {
+    /**
+     * 높은 신뢰도 임계값 (0-100)
+     * @description 이 값 이상의 신뢰도를 가진 콘텐츠는 즉시 승인되어 high_confidence 라우트로 진행
+     * @default 70
+     */
+    high: number;
+    
+    /**
+     * 중간 신뢰도 임계값 (0-100)
+     * @description 이 값 이상의 신뢰도를 가진 콘텐츠는 medium_confidence 라우트로 진행
+     * @default 40
+     */
+    medium: number;
+  };
+  
+  /**
+   * 재시도 및 교정 프로세스 제한 설정
+   */
+  retryLimits: {
+    /**
+     * 최대 자기교정 시도 횟수
+     * @description 품질이 기준에 미달할 때 자기교정을 시도하는 최대 횟수
+     * 무한 루프를 방지하고 성능을 보장하기 위한 제한
+     * @default 2
+     */
+    maxSelfCorrectionAttempts: number;
+  };
+}
+
 // 뉴스레터 유형 정의 (확장됨)
 export enum NewsletterType {
   INFORMATIONAL = 'informational', // 정보전달형
@@ -109,6 +149,52 @@ export class NewsletterWorkflowService {
   private readonly model: ChatGoogleGenerativeAI;
   private readonly strategistModel: ChatGoogleGenerativeAI;
   private graph: any;
+
+  /**
+   * 워크플로우 설정값들 - 하드코딩된 값들을 여기서 중앙 관리
+   * 
+   * @description 뉴스레터 생성 워크플로우의 핵심 설정값들을 정의합니다.
+   * 이 설정들을 통해 워크플로우의 동작을 조정할 수 있으며,
+   * 향후 환경변수나 데이터베이스에서 로드하도록 확장 가능합니다.
+   */
+  private readonly config: WorkflowConfig = {
+    confidenceThresholds: {
+      high: 70,    // 높은 신뢰도 임계값 - 이 값 이상이면 즉시 승인
+      medium: 40,  // 중간 신뢰도 임계값 - 이 값 이상이면 중간 품질로 분류
+    },
+    retryLimits: {
+      maxSelfCorrectionAttempts: 2, // 최대 자기교정 시도 횟수 - 무한 루프 방지
+    },
+  };
+
+  /**
+   * 설정값 접근을 위한 getter 메서드들
+   * 향후 외부에서 설정을 동적으로 변경할 수 있는 확장성 제공
+   */
+  
+  /**
+   * 현재 confidence threshold 설정 반환
+   */
+  public getConfidenceThresholds(): { high: number; medium: number } {
+    return { ...this.config.confidenceThresholds };
+  }
+
+  /**
+   * 현재 retry 제한 설정 반환
+   */
+  public getRetryLimits(): { maxSelfCorrectionAttempts: number } {
+    return { ...this.config.retryLimits };
+  }
+
+  /**
+   * 전체 설정 객체 반환 (읽기 전용)
+   */
+  public getWorkflowConfig(): Readonly<WorkflowConfig> {
+    return {
+      confidenceThresholds: { ...this.config.confidenceThresholds },
+      retryLimits: { ...this.config.retryLimits },
+    };
+  }
 
   constructor(
     private readonly scrapCombinationService: ScrapCombinationService,
@@ -688,7 +774,7 @@ export class NewsletterWorkflowService {
     const attempts = (state.selfCorrectionAttempts || 0) + 1;
     
     // 최대 2번까지만 자기 교정 시도
-    if (attempts > 2) {
+    if (attempts > this.config.retryLimits.maxSelfCorrectionAttempts) {
       reasoning.push('자기 교정 시도 한계 도달, 현재 버전으로 완료');
       return {
         processingSteps,
@@ -738,9 +824,9 @@ export class NewsletterWorkflowService {
     }
     
     const confidence = state.confidenceScore || 0;
-    if (confidence >= 70) {
+    if (confidence >= this.config.confidenceThresholds.high) {
       return 'high_confidence';
-    } else if (confidence >= 40) {
+    } else if (confidence >= this.config.confidenceThresholds.medium) {
       return 'medium_confidence';
     } else {
       return 'low_confidence';
@@ -763,7 +849,7 @@ export class NewsletterWorkflowService {
 
     // 재시도 횟수 확인 (최대 2회)
     const attempts = state.selfCorrectionAttempts || 0;
-    if (attempts >= 2) {
+    if (attempts >= this.config.retryLimits.maxSelfCorrectionAttempts) {
       console.log('🔄 최대 재시도 횟수에 도달했습니다. 현재 결과로 종료합니다.');
       return 'high_quality';
     }

@@ -9,11 +9,15 @@ import { ArticlesModule } from './articles/articles.module';
 import { ArticleArchiveModule } from './article-archive/article-archive.module';
 import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({}),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     MikroOrmModule.forRoot(mikroOrmConfig),
+    AuthModule, // 인증 모듈 추가
     UsersModule,
     ScrapsModule,
     TagsModule,
@@ -23,4 +27,8 @@ import { ConfigModule } from '@nestjs/config';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  constructor() {
+    console.log('🚀 Application module initialized with Supabase OAuth authentication');
+  }
+}

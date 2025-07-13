@@ -40,19 +40,24 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-      - name: Get current task definition
+      - name: Prepare task definition
         env:
           IMAGE_TAG: ${{ github.sha }}
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          aws ecs describe-task-definition \
-            --task-definition $ECS_SERVICE \
-            --query 'taskDefinition' > task-definition.json
+          # Try to get existing task definition, if it fails use the default one
+          if aws ecs describe-task-definition --task-definition $ECS_SERVICE --query 'taskDefinition' > existing-task-definition.json 2>/dev/null; then
+            echo "Using existing task definition"
+            cp existing-task-definition.json task-definition.json
+          else
+            echo "Using default task definition"
+            cp task-definition.json existing-task-definition.json
+          fi
           
           # Update the image in task definition
           jq --arg IMAGE "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
             '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn) | del(.revision) | del(.status) | del(.requiresAttributes) | del(.placementConstraints) | del(.compatibilities) | del(.registeredAt) | del(.registeredBy)' \
-            task-definition.json > new-task-definition.json
+            existing-task-definition.json > new-task-definition.json
 
       - name: Register new task definition
         run: |

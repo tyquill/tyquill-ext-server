@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { ArticleArchiveService } from '../../article-archive/article-archive.service';
 import { CreateArticleArchiveDto } from './dto/create-article-archive.dto';
 import { UpdateArticleArchiveDto } from './dto/update-article-archive.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('article-archive')
 export class ArticleArchiveController {
   constructor(private readonly articleArchiveService: ArticleArchiveService) {}

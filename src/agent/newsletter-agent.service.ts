@@ -2,6 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
+import { 
+  AI_MODELS_CONFIG, 
+  createModelInitConfig, 
+  APIKeyValidationError,
+  logConfigurationInfo 
+} from '../config/ai-models.config';
 import { ContentParser, ParsedContent } from '../utils/content-parser.util';
 
 // 멀티 에이전트 페르소나 정의
@@ -53,38 +59,44 @@ export class NewsletterAgentService {
   private synthesisPrompt: PromptTemplate;
 
   constructor() {
-    // 각 에이전트별로 특화된 모델 설정
-    this.writerModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.0-flash',
-      temperature: 0.8, // 창의성 중시
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+    try {
+      // 개발 환경에서 설정 정보 출력 (중복 방지를 위해 한 번만)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🤖 Initializing NewsletterAgentService with AI models...');
+      }
 
-    this.editorModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-1.5-flash',
-      temperature: 0.3, // 정확성 중시
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+      // 각 에이전트별로 특화된 모델 설정 (설정 파일에서 로드)
+      this.writerModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.agents.writer)
+      );
 
-    this.reviewerModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-1.5-flash',
-      temperature: 0.1, // 비판적 분석
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+      this.editorModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.agents.editor)
+      );
 
-    this.strategistModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-1.5-pro',
-      temperature: 0.5, // 균형적 접근
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+      this.reviewerModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.agents.reviewer)
+      );
 
-    this.synthesisModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.0-flash',
-      temperature: 0.4, // 종합적 판단
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+      this.strategistModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.agents.strategist)
+      );
 
-    this.initializeAgentPrompts();
+      this.synthesisModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.agents.synthesis)
+      );
+
+      this.initializeAgentPrompts();
+      
+      console.log('✅ NewsletterAgentService: All agent models initialized successfully');
+    } catch (error) {
+      if (error instanceof APIKeyValidationError) {
+        console.error('❌ NewsletterAgentService initialization failed:', error.message);
+        throw new Error(`Failed to initialize agent models: ${error.message}`);
+      }
+      console.error('❌ Unexpected error during NewsletterAgentService initialization:', error);
+      throw error;
+    }
   }
 
   /**

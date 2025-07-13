@@ -2,6 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { NewsletterPromptTemplatesService } from './newsletter-prompt-templates.service';
+import { 
+  AI_MODELS_CONFIG, 
+  createModelInitConfig, 
+  APIKeyValidationError,
+  logConfigurationInfo 
+} from '../config/ai-models.config';
 
 // 향상된 품질 메트릭 정의
 export interface QualityMetrics {
@@ -54,26 +60,34 @@ export class NewsletterQualityService {
   constructor(
     private readonly promptTemplatesService: NewsletterPromptTemplatesService,
   ) {
-    // 품질 검증용 보수적 모델
-    this.qualityModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-1.5-flash',
-      temperature: 0.1, // 엄격한 평가
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+    try {
+      // 개발 환경에서 설정 정보 출력
+      logConfigurationInfo();
 
-    // 리플렉션 전용 창의적 모델
-    this.reflectionModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.0-flash',
-      temperature: 0.8, // 창의적 분석
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+      // 품질 검증용 보수적 모델 (설정 파일에서 로드)
+      this.qualityModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.quality.quality)
+      );
 
-    // 자기 교정용 균형 모델
-    this.correctionModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.0-flash',
-      temperature: 0.5, // 균형적 개선
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+      // 리플렉션 전용 창의적 모델 (설정 파일에서 로드)
+      this.reflectionModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.quality.reflection)
+      );
+
+      // 자기 교정용 균형 모델 (설정 파일에서 로드)
+      this.correctionModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.quality.correction)
+      );
+
+      console.log('✅ NewsletterQualityService: AI models initialized successfully');
+    } catch (error) {
+      if (error instanceof APIKeyValidationError) {
+        console.error('❌ NewsletterQualityService initialization failed:', error.message);
+        throw new Error(`Failed to initialize AI models: ${error.message}`);
+      }
+      console.error('❌ Unexpected error during NewsletterQualityService initialization:', error);
+      throw error;
+    }
   }
 
   /**

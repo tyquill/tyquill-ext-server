@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { Scrap } from '../scraps/entities/scrap.entity';
-import dotenv from 'dotenv';
+import { 
+  AI_MODELS_CONFIG, 
+  createModelInitConfig, 
+  APIKeyValidationError 
+} from '../config/ai-models.config';
 
 export interface ScrapWithComment {
   scrap: Scrap;
@@ -32,12 +36,25 @@ export class ScrapCombinationService {
   private readonly keyPointsTemplate: PromptTemplate;
 
   constructor() {
-    console.log(`process.env.GOOGLE_API_KEY: ${process.env.GOOGLE_API_KEY}`);
-    this.model = new ChatGoogleGenerativeAI({
-      model: 'gemini-1.5-flash',
-      temperature: 0.3,
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🤖 Initializing ScrapCombinationService with AI model...');
+      }
+
+      // 스크랩 분석용 모델 - 워크플로우 메인 모델 사용
+      this.model = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.workflow.main)
+      );
+
+      console.log('✅ ScrapCombinationService: AI model initialized successfully');
+    } catch (error) {
+      if (error instanceof APIKeyValidationError) {
+        console.error('❌ ScrapCombinationService initialization failed:', error.message);
+        throw new Error(`Failed to initialize scrap analysis model: ${error.message}`);
+      }
+      console.error('❌ Unexpected error during ScrapCombinationService initialization:', error);
+      throw error;
+    }
 
     // HTML 분석용 프롬프트
     this.htmlAnalysisTemplate = PromptTemplate.fromTemplate(`

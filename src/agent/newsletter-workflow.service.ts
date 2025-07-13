@@ -14,6 +14,11 @@ import { ToolNodesService } from './node/tool-nodes.service';
 import { AgentNodesService } from './node/agent-nodes.service';
 import { QualityNodesService } from './node/quality-nodes.service';
 import { ContentParser } from '../utils/content-parser.util';
+import { 
+  AI_MODELS_CONFIG, 
+  createModelInitConfig, 
+  APIKeyValidationError 
+} from '../config/ai-models.config';
 
 /**
  * 뉴스레터 워크플로우 설정 인터페이스
@@ -208,21 +213,32 @@ export class NewsletterWorkflowService {
     private readonly agentNodesService: AgentNodesService,
     private readonly qualityNodesService: QualityNodesService,
   ) {
-    // 메인 모델 (일반적인 생성 작업용)
-    this.model = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.0-flash',
-      temperature: 0.7,
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🤖 Initializing NewsletterWorkflowService with AI models...');
+      }
 
-    // 전략적 분석용 모델
-    this.strategistModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-1.5-pro',
-      temperature: 0.5,
-      apiKey: process.env.GOOGLE_API_KEY,
-    });
+      // 메인 모델 (일반적인 생성 작업용) - 설정 파일에서 로드
+      this.model = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.workflow.main)
+      );
 
-    this.initializeGraph();
+      // 전략적 분석용 모델 - 설정 파일에서 로드
+      this.strategistModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig(AI_MODELS_CONFIG.workflow.strategist)
+      );
+
+      this.initializeGraph();
+      
+      console.log('✅ NewsletterWorkflowService: Workflow models initialized successfully');
+    } catch (error) {
+      if (error instanceof APIKeyValidationError) {
+        console.error('❌ NewsletterWorkflowService initialization failed:', error.message);
+        throw new Error(`Failed to initialize workflow models: ${error.message}`);
+      }
+      console.error('❌ Unexpected error during NewsletterWorkflowService initialization:', error);
+      throw error;
+    }
   }
 
   /**

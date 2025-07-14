@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { VersioningType, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { logSupabaseConfig, printEnvironmentGuide } from './config/supabase.config';
+// Removed Supabase config import
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,12 +14,12 @@ async function bootstrap() {
     transform: true,
   }));
 
-  // Supabase 설정 로깅
-  logSupabaseConfig();
+  // JWT 인증 설정 확인
+  console.log('🔐 JWT authentication enabled');
 
   const config = new DocumentBuilder()
     .setTitle('TyQuill Extension Server API')
-    .setDescription('API documentation for TyQuill extension server with Supabase OAuth authentication')
+    .setDescription('API documentation for TyQuill extension server with JWT authentication')
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -79,14 +79,13 @@ async function bootstrap() {
   console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
   console.log(`🔐 Authentication endpoints: http://localhost:${port}/api/auth`);
   
-  // 환경 변수 설정이 잘못된 경우 가이드 출력
+  // JWT 설정 확인
   if (process.env.NODE_ENV !== 'production') {
-    try {
-      const { logSupabaseConfig } = await import('./config/supabase.config');
-      logSupabaseConfig();
-    } catch (error) {
-      console.log('\n❌ Supabase configuration error detected!');
-      printEnvironmentGuide();
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || jwtSecret === 'your-fallback-secret-key') {
+      console.log('\n⚠️  Warning: Using fallback JWT secret. Please set JWT_SECRET in production!');
+    } else {
+      console.log('✅ JWT secret configured properly');
     }
   }
 }

@@ -8,7 +8,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { getJwtSecret, SupabaseConfigError } from '../../config/supabase.config';
+// Removed Supabase config import
 
 /**
  * JWT 페이로드 인터페이스
@@ -55,25 +55,17 @@ export interface AuthenticatedUser {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
-    try {
-      const jwtSecret = getJwtSecret();
-      
-      super({
-        jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-        ignoreExpiration: false,
-        secretOrKey: jwtSecret,
-        issuer: process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).origin : undefined,
-        audience: 'authenticated',
-      });
+    const jwtSecret = process.env.JWT_SECRET || 'your-fallback-secret-key';
+    
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: jwtSecret,
+      issuer: 'tyquill-ext-server',
+      audience: 'tyquill-ext-client',
+    });
 
-      console.log('✅ JWT Strategy initialized successfully');
-    } catch (error) {
-      if (error instanceof SupabaseConfigError) {
-        console.error('❌ JWT Strategy initialization failed:', error.message);
-        throw new Error(`JWT Strategy setup failed: ${error.message}`);
-      }
-      throw error;
-    }
+    console.log('✅ JWT Strategy initialized successfully');
   }
 
   /**

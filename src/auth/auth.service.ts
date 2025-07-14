@@ -1,19 +1,16 @@
 /**
  * 인증 서비스
  * 
- * @description Supabase를 통한 Google OAuth 인증을 처리하는 서비스입니다.
+ * @description Google OAuth 인증을 처리하는 서비스입니다.
  * 크롬 익스텐션과 일반 웹 애플리케이션 모두 지원합니다.
- * Linear issue CHI-40 요구사항에 따라 구현되었습니다.
+ * JWT 토큰 기반 인증을 사용합니다.
  */
 
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
-import { 
-  createSupabaseClient, 
-  createSupabaseAdminClient, 
-  validateGoogleOAuthConfig,
-  SupabaseConfigError 
-} from '../config/supabase.config';
+import { JwtService } from '@nestjs/jwt';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
+import { UsersService } from '../users/users.service';
+import { OAuthProvider } from '../users/entities/user-oauth.entity';
 
 /**
  * Google OAuth 인증 요청 DTO
@@ -73,32 +70,23 @@ export interface ChromeExtensionOAuthConfig {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly supabase;
-  private readonly adminSupabase;
 
-  constructor() {
-    try {
-      this.supabase = createSupabaseClient();
-      this.adminSupabase = createSupabaseAdminClient();
-      
-      // Google OAuth 설정 검증
-      validateGoogleOAuthConfig();
-      
-      this.logger.log('✅ AuthService initialized successfully for Chrome Extension');
-    } catch (error) {
-      if (error instanceof SupabaseConfigError) {
-        this.logger.error('❌ AuthService initialization failed:', error.message);
-        throw new Error(`AuthService setup failed: ${error.message}`);
-      }
-      throw error;
-    }
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly usersService: UsersService,
+  ) {
+    this.logger.log('✅ AuthService initialized successfully for Chrome Extension');
   }
 
   /**
    * 크롬 익스텐션용 Google OAuth 설정 반환
    */
   getChromeExtensionOAuthConfig(): ChromeExtensionOAuthConfig {
-    const { clientId } = validateGoogleOAuthConfig();
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    
+    if (!clientId) {
+      throw new Error('GOOGLE_CLIENT_ID is not configured');
+    }
     
     return {
       clientId,
@@ -121,39 +109,41 @@ export class AuthService {
       // Google 토큰으로 사용자 정보 가져오기
       const userInfo = await this.getUserInfoFromGoogleToken(tokenDto.accessToken);
       
-      // Supabase에서 사용자 생성 또는 업데이트
-      const { data, error } = await this.supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: tokenDto.accessToken,
+      // 데이터베이스에서 사용자 생성 또는 업데이트
+      const user = await this.usersService.createOrUpdateOAuthUser({
+        email: userInfo.email,
+        name: userInfo.name,
+        oauthProvider: OAuthProvider.GOOGLE,
+        oauthId: userInfo.id,
+        profileData: userInfo,
       });
 
-      if (error) {
-        this.logger.error('Chrome Extension OAuth authentication failed:', error);
-        throw new UnauthorizedException('Chrome Extension authentication failed');
-      }
-
-      if (!data.session || !data.user) {
-        throw new UnauthorizedException('No session or user data received from Chrome Extension auth');
-      }
-
-      // 사용자 정보 구성
-      const user = {
-        id: data.user.id,
-        email: data.user.email!,
-        fullName: userInfo.name || data.user.user_metadata?.full_name,
-        avatarUrl: userInfo.picture || data.user.user_metadata?.avatar_url,
-        provider: 'google',
+      // JWT 토큰 생성
+      const payload = { 
+        sub: user.userId, 
+        email: user.email,
+        name: user.name,
+        provider: 'google'
       };
+      
+      const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
+      const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
 
       const authResponse: AuthResponse = {
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token,
-        user,
-        expiresAt: data.session.expires_at || 0,
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.userId.toString(),
+          email: user.email,
+          fullName: user.name,
+          avatarUrl: userInfo.picture,
+          provider: 'google',
+        },
+        expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1시간 후
       };
 
       this.logger.log('Chrome Extension OAuth authentication successful', {
-        userId: user.id,
+        userId: user.userId,
         email: user.email,
         extensionId: tokenDto.extensionId,
       });
@@ -193,27 +183,31 @@ export class AuthService {
   }
 
   /**
-   * Google OAuth URL 생성 (일반 웹 애플리케이션용)
+   * Google OAuth URL 생성 (직접 구현)
    */
   async getGoogleOAuthUrl(redirectUri: string): Promise<{ url: string }> {
     try {
-      const { data, error } = await this.supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUri,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      
+      if (!clientId) {
+        throw new Error('GOOGLE_CLIENT_ID is not configured');
+      }
+      
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'openid email profile',
+        access_type: 'offline',
+        prompt: 'consent',
+        state: Math.random().toString(36).substring(2, 15), // CSRF 보호용
       });
 
-      if (error) {
-        this.logger.error('Failed to generate Google OAuth URL:', error);
-        throw new UnauthorizedException('Failed to generate OAuth URL');
-      }
-
-      return { url: data.url };
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      
+      this.logger.log('Generated Google OAuth URL', { redirectUri, url });
+      
+      return { url };
     } catch (error) {
       this.logger.error('Error generating Google OAuth URL:', error);
       throw new UnauthorizedException('OAuth URL generation failed');
@@ -221,39 +215,78 @@ export class AuthService {
   }
 
   /**
-   * Google OAuth 코드로 인증 처리 (일반 웹 애플리케이션용)
+   * Google OAuth 코드로 인증 처리 (직접 구현)
    */
   async authenticateWithGoogle(authDto: GoogleAuthDto): Promise<AuthResponse> {
     try {
-      const { data, error } = await this.supabase.auth.exchangeCodeForSession(authDto.code);
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        throw new Error('Google OAuth configuration is missing');
+      }
+      
+      // 1. Google OAuth 코드를 토큰으로 교환
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: authDto.code,
+          redirect_uri: authDto.redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      });
 
-      if (error) {
-        this.logger.error('Google OAuth authentication failed:', error);
-        throw new UnauthorizedException('Google authentication failed');
+      if (!tokenResponse.ok) {
+        const error = await tokenResponse.text();
+        this.logger.error('Google token exchange failed:', error);
+        throw new UnauthorizedException('Google token exchange failed');
       }
 
-      if (!data.session || !data.user) {
-        throw new UnauthorizedException('No session or user data received');
-      }
+      const tokenData = await tokenResponse.json();
+      
+      // 2. Google API로 사용자 정보 가져오기
+      const userInfo = await this.getUserInfoFromGoogleToken(tokenData.access_token);
+      
+      // 3. 데이터베이스에서 사용자 생성 또는 업데이트
+      const user = await this.usersService.createOrUpdateOAuthUser({
+        email: userInfo.email,
+        name: userInfo.name,
+        oauthProvider: OAuthProvider.GOOGLE,
+        oauthId: userInfo.id,
+        profileData: userInfo,
+      });
 
-      // 사용자 정보 구성
-      const user = {
-        id: data.user.id,
-        email: data.user.email!,
-        fullName: data.user.user_metadata?.full_name || data.user.user_metadata?.name,
-        avatarUrl: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture,
-        provider: 'google',
+      // 4. JWT 토큰 생성
+      const payload = { 
+        sub: user.userId, 
+        email: user.email,
+        name: user.name,
+        provider: 'google'
       };
+      
+      const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
+      const refreshToken = await this.jwtService.signAsync(payload, { expiresIn: '7d' });
 
       const authResponse: AuthResponse = {
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token,
-        user,
-        expiresAt: data.session.expires_at || 0,
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.userId.toString(),
+          email: user.email,
+          fullName: user.name,
+          avatarUrl: userInfo.picture,
+          provider: 'google',
+        },
+        expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1시간 후
       };
 
       this.logger.log('Google OAuth authentication successful', {
-        userId: user.id,
+        userId: user.userId,
         email: user.email,
       });
 
@@ -274,36 +307,42 @@ export class AuthService {
    */
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     try {
-      const { data, error } = await this.supabase.auth.refreshSession({
-        refresh_token: refreshToken,
-      });
-
-      if (error) {
-        this.logger.error('Token refresh failed:', error);
-        throw new UnauthorizedException('Token refresh failed');
+      // JWT refresh token 검증
+      const payload = await this.jwtService.verifyAsync(refreshToken);
+      
+      // 사용자 정보 조회
+      const user = await this.usersService.findOne(payload.sub);
+      
+      if (!user) {
+        throw new UnauthorizedException('User not found');
       }
 
-      if (!data.session || !data.user) {
-        throw new UnauthorizedException('No session or user data received');
-      }
-
-      const user = {
-        id: data.user.id,
-        email: data.user.email!,
-        fullName: data.user.user_metadata?.full_name || data.user.user_metadata?.name,
-        avatarUrl: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture,
-        provider: data.user.app_metadata?.provider || 'google',
+      // 새로운 토큰 생성
+      const newPayload = { 
+        sub: user.userId, 
+        email: user.email,
+        name: user.name,
+        provider: 'google'
       };
+      
+      const accessToken = await this.jwtService.signAsync(newPayload, { expiresIn: '1h' });
+      const newRefreshToken = await this.jwtService.signAsync(newPayload, { expiresIn: '7d' });
 
       const authResponse: AuthResponse = {
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token,
-        user,
-        expiresAt: data.session.expires_at || 0,
+        accessToken,
+        refreshToken: newRefreshToken,
+        user: {
+          id: user.userId.toString(),
+          email: user.email,
+          fullName: user.name,
+          avatarUrl: user.oauthAccounts?.[0]?.profileData?.picture,
+          provider: 'google',
+        },
+        expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1시간 후
       };
 
       this.logger.log('Token refresh successful', {
-        userId: user.id,
+        userId: user.userId,
         email: user.email,
       });
 
@@ -324,25 +363,20 @@ export class AuthService {
    */
   async getUserProfile(userId: string): Promise<UserProfile> {
     try {
-      const { data, error } = await this.adminSupabase.auth.admin.getUserById(userId);
+      const user = await this.usersService.findOne(parseInt(userId));
 
-      if (error) {
-        this.logger.error('Failed to get user profile:', error);
-        throw new UnauthorizedException('Failed to get user profile');
-      }
-
-      if (!data.user) {
+      if (!user) {
         throw new UnauthorizedException('User not found');
       }
 
       const profile: UserProfile = {
-        id: data.user.id,
-        email: data.user.email!,
-        fullName: data.user.user_metadata?.full_name || data.user.user_metadata?.name,
-        avatarUrl: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture,
-        provider: data.user.app_metadata?.provider || 'google',
-        createdAt: data.user.created_at,
-        lastSignInAt: data.user.last_sign_in_at,
+        id: user.userId.toString(),
+        email: user.email,
+        fullName: user.name,
+        avatarUrl: user.oauthAccounts?.[0]?.profileData?.picture,
+        provider: user.oauthAccounts?.[0]?.oauthProvider || 'google',
+        createdAt: user.createdAt.toISOString(),
+        lastSignInAt: user.updatedAt.toISOString(),
       };
 
       return profile;
@@ -362,27 +396,11 @@ export class AuthService {
    */
   async logout(accessToken: string): Promise<void> {
     try {
-      // Supabase 클라이언트에 토큰 설정
-      await this.supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: '', // 로그아웃 시에는 refresh token이 필요하지 않음
-      });
-
-      const { error } = await this.supabase.auth.signOut();
-
-      if (error) {
-        this.logger.error('Logout failed:', error);
-        throw new UnauthorizedException('Logout failed');
-      }
-
+      // JWT 기반에서는 토큰을 단순히 무효화하는 방식을 사용
+      // 실제로는 클라이언트에서 토큰을 삭제하는 방식으로 처리
       this.logger.log('User logged out successfully');
     } catch (error) {
       this.logger.error('Logout error:', error);
-      
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      
       throw new UnauthorizedException('Logout failed');
     }
   }

@@ -11,6 +11,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { CallbackController } from './callback.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard, OptionalJwtAuthGuard } from './guards/jwt-auth.guard';
 import { getJwtSecret } from '../config/supabase.config';
@@ -30,7 +31,7 @@ import { getJwtSecret } from '../config/supabase.config';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, CallbackController],
   providers: [
     AuthService,
     JwtStrategy,

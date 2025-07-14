@@ -17,7 +17,8 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty } from 'class-validator';
 import { AuthService, GoogleAuthDto, AuthResponse, ChromeExtensionTokenDto } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
@@ -26,7 +27,14 @@ import { AuthenticatedUser } from './strategies/jwt.strategy';
  * Google OAuth 인증 요청 DTO
  */
 export class GoogleAuthRequestDto {
+  @ApiProperty({ description: 'Google OAuth authorization code' })
+  @IsString()
+  @IsNotEmpty()
   code: string;
+
+  @ApiProperty({ description: 'OAuth redirect URI' })
+  @IsString()
+  @IsNotEmpty()
   redirectUri: string;
 }
 

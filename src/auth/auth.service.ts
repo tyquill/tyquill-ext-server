@@ -193,27 +193,27 @@ export class AuthService {
   }
 
   /**
-   * Google OAuth URL 생성 (일반 웹 애플리케이션용)
+   * Google OAuth URL 생성 (직접 구현)
    */
   async getGoogleOAuthUrl(redirectUri: string): Promise<{ url: string }> {
     try {
-      const { data, error } = await this.supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUri,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
+      const { clientId } = validateGoogleOAuthConfig();
+      
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'openid email profile',
+        access_type: 'offline',
+        prompt: 'consent',
+        state: Math.random().toString(36).substring(2, 15), // CSRF 보호용
       });
 
-      if (error) {
-        this.logger.error('Failed to generate Google OAuth URL:', error);
-        throw new UnauthorizedException('Failed to generate OAuth URL');
-      }
-
-      return { url: data.url };
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      
+      this.logger.log('Generated Google OAuth URL', { redirectUri, url });
+      
+      return { url };
     } catch (error) {
       this.logger.error('Error generating Google OAuth URL:', error);
       throw new UnauthorizedException('OAuth URL generation failed');
@@ -221,27 +221,59 @@ export class AuthService {
   }
 
   /**
-   * Google OAuth 코드로 인증 처리 (일반 웹 애플리케이션용)
+   * Google OAuth 코드로 인증 처리 (직접 구현)
    */
   async authenticateWithGoogle(authDto: GoogleAuthDto): Promise<AuthResponse> {
     try {
-      const { data, error } = await this.supabase.auth.exchangeCodeForSession(authDto.code);
+      const { clientId, clientSecret } = validateGoogleOAuthConfig();
+      
+      // 1. Google OAuth 코드를 토큰으로 교환
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: authDto.code,
+          redirect_uri: authDto.redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const error = await tokenResponse.text();
+        this.logger.error('Google token exchange failed:', error);
+        throw new UnauthorizedException('Google token exchange failed');
+      }
+
+      const tokenData = await tokenResponse.json();
+      
+      // 2. Google API로 사용자 정보 가져오기
+      const userInfo = await this.getUserInfoFromGoogleToken(tokenData.access_token);
+      
+      // 3. Supabase에서 사용자 생성 또는 업데이트 (signInWithIdToken 사용)
+      const { data, error } = await this.supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: tokenData.id_token || tokenData.access_token,
+      });
 
       if (error) {
-        this.logger.error('Google OAuth authentication failed:', error);
-        throw new UnauthorizedException('Google authentication failed');
+        this.logger.error('Supabase authentication failed:', error);
+        throw new UnauthorizedException('Supabase authentication failed');
       }
 
       if (!data.session || !data.user) {
         throw new UnauthorizedException('No session or user data received');
       }
 
-      // 사용자 정보 구성
+      // 4. 사용자 정보 구성
       const user = {
         id: data.user.id,
-        email: data.user.email!,
-        fullName: data.user.user_metadata?.full_name || data.user.user_metadata?.name,
-        avatarUrl: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture,
+        email: userInfo.email || data.user.email!,
+        fullName: userInfo.name || data.user.user_metadata?.full_name,
+        avatarUrl: userInfo.picture || data.user.user_metadata?.avatar_url,
         provider: 'google',
       };
 

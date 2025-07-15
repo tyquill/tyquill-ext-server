@@ -14,7 +14,7 @@ export class CreateScrapDto {
 
   @ApiProperty()
   @IsString()
-  htmlContent: string; // 전체 HTML 내용 (프론트엔드에서 전송)
+  content: string;
 
   @ApiProperty()
   @IsOptional()
@@ -25,4 +25,13 @@ export class CreateScrapDto {
   @IsOptional()
   @IsNumber()
   articleId?: number;
+
+  @ApiProperty()
+  @IsOptional()
+  tags?: string[];
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  htmlContent?: string;
 }

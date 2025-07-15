@@ -87,15 +87,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
 
       // 역할 검증 (기본적으로 authenticated 역할 필요)
-      if (payload.role !== 'authenticated') {
-        throw new UnauthorizedException('Invalid user role');
-      }
+      // 임시로 role 검증 비활성화 - 기존 토큰 호환성을 위해
+      // if (payload.role !== 'authenticated') {
+      //   throw new UnauthorizedException('Invalid user role');
+      // }
 
       // 사용자 정보 구성
       const user: AuthenticatedUser = {
         id: payload.sub,
         email: payload.email,
-        role: payload.role,
+        role: payload.role || 'authenticated', // 기본값 설정
         metadata: {
           fullName: payload.user_metadata?.full_name || payload.user_metadata?.name,
           avatarUrl: payload.user_metadata?.avatar_url || payload.user_metadata?.picture,

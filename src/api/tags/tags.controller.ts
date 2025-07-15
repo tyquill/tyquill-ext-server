@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { TagsService } from '../../tags/tags.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
@@ -15,42 +15,40 @@ export class TagsController {
   @Version('1')
   @Post()
   async create(
+    @Request() req: any,
     @Body() createTagDto: CreateTagDto,
-    @Query('userId') userId?: number, // TODO: Replace with auth token
     @Query('scrapId') scrapId?: number,
   ) {
     try {
-      const resolvedUserId = userId || 1; // TODO: Get from auth token
-      return await this.tagsService.create(createTagDto, resolvedUserId, scrapId);
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      return await this.tagsService.create(createTagDto, userId, scrapId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
     }
   }
 
   /**
-   * GET /api/v1/tags - 태그 목록 조회 (기본 검색 포함)
+   * GET /api/v1/tags - 현재 사용자의 태그 목록 조회
    */
   @Version('1')
   @Get()
   async findAll(
-    @Query('userId') userId?: number,
+    @Request() req: any,
     @Query('name') name?: string,
     @Query('scrapId') scrapId?: number,
   ) {
     try {
-      if (name && userId) {
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+
+      if (name) {
         return await this.tagsService.getTagsByName(userId, name);
       }
 
-      if (userId && scrapId) {
+      if (scrapId) {
         return await this.tagsService.findByUserAndScrap(userId, scrapId);
       }
 
-      if (userId) {
-        return await this.tagsService.findByUser(userId);
-      }
-
-      return await this.tagsService.findAll();
+      return await this.tagsService.findByUser(userId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -114,25 +112,13 @@ export class TagsController {
   }
 
   /**
-   * GET /api/v1/tags/user/:userId - 특정 사용자의 태그 목록
+   * GET /api/v1/tags/names - 현재 사용자의 고유 태그명 목록
    */
   @Version('1')
-  @Get('user/:userId')
-  async findByUser(@Param('userId', ParseIntPipe) userId: number) {
+  @Get('names')
+  async getUserTagNames(@Request() req: any) {
     try {
-      return await this.tagsService.findByUser(userId);
-    } catch (error: any) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  /**
-   * GET /api/v1/tags/user/:userId/names - 특정 사용자의 고유 태그명 목록
-   */
-  @Version('1')
-  @Get('user/:userId/names')
-  async getUserTagNames(@Param('userId', ParseIntPipe) userId: number) {
-    try {
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
       return await this.tagsService.getUserTagNames(userId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);

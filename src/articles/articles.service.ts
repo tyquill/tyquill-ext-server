@@ -203,31 +203,6 @@ export class ArticlesService {
     return archive;
   }
 
-  /**
-   * 아티클 통계 조회
-   */
-  async getStatistics(userId?: number): Promise<any> {
-    const articleWhereClause = userId ? { user: { userId } } : {};
-    const archiveWhereClause = userId ? { article: { user: { userId } } } : {};
-    
-    const totalArticles = await this.articleRepository.count(articleWhereClause);
-    const totalArchived = await this.articleArchiveRepository.count(archiveWhereClause);
-    
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const recentArticles = await this.articleRepository.count({
-      ...articleWhereClause,
-      createdAt: { $gte: sevenDaysAgo } as any
-    });
-
-    return {
-      totalArticles,
-      totalArchived,
-      recentArticles,
-      totalManaged: totalArticles + totalArchived,
-    };
-  }
 
   /**
    * 아티클 검색

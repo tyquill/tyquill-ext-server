@@ -26,7 +26,6 @@ export interface PaginationOptions {
 
 @Injectable()
 export class ScrapsService {
-
   constructor(
     private readonly em: EntityManager,
     @InjectRepository(Scrap)
@@ -38,82 +37,91 @@ export class ScrapsService {
     private readonly scrapCombinationService: ScrapCombinationService,
   ) {}
 
-  async create(createScrapDto: CreateScrapDto, userId: number, articleId?: number): Promise<Scrap> {
+  async create(
+    createScrapDto: CreateScrapDto,
+    userId: number,
+    articleId?: number,
+  ): Promise<Scrap> {
     const user = await this.userRepository.findOne({ userId });
     if (!user) {
       throw new Error('User not found');
     }
-    
-    const article = articleId ? await this.articleRepository.findOne({ articleId }) : null;
+
+    const article = articleId
+      ? await this.articleRepository.findOne({ articleId })
+      : null;
     if (articleId && !article) {
       throw new Error('Article not found');
     }
-    
-    // HTML에서 텍스트 추출
-    const extractedText = this.extractTextFromHtml(createScrapDto.htmlContent);
-    
-    // AI 기반 요약 생성
-    const aiSummary = await this.generateAiSummary(extractedText);
-    
+
     const scrap = new Scrap();
     scrap.url = createScrapDto.url;
     scrap.title = createScrapDto.title;
-    scrap.content = aiSummary; // AI 기반 요약된 텍스트
-    scrap.htmlContent = createScrapDto.htmlContent; // 원본 HTML
+    scrap.content = createScrapDto.content;
+    scrap.htmlContent = '';
     scrap.userComment = createScrapDto.userComment;
     scrap.user = user;
-    
+
     if (article) {
       scrap.article = article;
     }
-    
+
     await this.em.persistAndFlush(scrap);
     return scrap;
   }
 
   async findAll(userId?: number): Promise<Scrap[]> {
-    const query = userId 
-      ? { user: { userId } }
-      : {};
-    
+    const query = userId ? { user: { userId } } : {};
+
     return await this.scrapRepository.find(query, {
-      populate: ['user', 'article', 'tags']
+      populate: ['user', 'article', 'tags'],
     });
   }
 
   async findOne(scrapId: number): Promise<Scrap | null> {
-    return await this.scrapRepository.findOne({ scrapId }, {
-      populate: ['user', 'article', 'tags']
-    });
+    return await this.scrapRepository.findOne(
+      { scrapId },
+      {
+        populate: ['user', 'article', 'tags'],
+      },
+    );
   }
 
   async findByUser(userId: number): Promise<Scrap[]> {
     return await this.scrapRepository.find(
       { user: { userId } },
-      { populate: ['user', 'article', 'tags'] }
+      { populate: ['user', 'article', 'tags'] },
     );
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {
     return await this.scrapRepository.find(
       { article: { articleId } },
-      { populate: ['user', 'article', 'tags'] }
+      { populate: ['user', 'article', 'tags'] },
     );
   }
 
-  async update(scrapId: number, updateScrapDto: UpdateScrapDto): Promise<Scrap | null> {
+  async update(
+    scrapId: number,
+    updateScrapDto: UpdateScrapDto,
+  ): Promise<Scrap | null> {
     const scrap = await this.scrapRepository.findOne({ scrapId });
     if (!scrap) {
       return null;
     }
-    
+
     // htmlContent가 변경되면 content도 다시 생성
-    if (updateScrapDto.htmlContent && updateScrapDto.htmlContent !== scrap.htmlContent) {
-      const extractedText = this.extractTextFromHtml(updateScrapDto.htmlContent);
+    if (
+      updateScrapDto.htmlContent &&
+      updateScrapDto.htmlContent !== scrap.htmlContent
+    ) {
+      const extractedText = this.extractTextFromHtml(
+        updateScrapDto.htmlContent,
+      );
       const aiSummary = await this.generateAiSummary(extractedText);
       scrap.content = aiSummary;
     }
-    
+
     Object.assign(scrap, updateScrapDto);
     await this.em.flush();
     return scrap;
@@ -128,13 +136,13 @@ export class ScrapsService {
 
   async search(query: string, userId?: number): Promise<Scrap[]> {
     const qb = this.em.createQueryBuilder(Scrap, 's');
-    
+
     qb.where({
       $or: [
         { title: { $ilike: `%${query}%` } },
         { content: { $ilike: `%${query}%` } },
-        { userComment: { $ilike: `%${query}%` } }
-      ]
+        { userComment: { $ilike: `%${query}%` } },
+      ],
     });
 
     if (userId) {
@@ -152,11 +160,11 @@ export class ScrapsService {
    * 고급 검색 및 필터링
    */
   async advancedSearch(
-    searchOptions: SearchOptions, 
-    paginationOptions: PaginationOptions = {}
+    searchOptions: SearchOptions,
+    paginationOptions: PaginationOptions = {},
   ): Promise<{ scraps: Scrap[]; total: number; page: number; limit: number }> {
     const qb = this.em.createQueryBuilder(Scrap, 's');
-    
+
     // 기본 조인
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
@@ -170,8 +178,8 @@ export class ScrapsService {
           { title: { $ilike: `%${searchTerm}%` } },
           { content: { $ilike: `%${searchTerm}%` } },
           { userComment: { $ilike: `%${searchTerm}%` } },
-          { url: { $ilike: `%${searchTerm}%` } }
-        ]
+          { url: { $ilike: `%${searchTerm}%` } },
+        ],
       });
     }
 
@@ -187,10 +195,10 @@ export class ScrapsService {
 
     // 태그 기반 필터링
     if (searchOptions.tags && searchOptions.tags.length > 0) {
-      qb.andWhere({ 
-        tags: { 
-          name: { $in: searchOptions.tags } 
-        } 
+      qb.andWhere({
+        tags: {
+          name: { $in: searchOptions.tags },
+        },
       });
     }
 
@@ -225,7 +233,7 @@ export class ScrapsService {
       scraps,
       total,
       page,
-      limit
+      limit,
     };
   }
 
@@ -233,12 +241,12 @@ export class ScrapsService {
    * 태그 기반 필터링
    */
   async findByTags(
-    tagNames: string[], 
-    userId?: number, 
-    matchAll: boolean = false
+    tagNames: string[],
+    userId?: number,
+    matchAll: boolean = false,
   ): Promise<Scrap[]> {
     const qb = this.em.createQueryBuilder(Scrap, 's');
-    
+
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
       .leftJoinAndSelect('s.tags', 't');
@@ -267,9 +275,9 @@ export class ScrapsService {
     if (!htmlContent) {
       return '';
     }
-    
+
     // 기본적인 HTML 태그 제거
-    let text = htmlContent
+    const text = htmlContent
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // 스크립트 제거
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // 스타일 제거
       .replace(/<[^>]*>/g, ' ') // 모든 HTML 태그 제거
@@ -281,7 +289,7 @@ export class ScrapsService {
       .replace(/&#39;/g, "'")
       .replace(/\s+/g, ' ') // 연속된 공백 제거
       .trim();
-    
+
     return text;
   }
 
@@ -292,10 +300,11 @@ export class ScrapsService {
     if (!text || text.length < 50) {
       return text; // 짧은 텍스트는 그대로 반환
     }
-    
+
     try {
       // ScrapCombinationService의 AI 요약 기능 활용
-      const summary = await this.scrapCombinationService['createAiSummary'](text);
+      const summary =
+        await this.scrapCombinationService['createAiSummary'](text);
       return summary || text;
     } catch (error) {
       console.error('AI 요약 생성 실패:', error);

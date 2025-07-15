@@ -123,7 +123,8 @@ export class AuthService {
         sub: user.userId, 
         email: user.email,
         name: user.name,
-        provider: 'google'
+        provider: 'google',
+        role: 'authenticated'
       };
       
       const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
@@ -266,7 +267,8 @@ export class AuthService {
         sub: user.userId, 
         email: user.email,
         name: user.name,
-        provider: 'google'
+        provider: 'google',
+        role: 'authenticated'
       };
       
       const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '1h' });
@@ -322,7 +324,8 @@ export class AuthService {
         sub: user.userId, 
         email: user.email,
         name: user.name,
-        provider: 'google'
+        provider: 'google',
+        role: 'authenticated'
       };
       
       const accessToken = await this.jwtService.signAsync(newPayload, { expiresIn: '1h' });

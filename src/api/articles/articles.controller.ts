@@ -9,12 +9,12 @@ import {
   Query,
   Version,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { ArticlesService } from '../../articles/articles.service';
 import { CreateArticleDto, GenerateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
-import { ApiBody, ApiCreatedResponse, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Article } from 'src/articles/entities/article.entity';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('articles')
@@ -34,26 +34,28 @@ export class ArticlesController {
 
   /**
    * AI를 사용하여 뉴스레터를 생성합니다
-   * POST /api/v1/articles/generate/:userId
+   * POST /api/v1/articles/generate
    */
   @ApiOperation({ summary: 'AI를 사용하여 고품질 뉴스레터를 생성합니다' })
   @ApiResponse({ status: 201, description: '뉴스레터가 성공적으로 생성되었습니다.' })
   @ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
   @ApiResponse({ status: 404, description: '사용자나 스크랩을 찾을 수 없습니다.' })
   @Version('1')
-  @Post('generate/:userId')
-  async generateArticle(@Param('userId') userId: string, @Body() generateArticleDto: GenerateArticleDto) {
-    return this.articlesService.generateArticle(+userId, generateArticleDto);
+  @Post('generate')
+  async generateArticle(@Request() req: any, @Body() generateArticleDto: GenerateArticleDto) {
+    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    return this.articlesService.generateArticle(userId, generateArticleDto);
   }
 
   /**
-   * 모든 아티클 조회
+   * 현재 사용자의 아티클 조회
    * GET /api/v1/articles
    */
   @Version('1')
   @Get()
-  findAll() {
-    return this.articlesService.findAll();
+  findAll(@Request() req: any) {
+    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    return this.articlesService.findByUser(userId);
   }
 
   /**
@@ -66,37 +68,18 @@ export class ArticlesController {
     return this.articlesService.findOne(+id);
   }
 
-  /**
-   * 사용자별 아티클 조회
-   * GET /api/v1/articles/user/:userId
-   */
-  @Version('1')
-  @Get('user/:userId')
-  findByUser(@Param('userId') userId: string) {
-    return this.articlesService.findByUser(+userId);
-  }
 
   /**
    * 아티클 검색
-   * GET /api/v1/articles/search?q=검색어&userId=사용자ID
+   * GET /api/v1/articles/search?q=검색어
    */
   @Version('1')
   @Get('search')
-  search(@Query('q') query: string, @Query('userId') userId?: string) {
-    const userIdNumber = userId ? parseInt(userId, 10) : undefined;
-    return this.articlesService.search(query, userIdNumber);
+  search(@Request() req: any, @Query('q') query: string) {
+    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    return this.articlesService.search(query, userId);
   }
 
-  /**
-   * 아티클 통계 조회
-   * GET /api/v1/articles/stats?userId=사용자ID
-   */
-  @Version('1')
-  @Get('stats')
-  getStatistics(@Query('userId') userId?: string) {
-    const userIdNumber = userId ? parseInt(userId, 10) : undefined;
-    return this.articlesService.getStatistics(userIdNumber);
-  }
 
   /**
    * 아티클 업데이트

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { ScrapsService, SearchOptions, PaginationOptions } from '../../scraps/scraps.service';
 import { TagsService } from '../../tags/tags.service';
 import { CreateScrapDto } from './dto/create-scrap.dto';
@@ -21,31 +21,33 @@ export class ScrapsController {
   @Post()
   async create(
     @Body() createScrapDto: CreateScrapDto,
-    @Query('userId') userId?: number, // TODO: Replace with auth token
+    @Request() req: any,
   ) {
     try {
-      const resolvedUserId = userId || 1; // TODO: Get from auth token
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
       const { articleId, ...scrapData } = createScrapDto;
       
-      return await this.scrapsService.create(scrapData, resolvedUserId, articleId);
+      return await this.scrapsService.create(scrapData, userId, articleId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
     }
   }
 
   /**
-   * GET /api/v1/scraps - 스크랩 목록 조회 (기본 검색)
+   * GET /api/v1/scraps - 현재 사용자의 스크랩 목록 조회
    */
   @Version('1')
   @Get()
   async findAll(
-    @Query('userId') userId?: number,
+    @Request() req: any,
     @Query('articleId') articleId?: number,
     @Query('search') search?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
     try {
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+
       if (search) {
         return await this.scrapsService.search(search, userId);
       }
@@ -54,11 +56,8 @@ export class ScrapsController {
         return await this.scrapsService.findByArticle(articleId);
       }
 
-      if (userId) {
-        return await this.scrapsService.findByUser(userId);
-      }
-
-      return await this.scrapsService.findAll();
+      // 현재 사용자의 스크랩만 조회
+      return await this.scrapsService.findByUser(userId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -70,8 +69,8 @@ export class ScrapsController {
   @Version('1')
   @Get('search/advanced')
   async advancedSearch(
+    @Request() req: any,
     @Query('query') query?: string,
-    @Query('userId') userId?: number,
     @Query('articleId') articleId?: number,
     @Query('tags') tags?: string,
     @Query('dateFrom') dateFrom?: string,
@@ -82,9 +81,11 @@ export class ScrapsController {
     @Query('limit') limit?: number,
   ) {
     try {
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      
       const searchOptions: SearchOptions = {
         query,
-        userId,
+        userId, // JWT에서 추출한 사용자 ID 사용
         articleId,
         tags: tags ? tags.split(',').map(tag => tag.trim()) : undefined,
         dateFrom: dateFrom ? new Date(dateFrom) : undefined,
@@ -110,11 +111,13 @@ export class ScrapsController {
   @Version('1')
   @Get('search/tags')
   async findByTags(
+    @Request() req: any,
     @Query('tags') tags: string,
-    @Query('userId') userId?: number,
     @Query('matchAll') matchAll?: boolean,
   ) {
     try {
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      
       if (!tags || tags.trim().length === 0) {
         throw new HttpException('Tags parameter is required', HttpStatus.BAD_REQUEST);
       }
@@ -180,18 +183,6 @@ export class ScrapsController {
     }
   }
 
-  /**
-   * GET /api/v1/scraps/user/:userId - 특정 사용자의 스크랩 목록
-   */
-  @Version('1')
-  @Get('user/:userId')
-  async findByUser(@Param('userId', ParseIntPipe) userId: number) {
-    try {
-      return await this.scrapsService.findByUser(userId);
-    } catch (error: any) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
 
   /**
    * GET /api/v1/scraps/article/:articleId - 특정 기사의 스크랩 목록
@@ -209,24 +200,24 @@ export class ScrapsController {
   // ========== 스크랩-태그 관계 관리 API ==========
 
   /**
-   * POST /api/v1/scraps/:scrapKey/tags - 스크랩에 태그 추가
+   * POST /api/v1/scraps/:scrapId/tags - 스크랩에 태그 추가
    */
   @Version('1')
   @Post(':scrapId/tags')
   async addTagToScrap(
+    @Request() req: any,
     @Param('scrapId', ParseIntPipe) scrapId: number,
     @Body() createTagDto: CreateTagDto,
-    @Query('userId') userId?: number, // TODO: Replace with auth token
   ) {
     try {
-      const resolvedUserId = userId || 1; // TODO: Get from auth token
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
       
       // 스크랩 존재 확인
       await this.validateScrapExists(scrapId);
 
-      // 태그 생성 (scrapKey와 함께)
+      // 태그 생성 (scrapId와 함께)
       const tagData = { ...createTagDto, scrapId };
-      return await this.tagsService.create(tagData, resolvedUserId, scrapId);
+      return await this.tagsService.create(tagData, userId, scrapId);
     } catch (error: any) {
       if (error instanceof HttpException) {
         throw error;
@@ -262,17 +253,17 @@ export class ScrapsController {
   }
 
   /**
-   * DELETE /api/v1/scraps/:scrapKey/tags/:tagId - 스크랩에서 태그 제거
+   * DELETE /api/v1/scraps/:scrapId/tags/:tagId - 스크랩에서 태그 제거
    */
   @Version('1')
   @Delete(':scrapId/tags/:tagId')
   async removeTagFromScrap(
+    @Request() req: any,
     @Param('scrapId', ParseIntPipe) scrapId: number,
     @Param('tagId', ParseIntPipe) tagId: number,
-    @Query('userId') userId?: number, // TODO: Replace with auth token
   ) {
     try {
-      const resolvedUserId = userId || 1; // TODO: Get from auth token
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
       
       // 스크랩 존재 확인
       const scrap = await this.scrapsService.findOne(scrapId);
@@ -281,7 +272,7 @@ export class ScrapsController {
       }
 
       // 태그 존재 및 권한 확인 후 삭제
-      await this.tagsService.removeFromScrap(resolvedUserId, scrapId, tagId);
+      await this.tagsService.removeFromScrap(userId, scrapId, tagId);
       return { message: 'Tag removed from scrap successfully' };
     } catch (error: any) {
       if (error instanceof HttpException) {

@@ -44,6 +44,7 @@ export class ToolNodesService {
         keyInsight: state.keyInsight || '없음',
         newsletterType: state.newsletterType || 'unknown',
         generationParams: state.generationParams || '없음',
+        scrapContent: state.scrapContent || '스크랩 데이터 없음',
       });
 
       // 결과 파싱 - 단순화된 로직

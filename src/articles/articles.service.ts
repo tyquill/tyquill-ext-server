@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateArticleDto, GenerateArticleDto, ScrapComment } from '../api/articles/dto/create-article.dto';
+import { CreateArticleDto } from '../api/articles/dto/create-article.dto';
+import { GenerateArticleDto, ScrapWithOptionalComment } from '../api/articles/dto/generate-article.dto';
 import { UpdateArticleDto } from '../api/articles/dto/update-article.dto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
@@ -40,11 +41,20 @@ export class ArticlesService {
     article.topic = createArticleDto.topic;
     article.keyInsight = createArticleDto.keyInsights;
     article.generationParams = createArticleDto.generationParams;
-    article.title = createArticleDto.title;
-    article.content = createArticleDto.content;
     article.user = user;
 
     await this.em.persistAndFlush(article);
+
+    // title과 content가 있으면 article_archive에 저장
+    if (createArticleDto.title || createArticleDto.content) {
+      const archive = new ArticleArchive();
+      archive.title = createArticleDto.title || article.topic;
+      archive.content = createArticleDto.content || '내용 없음';
+      archive.versionNumber = 1;
+      archive.article = article;
+      await this.em.persistAndFlush(archive);
+    }
+
     return article;
   }
 
@@ -61,15 +71,15 @@ export class ArticlesService {
     // 스크랩 데이터 준비
     let scrapsWithComments: Array<{scrap: Scrap; userComment?: string}> = [];
     
-    if (generateDto.scrapIds && generateDto.scrapIds.length > 0) {
+    if (generateDto.scrapWithOptionalComment && generateDto.scrapWithOptionalComment.length > 0) {
       const scraps = await this.scrapRepository.find({ 
-        scrapId: { $in: generateDto.scrapIds },
+        scrapId: { $in: generateDto.scrapWithOptionalComment.map(comment => comment.scrapId) },
         user: user 
       });
 
       scrapsWithComments = scraps.map((scrap) => {
-        const scrapComment = generateDto.scrapComments?.find(
-          (comment: ScrapComment) => comment.scrapId === scrap.scrapId
+        const scrapComment = generateDto.scrapWithOptionalComment?.find(
+          (comment: ScrapWithOptionalComment) => comment.scrapId === scrap.scrapId
         );
         
         return {
@@ -92,11 +102,17 @@ export class ArticlesService {
     article.topic = generateDto.topic;
     article.keyInsight = generateDto.keyInsight;
     article.generationParams = generateDto.generationParams;
-    article.title = newsletterResult.title;
-    article.content = newsletterResult.content;
     article.user = user;
 
     await this.em.persistAndFlush(article);
+
+    // AI 생성 결과를 아카이브에 저장
+    const archive = new ArticleArchive();
+    archive.title = newsletterResult.title;
+    archive.content = newsletterResult.content;
+    archive.versionNumber = 1;
+    archive.article = article;
+    await this.em.persistAndFlush(archive);
 
     return {
       id: article.articleId,
@@ -154,12 +170,23 @@ export class ArticlesService {
   async update(articleId: number, updateArticleDto: UpdateArticleDto): Promise<Article> {
     const article = await this.findOne(articleId);
     
-    if (updateArticleDto.title) {
-      article.title = updateArticleDto.title;
-    }
-    
-    if (updateArticleDto.content) {
-      article.content = updateArticleDto.content;
+    // title이나 content가 변경되면 새로운 아카이브 버전 생성
+    if (updateArticleDto.title || updateArticleDto.content) {
+      // 기존 최신 아카이브 찾기
+      const latestArchive = await this.em.findOne(ArticleArchive, 
+        { article: article },
+        { orderBy: { versionNumber: 'desc' } }
+      );
+      
+      const newVersionNumber = (latestArchive?.versionNumber || 0) + 1;
+      
+      const newArchive = new ArticleArchive();
+      newArchive.title = updateArticleDto.title || latestArchive?.title || article.topic;
+      newArchive.content = updateArticleDto.content || latestArchive?.content || '내용 없음';
+      newArchive.versionNumber = newVersionNumber;
+      newArchive.article = article;
+      
+      await this.em.persistAndFlush(newArchive);
     }
 
     if (updateArticleDto.topic) {
@@ -192,9 +219,16 @@ export class ArticlesService {
   async archive(articleId: number): Promise<ArticleArchive> {
     const article = await this.findOne(articleId);
     
+    // 최신 아카이브에서 title과 content 가져오기
+    const latestArchive = await this.em.findOne(ArticleArchive, 
+      { article: article },
+      { orderBy: { versionNumber: 'desc' } }
+    );
+    
     const archive = new ArticleArchive();
-    archive.title = article.title || article.topic;
-    archive.content = article.content || '내용 없음';
+    archive.title = latestArchive?.title || article.topic;
+    archive.content = latestArchive?.content || '내용 없음';
+    archive.versionNumber = (latestArchive?.versionNumber || 0) + 1;
     archive.article = article;
 
     await this.em.persistAndFlush(archive);

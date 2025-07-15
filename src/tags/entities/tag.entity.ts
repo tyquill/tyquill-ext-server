@@ -2,7 +2,7 @@ import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { Scrap } from '../../scraps/entities/scrap.entity';
 import { User } from '../../users/entities/user.entity';
 
-@Entity({ tableName: 'Tags' })
+@Entity({ tableName: 'tags' })
 export class Tag {
     @PrimaryKey({ name: 'tag_id' })
     tagId: number;

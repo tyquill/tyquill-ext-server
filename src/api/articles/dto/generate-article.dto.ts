@@ -1,5 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty, IsOptional, IsString, IsInt } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString, IsInt, IsNumber } from 'class-validator';
+
+export class ScrapWithOptionalComment {
+  @ApiProperty()
+  @IsNumber()
+  scrapId: number;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  userComment?: string;
+}
 
 export class GenerateArticleDto {
   @ApiProperty()
@@ -9,18 +20,12 @@ export class GenerateArticleDto {
 
   @ApiProperty()
   @IsString()
-  @IsOptional()
-  keyInsight?: string;
+  keyInsight: string;
 
   @ApiProperty()
   @IsArray()
-  @IsInt({ each: true })
-  scrapIds: number[];
-
-  @ApiProperty()
-  @IsString()
   @IsOptional()
-  userComment?: string;
+  scrapWithOptionalComment?: ScrapWithOptionalComment[];
 
   @ApiProperty()
   @IsString()

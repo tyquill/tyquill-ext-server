@@ -54,7 +54,7 @@ export class ArticlesController {
    */
   @Version('1')
   @Get()
-  findAll(@Request() req: any) {
+  findAll(@Request() req: any, @Query('sortBy') sortBy?: 'created_at' | 'updated_at', @Query('sortOrder') sortOrder?: 'ASC' | 'DESC') {
     const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
     return this.articlesService.findByUser(userId);
   }

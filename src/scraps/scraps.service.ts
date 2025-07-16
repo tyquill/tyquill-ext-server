@@ -87,11 +87,30 @@ export class ScrapsService {
     );
   }
 
-  async findByUser(userId: number): Promise<Scrap[]> {
-    return await this.scrapRepository.find(
-      { user: { userId } },
-      { populate: ['user', 'article', 'tags'] },
-    );
+  async findByUser(
+    userId: number,
+    sortBy?: 'created_at' | 'updated_at' | 'title',
+    sortOrder?: 'ASC' | 'DESC',
+  ): Promise<Scrap[]> {
+    const query = { user: { userId } };
+    let orderBy: any = { createdAt: 'DESC' };
+    
+    switch (sortBy) {
+      case 'created_at':
+        orderBy = { createdAt: sortOrder };
+        break;
+      case 'updated_at':
+        orderBy = { updatedAt: sortOrder };
+        break;
+      case 'title':
+        orderBy = { title: sortOrder };
+        break;
+    }
+
+    return await this.scrapRepository.find(query, {
+      populate: ['user', 'article', 'tags'],
+      orderBy: orderBy,
+    });
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {

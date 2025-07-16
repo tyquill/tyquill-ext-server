@@ -136,39 +136,78 @@ export class ArticlesService {
   /**
    * 특정 아티클 조회
    */
-  async findOne(articleId: number): Promise<Article> {
+  async findOne(articleId: number): Promise<any> {
     const article = await this.articleRepository.findOne({ articleId }, {
-      populate: ['user']
+      populate: ['user', 'archives']
     });
     
     if (!article) {
       throw new NotFoundException('아티클을 찾을 수 없습니다.');
     }
     
-    return article;
+    // 모든 아카이브 버전을 버전 번호 순으로 정렬
+    const sortedArchives = article.archives.getItems().sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0));
+    
+    return {
+      articleId: article.articleId,
+      title: article.getLatestTitle() || article.topic,
+      content: article.getLatestContent() || '',
+      topic: article.topic,
+      keyInsight: article.keyInsight,
+      generationParams: article.generationParams,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      user: article.user,
+      archives: sortedArchives.map(archive => ({
+        archiveId: archive.articleArchiveId,
+        title: archive.title,
+        content: archive.content,
+        versionNumber: archive.versionNumber,
+        createdAt: archive.createdAt
+      }))
+    };
   }
 
   /**
    * 사용자별 아티클 조회
    */
-  async findByUser(userId: number): Promise<Article[]> {
+  async findByUser(userId: number): Promise<any[]> {
     const user = await this.userRepository.findOne({ userId });
     
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
-    return this.articleRepository.find({ user }, {
-      populate: ['user'],
+    const articles = await this.articleRepository.find({ user }, {
+      populate: ['user', 'archives'],
       orderBy: { createdAt: 'DESC' }
     });
+
+    // 각 아티클에 대해 최신 아카이브 정보를 포함한 응답 생성
+    return articles.map(article => ({
+      articleId: article.articleId,
+      title: article.getLatestTitle() || article.topic,
+      content: article.getLatestContent() || '',
+      topic: article.topic,
+      keyInsight: article.keyInsight,
+      generationParams: article.generationParams,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      user: article.user
+    }));
   }
 
   /**
    * 아티클 업데이트
    */
-  async update(articleId: number, updateArticleDto: UpdateArticleDto): Promise<Article> {
-    const article = await this.findOne(articleId);
+  async update(articleId: number, updateArticleDto: UpdateArticleDto): Promise<any> {
+    const article = await this.articleRepository.findOne({ articleId }, {
+      populate: ['user', 'archives']
+    });
+    
+    if (!article) {
+      throw new NotFoundException('아티클을 찾을 수 없습니다.');
+    }
     
     // title이나 content가 변경되면 새로운 아카이브 버전 생성
     if (updateArticleDto.title || updateArticleDto.content) {
@@ -178,15 +217,39 @@ export class ArticlesService {
         { orderBy: { versionNumber: 'desc' } }
       );
       
-      const newVersionNumber = (latestArchive?.versionNumber || 0) + 1;
+      const newTitle = updateArticleDto.title || latestArchive?.title || article.topic;
+      const newContent = updateArticleDto.content || latestArchive?.content || '내용 없음';
       
-      const newArchive = new ArticleArchive();
-      newArchive.title = updateArticleDto.title || latestArchive?.title || article.topic;
-      newArchive.content = updateArticleDto.content || latestArchive?.content || '내용 없음';
-      newArchive.versionNumber = newVersionNumber;
-      newArchive.article = article;
+      // 내용이 실제로 변경되었는지 확인
+      const titleChanged = latestArchive?.title !== newTitle;
+      const contentChanged = latestArchive?.content !== newContent;
       
-      await this.em.persistAndFlush(newArchive);
+      console.log('🔍 Version Check:', {
+        latestArchiveTitle: latestArchive?.title,
+        newTitle,
+        titleChanged,
+        latestArchiveContent: latestArchive?.content?.substring(0, 100) + '...',
+        newContent: newContent.substring(0, 100) + '...',
+        contentChanged
+      });
+      
+      if (titleChanged || contentChanged) {
+        const newVersionNumber = (latestArchive?.versionNumber || 0) + 1;
+        
+        console.log('📝 Creating new archive version:', newVersionNumber);
+        
+        const newArchive = new ArticleArchive();
+        newArchive.title = newTitle;
+        newArchive.content = newContent;
+        newArchive.versionNumber = newVersionNumber;
+        newArchive.article = article;
+        
+        await this.em.persistAndFlush(newArchive);
+        
+        console.log('✅ New archive created successfully');
+      } else {
+        console.log('⚠️ No changes detected, skipping version creation');
+      }
     }
 
     if (updateArticleDto.topic) {
@@ -202,7 +265,9 @@ export class ArticlesService {
     }
 
     await this.em.persistAndFlush(article);
-    return article;
+    
+    // 업데이트된 아티클 정보 반환
+    return this.findOne(articleId);
   }
 
   /**
@@ -244,9 +309,8 @@ export class ArticlesService {
   async search(query: string, userId?: number): Promise<Article[]> {
     const whereClause: any = {
       $or: [
-        { title: { $like: `%${query}%` } },
-        { content: { $like: `%${query}%` } },
-        { topic: { $like: `%${query}%` } }
+        { topic: { $like: `%${query}%` } },
+        { keyInsight: { $like: `%${query}%` } }
       ]
     };
 

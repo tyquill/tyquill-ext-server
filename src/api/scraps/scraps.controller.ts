@@ -44,6 +44,8 @@ export class ScrapsController {
     @Query('search') search?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title',
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
   ) {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
@@ -57,7 +59,7 @@ export class ScrapsController {
       }
 
       // 현재 사용자의 스크랩만 조회
-      return await this.scrapsService.findByUser(userId);
+      return await this.scrapsService.findByUser(userId, sortBy, sortOrder);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }

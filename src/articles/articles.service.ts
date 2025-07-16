@@ -171,16 +171,25 @@ export class ArticlesService {
   /**
    * 사용자별 아티클 조회
    */
-  async findByUser(userId: number): Promise<any[]> {
+  async findByUser(userId: number, sortBy?: 'created_at' | 'updated_at', sortOrder?: 'ASC' | 'DESC'): Promise<any[]> {
     const user = await this.userRepository.findOne({ userId });
     
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
+    let orderBy: any = { createdAt: 'DESC' };
+    switch (sortBy) {
+      case 'created_at':
+        orderBy = { createdAt: sortOrder };
+        break;
+      case 'updated_at':
+        orderBy = { updatedAt: sortOrder };
+    }
+
     const articles = await this.articleRepository.find({ user }, {
       populate: ['user', 'archives'],
-      orderBy: { createdAt: 'DESC' }
+      orderBy: orderBy
     });
 
     // 각 아티클에 대해 최신 아카이브 정보를 포함한 응답 생성

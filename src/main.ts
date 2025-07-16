@@ -61,11 +61,13 @@ async function bootstrap() {
       ? [
           process.env.FRONTEND_URL,
           `chrome-extension://${process.env.CHROME_EXTENSION_ID}`,
+          `chrome-extension://${process.env.CHROME_EXTENSION_ID_2}`,
         ].filter(Boolean)
       : [
           'http://localhost:3000', 
           'http://localhost:3001',
           `chrome-extension://${process.env.CHROME_EXTENSION_ID}`,
+          `chrome-extension://${process.env.CHROME_EXTENSION_ID_2}`,
         ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

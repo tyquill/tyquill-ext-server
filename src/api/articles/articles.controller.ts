@@ -12,7 +12,8 @@ import {
   Request,
 } from '@nestjs/common';
 import { ArticlesService } from '../../articles/articles.service';
-import { CreateArticleDto, GenerateArticleDto } from './dto/create-article.dto';
+import { CreateArticleDto } from './dto/create-article.dto';
+import { GenerateArticleDto } from './dto/generate-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';

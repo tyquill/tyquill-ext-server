@@ -4,17 +4,11 @@ import { ArticleArchive } from '../../article-archive/entities/article-archive.e
 import { User } from '../../users/entities/user.entity';
 import { Scrap } from '../../scraps/entities/scrap.entity';
 
-@Entity({ tableName: 'Articles' })
+@Entity({ tableName: 'articles' })
 export class Article {
   @PrimaryKey({ fieldName: 'article_id' })
   articleId!: number;
 
-  // 뉴스레터 제목과 내용 추가
-  @Property({ fieldName: 'title', type: 'varchar', length: 500, nullable: true })
-  title?: string;
-
-  @Property({ fieldName: 'content', type: 'text', nullable: true })
-  content?: string;
 
   @Property({ fieldName: 'topic', type: 'varchar', length: 100 })
   topic!: string;
@@ -23,7 +17,7 @@ export class Article {
   keyInsight: string;
 
   @Property({ fieldName: 'generation_params', type: 'text', nullable: true })
-  generationParams?: string; // AI 생성 설정 JSON
+  generationParams?: string;
 
   @Property({ fieldName: 'created_at', onCreate: () => new Date() })
   createdAt = new Date();
@@ -48,8 +42,37 @@ export class Article {
     article.topic = createArticleDto.topic;
     article.keyInsight = createArticleDto.keyInsights;
     article.generationParams = createArticleDto.generationParams;
-    article.title = createArticleDto.title;
-    article.content = createArticleDto.content;
     return article;
+  }
+
+  /**
+   * 최신 버전의 아카이브에서 title을 가져옵니다
+   */
+  getLatestTitle(): string | undefined {
+    const latestArchive = this.archives
+      .getItems()
+      .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))[0];
+    
+    return latestArchive?.title;
+  }
+
+  /**
+   * 최신 버전의 아카이브에서 content를 가져옵니다
+   */
+  getLatestContent(): string | undefined {
+    const latestArchive = this.archives
+      .getItems()
+      .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))[0];
+    
+    return latestArchive?.content;
+  }
+
+  /**
+   * 최신 버전의 아카이브를 가져옵니다
+   */
+  getLatestArchive(): ArticleArchive | undefined {
+    return this.archives
+      .getItems()
+      .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))[0];
   }
 }

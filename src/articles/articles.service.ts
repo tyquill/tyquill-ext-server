@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateArticleDto, GenerateArticleDto, ScrapComment } from '../api/articles/dto/create-article.dto';
+import { CreateArticleDto } from '../api/articles/dto/create-article.dto';
+import { GenerateArticleDto, ScrapWithOptionalComment } from '../api/articles/dto/generate-article.dto';
 import { UpdateArticleDto } from '../api/articles/dto/update-article.dto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
@@ -40,11 +41,20 @@ export class ArticlesService {
     article.topic = createArticleDto.topic;
     article.keyInsight = createArticleDto.keyInsights;
     article.generationParams = createArticleDto.generationParams;
-    article.title = createArticleDto.title;
-    article.content = createArticleDto.content;
     article.user = user;
 
     await this.em.persistAndFlush(article);
+
+    // title과 content가 있으면 article_archive에 저장
+    if (createArticleDto.title || createArticleDto.content) {
+      const archive = new ArticleArchive();
+      archive.title = createArticleDto.title || article.topic;
+      archive.content = createArticleDto.content || '내용 없음';
+      archive.versionNumber = 1;
+      archive.article = article;
+      await this.em.persistAndFlush(archive);
+    }
+
     return article;
   }
 
@@ -61,15 +71,15 @@ export class ArticlesService {
     // 스크랩 데이터 준비
     let scrapsWithComments: Array<{scrap: Scrap; userComment?: string}> = [];
     
-    if (generateDto.scrapIds && generateDto.scrapIds.length > 0) {
+    if (generateDto.scrapWithOptionalComment && generateDto.scrapWithOptionalComment.length > 0) {
       const scraps = await this.scrapRepository.find({ 
-        scrapId: { $in: generateDto.scrapIds },
+        scrapId: { $in: generateDto.scrapWithOptionalComment.map(comment => comment.scrapId) },
         user: user 
       });
 
       scrapsWithComments = scraps.map((scrap) => {
-        const scrapComment = generateDto.scrapComments?.find(
-          (comment: ScrapComment) => comment.scrapId === scrap.scrapId
+        const scrapComment = generateDto.scrapWithOptionalComment?.find(
+          (comment: ScrapWithOptionalComment) => comment.scrapId === scrap.scrapId
         );
         
         return {
@@ -92,11 +102,17 @@ export class ArticlesService {
     article.topic = generateDto.topic;
     article.keyInsight = generateDto.keyInsight;
     article.generationParams = generateDto.generationParams;
-    article.title = newsletterResult.title;
-    article.content = newsletterResult.content;
     article.user = user;
 
     await this.em.persistAndFlush(article);
+
+    // AI 생성 결과를 아카이브에 저장
+    const archive = new ArticleArchive();
+    archive.title = newsletterResult.title;
+    archive.content = newsletterResult.content;
+    archive.versionNumber = 1;
+    archive.article = article;
+    await this.em.persistAndFlush(archive);
 
     return {
       id: article.articleId,
@@ -120,46 +136,120 @@ export class ArticlesService {
   /**
    * 특정 아티클 조회
    */
-  async findOne(articleId: number): Promise<Article> {
+  async findOne(articleId: number): Promise<any> {
     const article = await this.articleRepository.findOne({ articleId }, {
-      populate: ['user']
+      populate: ['user', 'archives']
     });
     
     if (!article) {
       throw new NotFoundException('아티클을 찾을 수 없습니다.');
     }
     
-    return article;
+    // 모든 아카이브 버전을 버전 번호 순으로 정렬
+    const sortedArchives = article.archives.getItems().sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0));
+    
+    return {
+      articleId: article.articleId,
+      title: article.getLatestTitle() || article.topic,
+      content: article.getLatestContent() || '',
+      topic: article.topic,
+      keyInsight: article.keyInsight,
+      generationParams: article.generationParams,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      user: article.user,
+      archives: sortedArchives.map(archive => ({
+        archiveId: archive.articleArchiveId,
+        title: archive.title,
+        content: archive.content,
+        versionNumber: archive.versionNumber,
+        createdAt: archive.createdAt
+      }))
+    };
   }
 
   /**
    * 사용자별 아티클 조회
    */
-  async findByUser(userId: number): Promise<Article[]> {
+  async findByUser(userId: number): Promise<any[]> {
     const user = await this.userRepository.findOne({ userId });
     
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
-    return this.articleRepository.find({ user }, {
-      populate: ['user'],
+    const articles = await this.articleRepository.find({ user }, {
+      populate: ['user', 'archives'],
       orderBy: { createdAt: 'DESC' }
     });
+
+    // 각 아티클에 대해 최신 아카이브 정보를 포함한 응답 생성
+    return articles.map(article => ({
+      articleId: article.articleId,
+      title: article.getLatestTitle() || article.topic,
+      content: article.getLatestContent() || '',
+      topic: article.topic,
+      keyInsight: article.keyInsight,
+      generationParams: article.generationParams,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      user: article.user
+    }));
   }
 
   /**
    * 아티클 업데이트
    */
-  async update(articleId: number, updateArticleDto: UpdateArticleDto): Promise<Article> {
-    const article = await this.findOne(articleId);
+  async update(articleId: number, updateArticleDto: UpdateArticleDto): Promise<any> {
+    const article = await this.articleRepository.findOne({ articleId }, {
+      populate: ['user', 'archives']
+    });
     
-    if (updateArticleDto.title) {
-      article.title = updateArticleDto.title;
+    if (!article) {
+      throw new NotFoundException('아티클을 찾을 수 없습니다.');
     }
     
-    if (updateArticleDto.content) {
-      article.content = updateArticleDto.content;
+    // title이나 content가 변경되면 새로운 아카이브 버전 생성
+    if (updateArticleDto.title || updateArticleDto.content) {
+      // 기존 최신 아카이브 찾기
+      const latestArchive = await this.em.findOne(ArticleArchive, 
+        { article: article },
+        { orderBy: { versionNumber: 'desc' } }
+      );
+      
+      const newTitle = updateArticleDto.title || latestArchive?.title || article.topic;
+      const newContent = updateArticleDto.content || latestArchive?.content || '내용 없음';
+      
+      // 내용이 실제로 변경되었는지 확인
+      const titleChanged = latestArchive?.title !== newTitle;
+      const contentChanged = latestArchive?.content !== newContent;
+      
+      console.log('🔍 Version Check:', {
+        latestArchiveTitle: latestArchive?.title,
+        newTitle,
+        titleChanged,
+        latestArchiveContent: latestArchive?.content?.substring(0, 100) + '...',
+        newContent: newContent.substring(0, 100) + '...',
+        contentChanged
+      });
+      
+      if (titleChanged || contentChanged) {
+        const newVersionNumber = (latestArchive?.versionNumber || 0) + 1;
+        
+        console.log('📝 Creating new archive version:', newVersionNumber);
+        
+        const newArchive = new ArticleArchive();
+        newArchive.title = newTitle;
+        newArchive.content = newContent;
+        newArchive.versionNumber = newVersionNumber;
+        newArchive.article = article;
+        
+        await this.em.persistAndFlush(newArchive);
+        
+        console.log('✅ New archive created successfully');
+      } else {
+        console.log('⚠️ No changes detected, skipping version creation');
+      }
     }
 
     if (updateArticleDto.topic) {
@@ -175,7 +265,9 @@ export class ArticlesService {
     }
 
     await this.em.persistAndFlush(article);
-    return article;
+    
+    // 업데이트된 아티클 정보 반환
+    return this.findOne(articleId);
   }
 
   /**
@@ -192,9 +284,16 @@ export class ArticlesService {
   async archive(articleId: number): Promise<ArticleArchive> {
     const article = await this.findOne(articleId);
     
+    // 최신 아카이브에서 title과 content 가져오기
+    const latestArchive = await this.em.findOne(ArticleArchive, 
+      { article: article },
+      { orderBy: { versionNumber: 'desc' } }
+    );
+    
     const archive = new ArticleArchive();
-    archive.title = article.title || article.topic;
-    archive.content = article.content || '내용 없음';
+    archive.title = latestArchive?.title || article.topic;
+    archive.content = latestArchive?.content || '내용 없음';
+    archive.versionNumber = (latestArchive?.versionNumber || 0) + 1;
     archive.article = article;
 
     await this.em.persistAndFlush(archive);
@@ -210,9 +309,8 @@ export class ArticlesService {
   async search(query: string, userId?: number): Promise<Article[]> {
     const whereClause: any = {
       $or: [
-        { title: { $like: `%${query}%` } },
-        { content: { $like: `%${query}%` } },
-        { topic: { $like: `%${query}%` } }
+        { topic: { $like: `%${query}%` } },
+        { keyInsight: { $like: `%${query}%` } }
       ]
     };
 

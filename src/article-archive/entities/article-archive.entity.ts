@@ -1,7 +1,7 @@
 import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { Article } from '../../articles/entities/article.entity';
 
-@Entity({ tableName: 'ArticleArchive' })
+@Entity({ tableName: 'article_archive' })
 export class ArticleArchive {
   @PrimaryKey({ fieldName: 'article_archive_id' })
   articleArchiveId!: number;

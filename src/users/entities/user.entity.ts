@@ -3,7 +3,7 @@ import { Scrap } from '../../scraps/entities/scrap.entity';
 import { Tag } from '../../tags/entities/tag.entity';
 import { UserOAuth } from './user-oauth.entity';
 
-@Entity({ tableName: 'Users' })
+@Entity({ tableName: 'users' })
 export class User {
   @PrimaryKey({ name: 'user_id' })
   userId: number;

@@ -3,7 +3,7 @@ import { Tag } from '../../tags/entities/tag.entity';
 import { User } from '../../users/entities/user.entity';
 import { Article } from '../../articles/entities/article.entity';
 
-@Entity({ tableName: 'Scraps' })
+@Entity({ tableName: 'scraps' })
 export class Scrap {
     @PrimaryKey({ name: 'scrap_id' })
     scrapId: number;

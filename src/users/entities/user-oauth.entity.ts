@@ -18,7 +18,7 @@ export enum OAuthProvider {
   APPLE = 'apple',
 }
 
-@Entity({ tableName: 'UserOAuth' })
+@Entity({ tableName: 'user_oauth' })
 @Unique({ properties: ['oauthProvider', 'oauthId'] }) // 같은 제공자의 같은 ID는 중복 불가
 export class UserOAuth {
   @PrimaryKey({ name: 'user_oauth_id' })

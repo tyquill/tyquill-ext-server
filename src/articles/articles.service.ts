@@ -274,7 +274,18 @@ export class ArticlesService {
    * 아티클 삭제
    */
   async remove(articleId: number): Promise<void> {
-    const article = await this.findOne(articleId);
+    const article = await this.articleRepository.findOne({ articleId }, {
+      populate: ['archives']
+    });
+
+    if (!article) {
+      throw new NotFoundException('아티클을 찾을 수 없습니다.');
+    }
+
+    if (article.archives.length > 0) {
+      await this.em.removeAndFlush(article.archives);
+    }
+
     await this.em.removeAndFlush(article);
   }
 

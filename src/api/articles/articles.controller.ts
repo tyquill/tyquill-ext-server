@@ -98,8 +98,9 @@ export class ArticlesController {
    */
   @Version('1')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.articlesService.remove(+id);
+  async remove(@Param('id') id: string) {
+    await this.articlesService.remove(+id);
+    return { message: 'Article removed successfully' };
   }
 
   /**

@@ -350,13 +350,19 @@ export class NewsletterAgentService {
 - 키워드는 자연스럽게 문맥에 포함
 - 모든 도구 결과는 스토리텔링에 유기적으로 통합
 
-## OUTPUT FORMAT
-WRITER_TITLE: [creative_compelling_title_with_keywords]
-WRITER_CONTENT: [engaging_storytelling_content_with_tool_insights]
-CREATIVE_ELEMENTS: [unique_elements_used]
-TOOL_INTEGRATION: [how_tool_results_were_used]
+## 엄격한 한국어 출력 요구사항
+❌ 절대 영어로 작성 금지
+✅ 반드시 완전하고 세련된 한국어로만 작성
+✅ 반드시 한국어 문법과 표현을 정확히 사용
+✅ 반드시 한국 독자에게 적합한 문화적 맥락 반영
 
-작성자의 관점에서 도구 결과를 활용한 최고의 콘텐츠를 만들어주세요:
+## OUTPUT FORMAT
+WRITER_TITLE: [한국어로_작성된_창의적이고_매력적인_제목]
+WRITER_CONTENT: [한국어로_작성된_매력적인_스토리텔링_콘텐츠]
+CREATIVE_ELEMENTS: [사용된_독창적_요소들]
+TOOL_INTEGRATION: [도구_결과_활용_방법]
+
+작성자의 관점에서 도구 결과를 활용한 최고의 한국어 콘텐츠를 만들어주세요:
 `);
 
     // 편집자 에이전트 프롬프트
@@ -386,12 +392,18 @@ TOOL_INTEGRATION: [how_tool_results_were_used]
 - 불필요한 수식어 제거
 - 독자 친화적 언어 사용
 
-## OUTPUT FORMAT
-EDITOR_TITLE: [clear_optimized_title]
-EDITOR_CONTENT: [well_structured_content]
-EDITING_IMPROVEMENTS: [clarity_enhancements_made]
+## 엄격한 한국어 출력 요구사항
+❌ 절대 영어로 작성 금지
+✅ 반드시 완전하고 세련된 한국어로만 작성
+✅ 반드시 한국어 문법과 표현을 정확히 사용
+✅ 반드시 한국 독자에게 적합한 문화적 맥락 반영
 
-편집자의 관점에서 최고 품질의 콘텐츠를 만들어주세요:
+## OUTPUT FORMAT
+EDITOR_TITLE: [한국어로_최적화된_명확한_제목]
+EDITOR_CONTENT: [한국어로_잘_구조화된_콘텐츠]
+EDITING_IMPROVEMENTS: [명확성_개선사항]
+
+편집자의 관점에서 최고 품질의 한국어 콘텐츠를 만들어주세요:
 `);
 
     // 검토자 에이전트 프롬프트
@@ -421,12 +433,18 @@ EDITING_IMPROVEMENTS: [clarity_enhancements_made]
 - 더 강화할 수 있는 부분은?
 - 제거해야 할 불필요한 요소는?
 
-## OUTPUT FORMAT
-REVIEWER_TITLE: [critically_evaluated_title]
-REVIEWER_CONTENT: [fact_checked_content]
-CRITICAL_FEEDBACK: [objective_analysis_and_suggestions]
+## 엄격한 한국어 출력 요구사항
+❌ 절대 영어로 작성 금지
+✅ 반드시 완전하고 세련된 한국어로만 작성
+✅ 반드시 한국어 문법과 표현을 정확히 사용
+✅ 반드시 한국 독자에게 적합한 문화적 맥락 반영
 
-검토자의 관점에서 객관적인 평가와 개선안을 제시해주세요:
+## OUTPUT FORMAT
+REVIEWER_TITLE: [한국어로_비판적_평가된_제목]
+REVIEWER_CONTENT: [한국어로_팩트체크된_콘텐츠]
+CRITICAL_FEEDBACK: [객관적_분석과_제안사항]
+
+검토자의 관점에서 객관적인 평가와 개선안을 한국어로 제시해주세요:
 `);
 
     // 전략가 에이전트 프롬프트
@@ -456,12 +474,18 @@ CRITICAL_FEEDBACK: [objective_analysis_and_suggestions]
 - 다음 액션으로 이어질 가능성은?
 - ROI 측정 가능한 요소들은?
 
-## OUTPUT FORMAT
-STRATEGIST_TITLE: [strategically_optimized_title]
-STRATEGIST_CONTENT: [business_aligned_content]
-STRATEGIC_RATIONALE: [business_impact_analysis]
+## 엄격한 한국어 출력 요구사항
+❌ 절대 영어로 작성 금지
+✅ 반드시 완전하고 세련된 한국어로만 작성
+✅ 반드시 한국어 문법과 표현을 정확히 사용
+✅ 반드시 한국 독자에게 적합한 문화적 맥락 반영
 
-전략가의 관점에서 비즈니스 임팩트를 최대화하는 콘텐츠를 만들어주세요:
+## OUTPUT FORMAT
+STRATEGIST_TITLE: [한국어로_전략적_최적화된_제목]
+STRATEGIST_CONTENT: [한국어로_비즈니스_정렬된_콘텐츠]
+STRATEGIC_RATIONALE: [비즈니스_임팩트_분석]
+
+전략가의 관점에서 비즈니스 임팩트를 최대화하는 한국어 콘텐츠를 만들어주세요:
 `);
 
     // 종합 프롬프트
@@ -476,35 +500,41 @@ STRATEGIC_RATIONALE: [business_impact_analysis]
 **전략가 의견:** {strategistOutput}
 
 ## SYNTHESIS PRINCIPLES
-❌ NEVER simply average different opinions
-❌ NEVER ignore minority viewpoints without consideration
-❌ NEVER create inconsistent hybrid solutions
-❌ NEVER lose sight of the original objective
-✅ ALWAYS identify areas of expert consensus
-✅ ALWAYS resolve conflicts through objective criteria
-✅ ALWAYS integrate best elements from each perspective
-✅ ALWAYS maintain coherent vision and execution
+❌ 절대 단순히 서로 다른 의견을 평균내지 마세요
+❌ 절대 소수 의견을 고려 없이 무시하지 마세요
+❌ 절대 일관성 없는 하이브리드 해결책 생성 금지
+❌ 절대 원래 목표를 잃지 마세요
+✅ 반드시 전문가 합의 영역 식별
+✅ 반드시 객관적 기준으로 갈등 해결
+✅ 반드시 각 관점의 최선 요소 통합
+✅ 반드시 일관된 비전과 실행 유지
 
 ## CONFLICT RESOLUTION HIERARCHY
-1. **User Requirements**: Explicit user requests take highest priority
-2. **Quality Standards**: Technical excellence cannot be compromised
-3. **Audience Value**: Reader benefit trumps stylistic preferences
-4. **Strategic Alignment**: Long-term goals over short-term gains
+1. **사용자 요구사항**: 명시적 사용자 요청이 최우선
+2. **품질 기준**: 기술적 우수성은 훼손될 수 없음
+3. **독자 가치**: 독자 혜택이 스타일 선호도보다 우선
+4. **전략적 정렬**: 장기 목표가 단기 이익보다 우선
 
 ## SYNTHESIS PROCESS
-1. Identify areas where experts agree (consensus)
-2. Analyze points of disagreement (conflicts)
-3. Apply resolution hierarchy to conflicts
-4. Integrate best elements while maintaining coherence
-5. Verify final output meets all critical requirements
+1. 전문가들이 동의하는 영역 식별 (합의)
+2. 의견 차이 지점 분석 (갈등)
+3. 갈등에 우선순위 위계 적용
+4. 일관성을 유지하며 최선 요소 통합
+5. 최종 출력이 모든 중요 요구사항을 충족하는지 검증
+
+## 엄격한 한국어 출력 요구사항
+❌ 절대 영어로 작성 금지
+✅ 반드시 완전하고 세련된 한국어로만 작성
+✅ 반드시 한국어 문법과 표현을 정확히 사용
+✅ 반드시 한국 독자에게 적합한 문화적 맥락 반영
 
 ## OUTPUT FORMAT
-CONSENSUS_ELEMENTS: [agreed_elements]
-RESOLVED_CONFLICTS: [resolution_decisions]
-INTEGRATED_SOLUTION: [final_synthesis]
-SYNTHESIS_CONFIDENCE: [score_1_to_100]
+CONSENSUS_ELEMENTS: [합의된_요소들]
+RESOLVED_CONFLICTS: [해결된_갈등들]
+INTEGRATED_SOLUTION: [최종_한국어_종합_결과]
+SYNTHESIS_CONFIDENCE: [점수_1_에서_100]
 
-Begin synthesis:
+한국어로 종합을 시작하세요:
 `);
   }
 

@@ -242,184 +242,184 @@ REASON: [명확한_2문장_설명]
     // 각 유형별 템플릿들
     this.informationalTemplate = this.createAdvancedTemplate(
       '정보전달형',
-      `## OBJECTIVE INFORMATION DELIVERY
-❌ NEVER include personal opinions as facts
-❌ NEVER use sensational language
-❌ NEVER omit source attribution
-❌ NEVER mix facts with speculation
-✅ ALWAYS use objective, neutral tone
-✅ ALWAYS cite credible sources
-✅ ALWAYS provide data and statistics
-✅ ALWAYS structure information hierarchically
+      `## 객관적 정보 전달
+❌ 절대 개인적인 의견을 사실로 포함하지 마세요
+❌ 절대 선정적인 언어를 사용하지 마세요
+❌ 절대 출처 표기를 생략하지 마세요
+❌ 절대 사실과 추측을 혼합하지 마세요
+✅ 반드시 객관적이고 중립적인 어조를 사용하세요
+✅ 반드시 신뢰할 수 있는 출처를 인용하세요
+✅ 반드시 데이터와 통계를 제공하세요
+✅ 반드시 정보를 계층적으로 구조화하세요
 
-## REQUIRED STRUCTURE
-### 📰 Breaking News & Updates
-### 📊 Key Data Points
-### 🔍 Expert Analysis  
-### 📈 Market Implications
-### 🔗 Verified Sources
+## 필수 구조
+### 📰 속보 및 업데이트
+### 📊 핵심 데이터 포인트
+### 🔍 전문가 분석
+### 📈 시장 영향
+### 🔗 검증된 출처
 
-## TONE GUIDELINES
-- Professional and authoritative
-- Fact-driven presentation
-- Clear data attribution
-- Minimal editorial commentary`,
+## 톤 가이드라인
+- 전문적이고 권위적인 어조
+- 사실 중심의 제시
+- 명확한 데이터 출처 표기
+- 최소한의 편집적 논평`,
     );
 
     this.promotionalTemplate = this.createAdvancedTemplate(
       '프로모션형',
-      `## PERSUASIVE PROMOTION FRAMEWORK
-❌ NEVER make unrealistic promises
-❌ NEVER use high-pressure tactics
-❌ NEVER hide important terms
-❌ NEVER spam with repeated CTAs
-✅ ALWAYS focus on clear value proposition
-✅ ALWAYS include authentic testimonials
-✅ ALWAYS provide transparent pricing
-✅ ALWAYS create urgency ethically
+      `## 설득력 있는 프로모션 프레임워크
+❌ 절대 비현실적인 약속을 하지 마세요
+❌ 절대 강압적인 전술을 사용하지 마세요
+❌ 절대 중요한 조건을 숨기지 마세요
+❌ 절대 반복적인 CTA로 스팸을 하지 마세요
+✅ 반드시 명확한 가치 제안에 집중하세요
+✅ 반드시 진정한 고객 후기를 포함하세요
+✅ 반드시 투명한 가격 정보를 제공하세요
+✅ 반드시 윤리적으로 긴급성을 조성하세요
 
-## REQUIRED STRUCTURE
-### 🎯 Compelling Value Proposition
-### ✨ Key Features & Benefits
-### 💡 Real-world Applications
-### ⏰ Time-sensitive Opportunities
-### 👉 Clear Call-to-Action
+## 필수 구조
+### 🎯 매력적인 가치 제안
+### ✨ 핵심 기능 및 혜택
+### 💡 실제 적용 사례
+### ⏰ 시간 제한 기회
+### 👉 명확한 행동 유도
 
-## CONVERSION OPTIMIZATION
-- Benefit-focused headlines
-- Social proof integration
-- Scarcity indicators
-- Strong action verbs`,
+## 전환 최적화
+- 혜택 중심의 헤드라인
+- 사회적 증거 통합
+- 희소성 지표 활용
+- 강력한 행동 동사 사용`,
     );
 
     this.essayTemplate = this.createAdvancedTemplate(
       '에세이형',
-      `## AUTHENTIC STORYTELLING FRAMEWORK
-❌ NEVER fabricate personal experiences
-❌ NEVER use generic story templates
-❌ NEVER overwhelm with unnecessary details
-❌ NEVER lose narrative thread
-✅ ALWAYS share genuine insights
-✅ ALWAYS connect story to broader themes
-✅ ALWAYS maintain emotional authenticity
-✅ ALWAYS provide practical takeaways
+      `## 진정한 스토리텔링 프레임워크
+❌ 절대 개인적인 경험을 조작하지 마세요
+❌ 절대 일반적인 스토리 템플릿을 사용하지 마세요
+❌ 절대 불필요한 세부사항으로 압도하지 마세요
+❌ 절대 서사의 흐름을 잃지 마세요
+✅ 반드시 진정한 인사이트를 공유하세요
+✅ 반드시 스토리를 더 넓은 주제와 연결하세요
+✅ 반드시 감정적 진정성을 유지하세요
+✅ 반드시 실용적인 교훈을 제공하세요
 
-## REQUIRED STRUCTURE
-### 📖 Hook: Personal Story Opening
-### 💭 Deeper Reflection & Context
-### 🌟 Key Lessons Learned
-### 🤝 Reader Connection Points
-### 💌 Meaningful Conclusion
+## 필수 구조
+### 📖 훅: 개인적인 스토리 오프닝
+### 💭 깊은 성찰 및 맥락
+### 🌟 배운 핵심 교훈
+### 🤝 독자와의 연결점
+### 💌 의미 있는 결론
 
-## STORYTELLING ELEMENTS
-- Vulnerable, authentic voice
-- Concrete, specific details
-- Universal human themes
-- Actionable insights`,
+## 스토리텔링 요소
+- 솔직하고 진정한 목소리
+- 구체적이고 특정한 세부사항
+- 보편적인 인간 주제
+- 실행 가능한 인사이트`,
     );
 
     this.curationTemplate = this.createAdvancedTemplate(
       '큐레이션형',
-      `## INTELLIGENT CONTENT CURATION
-❌ NEVER just list links without context
-❌ NEVER include low-quality sources
-❌ NEVER plagiarize original content
-❌ NEVER overwhelm with too many items
-✅ ALWAYS add editorial commentary
-✅ ALWAYS verify source credibility
-✅ ALWAYS explain selection criteria
-✅ ALWAYS provide unique perspective
+      `## 지능적인 콘텐츠 큐레이션
+❌ 절대 맥락 없이 링크만 나열하지 마세요
+❌ 절대 저품질 소스를 포함하지 마세요
+❌ 절대 원본 콘텐츠를 표절하지 마세요
+❌ 절대 너무 많은 항목으로 압도하지 마세요
+✅ 반드시 편집적 논평을 추가하세요
+✅ 반드시 소스의 신뢰성을 검증하세요
+✅ 반드시 선택 기준을 설명하세요
+✅ 반드시 독특한 관점을 제공하세요
 
-## REQUIRED STRUCTURE
-### 📑 Curator's Weekly Picks
-### 🏆 Top 3 Must-Reads
-### 📚 Deep-dive Analysis
-### 💡 Curator's Commentary
-### 🔗 Additional Resources
+## 필수 구조
+### 📑 큐레이터의 주간 선택
+### 🏆 필독 상위 3개
+### 📚 심층 분석
+### 💡 큐레이터의 논평
+### 🔗 추가 자료
 
-## CURATION STANDARDS
-- Quality over quantity
-- Diverse perspective inclusion
-- Trend-forward selections
-- Expert-level commentary`,
+## 큐레이션 기준
+- 양보다 질 우선
+- 다양한 관점 포함
+- 트렌드 선도적 선택
+- 전문가 수준의 논평`,
     );
 
     this.communityTemplate = this.createAdvancedTemplate(
       '커뮤니티형',
-      `## INTERACTIVE COMMUNITY BUILDING
-❌ NEVER ask generic engagement questions
-❌ NEVER ignore community feedback
-❌ NEVER create one-way communication
-❌ NEVER exclude community members
-✅ ALWAYS encourage meaningful participation
-✅ ALWAYS respond to community input
-✅ ALWAYS create inclusive discussions
-✅ ALWAYS highlight member contributions
+      `## 상호작용적인 커뮤니티 구축
+❌ 절대 일반적인 참여 질문을 하지 마세요
+❌ 절대 커뮤니티 피드백을 무시하지 마세요
+❌ 절대 일방적인 소통을 하지 마세요
+❌ 절대 커뮤니티 구성원을 배제하지 마세요
+✅ 반드시 의미 있는 참여를 장려하세요
+✅ 반드시 커뮤니티 의견에 응답하세요
+✅ 반드시 포용적인 토론을 조성하세요
+✅ 반드시 구성원의 기여를 강조하세요
 
-## REQUIRED STRUCTURE
-### 🗣️ Community Spotlight
-### 🤔 This Week's Discussion Topic
-### 📝 Member Contributions
-### 🎉 Community Achievements
-### 💬 Join the Conversation
+## 필수 구조
+### 🗣️ 커뮤니티 스포트라이트
+### 🤔 이번 주 토론 주제
+### 📝 구성원 기여 내용
+### 🎉 커뮤니티 성과
+### 💬 대화에 참여하세요
 
-## ENGAGEMENT TACTICS
-- Thought-provoking questions
-- Poll and survey integration
-- Member recognition
-- Collaborative projects`,
+## 참여 전략
+- 생각을 자극하는 질문
+- 투표 및 설문 통합
+- 구성원 인정
+- 협업 프로젝트`,
     );
 
     this.welcomeTemplate = this.createAdvancedTemplate(
       '웰컴 이메일',
-      `## WARM WELCOME EXPERIENCE
-❌ NEVER use generic welcome templates
-❌ NEVER overwhelm new subscribers
-❌ NEVER forget to set expectations
-❌ NEVER skip value delivery
-✅ ALWAYS personalize the welcome
-✅ ALWAYS explain what's coming next
-✅ ALWAYS provide immediate value
-✅ ALWAYS include clear next steps
+      `## 따뜻한 환영 경험
+❌ 절대 일반적인 환영 템플릿을 사용하지 마세요
+❌ 절대 새로운 구독자를 압도하지 마세요
+❌ 절대 기대치 설정을 잊지 마세요
+❌ 절대 가치 전달을 생략하지 마세요
+✅ 반드시 환영 메시지를 개인화하세요
+✅ 반드시 다음에 무엇이 올지 설명하세요
+✅ 반드시 즉시 가치를 제공하세요
+✅ 반드시 명확한 다음 단계를 포함하세요
 
-## REQUIRED STRUCTURE
-### 🎉 Enthusiastic Personal Welcome
-### 📍 Who We Are & Our Mission
-### 🎁 Exclusive Welcome Gift
-### 📬 What to Expect
-### 🤝 How to Connect
+## 필수 구조
+### 🎉 열정적인 개인 환영
+### 📍 우리는 누구이며 우리의 미션
+### 🎁 독점 환영 선물
+### 📬 앞으로의 기대 사항
+### 🤝 연결하는 방법
 
-## ONBOARDING ELEMENTS
-- Warm, personal tone
-- Clear value preview
-- Immediate benefit delivery
-- Easy engagement pathways`,
+## 온보딩 요소
+- 따뜻하고 개인적인 어조
+- 명확한 가치 미리보기
+- 즉시적인 혜택 제공
+- 쉬운 참여 경로`,
     );
 
     this.nurturingTemplate = this.createAdvancedTemplate(
       '너처링 이메일',
-      `## RELATIONSHIP NURTURING SYSTEM
-❌ NEVER send generic broadcast messages
-❌ NEVER ignore subscriber behavior
-❌ NEVER over-promote products
-❌ NEVER neglect educational content
-✅ ALWAYS provide incremental value
-✅ ALWAYS build on previous interactions
-✅ ALWAYS offer practical assistance
-✅ ALWAYS strengthen long-term relationship
+      `## 관계 육성 시스템
+❌ 절대 일반적인 브로드캐스트 메시지를 보내지 마세요
+❌ 절대 구독자 행동을 무시하지 마세요
+❌ 절대 과도하게 제품을 홍보하지 마세요
+❌ 절대 교육적 콘텐츠를 소홀히 하지 마세요
+✅ 반드시 점진적인 가치를 제공하세요
+✅ 반드시 이전 상호작용을 바탕으로 구축하세요
+✅ 반드시 실용적인 도움을 제공하세요
+✅ 반드시 장기적인 관계를 강화하세요
 
-## REQUIRED STRUCTURE
-### 💝 Personalized Value Delivery
-### 📈 Growth & Learning Tips
-### 🌟 Success Stories & Case Studies
-### 🔧 Practical Implementation
-### 💌 Continued Partnership
+## 필수 구조
+### 💝 개인화된 가치 전달
+### 📈 성장 및 학습 팁
+### 🌟 성공 사례 및 케이스 스터디
+### 🔧 실용적인 구현
+### 💌 지속적인 파트너십
 
-## NURTURING PRINCIPLES
-- Value-first approach
-- Educational content focus
-- Trust-building emphasis
-- Long-term perspective`,
+## 너처링 원칙
+- 가치 우선 접근법
+- 교육적 콘텐츠 중심
+- 신뢰 구축 강조
+- 장기적 관점`,
     );
   }
 

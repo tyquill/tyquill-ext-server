@@ -32,3 +32,25 @@ export class GenerateArticleDto {
   @IsOptional()
   generationParams?: string; // AI 생성 유저 추가 설정 문장
 } 
+
+export class GenerateArticleResponse {
+  @ApiProperty()
+  @IsNumber()
+  id: number;
+
+  @ApiProperty()
+  @IsString()
+  title: string;
+
+  @ApiProperty()
+  @IsString()
+  content: string;
+
+  @ApiProperty()
+  @IsString()
+  createdAt: Date;
+
+  @ApiProperty()
+  @IsNumber()
+  userId: number;
+}

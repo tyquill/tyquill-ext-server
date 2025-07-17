@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ArticlesService } from '../../articles/articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
-import { GenerateArticleDto } from './dto/generate-article.dto';
+import { GenerateArticleDto, GenerateArticleResponse } from './dto/generate-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -43,7 +43,7 @@ export class ArticlesController {
   @ApiResponse({ status: 404, description: '사용자나 스크랩을 찾을 수 없습니다.' })
   @Version('1')
   @Post('generate')
-  async generateArticle(@Request() req: any, @Body() generateArticleDto: GenerateArticleDto) {
+  async generateArticle(@Request() req: any, @Body() generateArticleDto: GenerateArticleDto): Promise<GenerateArticleResponse> {
     const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
     return this.articlesService.generateArticle(userId, generateArticleDto);
   }

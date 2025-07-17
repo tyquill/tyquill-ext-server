@@ -48,7 +48,7 @@ export class ContentParser {
    * INTEGRATED_SOLUTION 섹션에서 콘텐츠 추출
    */
   private static extractIntegratedSolution(content: string): string | null {
-    const solutionMatch = content.match(/INTEGRATED_SOLUTION:\s*([\s\S]+)/i);
+    const solutionMatch = content.match(/INTEGRATED_SOLUTION:\s*([\s\S]+?)(?=SYNTHESIS_CONFIDENCE:|$)/i);
     return solutionMatch ? solutionMatch[1].trim() : null;
   }
 

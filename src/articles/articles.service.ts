@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateArticleDto } from '../api/articles/dto/create-article.dto';
-import { GenerateArticleDto, ScrapWithOptionalComment } from '../api/articles/dto/generate-article.dto';
+import { GenerateArticleDto, GenerateArticleResponse, ScrapWithOptionalComment } from '../api/articles/dto/generate-article.dto';
 import { UpdateArticleDto } from '../api/articles/dto/update-article.dto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
@@ -61,7 +61,7 @@ export class ArticlesService {
   /**
    * AI 기반 아티클 생성
    */
-  async generateArticle(userId: number, generateDto: GenerateArticleDto): Promise<any> {
+  async generateArticle(userId: number, generateDto: GenerateArticleDto): Promise<GenerateArticleResponse> {
     // 사용자 검증
     const user = await this.userRepository.findOne({ userId: userId });
     if (!user) {
@@ -120,7 +120,7 @@ export class ArticlesService {
       content: newsletterResult.content,
       createdAt: article.createdAt,
       userId: user.userId,
-    };
+    } as GenerateArticleResponse;
   }
 
   /**

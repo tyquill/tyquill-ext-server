@@ -94,7 +94,7 @@ export class ScrapsService {
   ): Promise<Scrap[]> {
     const query = { user: { userId } };
     let orderBy: any = { createdAt: 'DESC' };
-    
+
     switch (sortBy) {
       case 'created_at':
         orderBy = { createdAt: sortOrder };
@@ -147,8 +147,14 @@ export class ScrapsService {
   }
 
   async remove(scrapId: number): Promise<void> {
-    const scrap = await this.scrapRepository.findOne({ scrapId });
+    const scrap = await this.scrapRepository.findOne({ scrapId }, {
+      populate: ['tags'],
+    });
+
     if (scrap) {
+      if (scrap.tags.length > 0) {
+        await this.em.removeAndFlush(scrap.tags);
+      }
       await this.em.removeAndFlush(scrap);
     }
   }

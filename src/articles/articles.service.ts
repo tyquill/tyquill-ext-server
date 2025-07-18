@@ -89,6 +89,8 @@ export class ArticlesService {
       });
     }
 
+    console.log('🔍 scrapsWithComments:', scrapsWithComments);
+
     // AI 뉴스레터 생성
     const newsletterResult = await this.newsletterWorkflowService.generateNewsletter({
       topic: generateDto.topic,

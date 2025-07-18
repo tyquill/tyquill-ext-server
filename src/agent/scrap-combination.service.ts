@@ -43,7 +43,7 @@ export class ScrapCombinationService {
 
       // 스크랩 분석용 모델 - 워크플로우 메인 모델 사용
       this.model = new ChatGoogleGenerativeAI(
-        createModelInitConfig(AI_MODELS_CONFIG.workflow.main)
+        createModelInitConfig(AI_MODELS_CONFIG.workflow.scrapAnalysis)
       );
 
       console.log('✅ ScrapCombinationService: AI model initialized successfully');

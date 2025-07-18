@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { NewsletterToolsService, ToolResult } from '../newsletter-tools.service';
+import { NewsletterToolsService } from '../newsletter-tools.service';
 import { NewsletterPromptTemplatesService } from '../newsletter-prompt-templates.service';
-import { ScrapWithComment } from '../scrap-combination.service';
 import { NewsletterStateAnnotation } from '../newsletter-workflow.service';
 
 /**
@@ -20,9 +19,9 @@ export class ToolNodesService {
     private readonly promptTemplatesService: NewsletterPromptTemplatesService,
   ) {
     this.strategistModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-pro',
       temperature: 0.7,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
     });
   }
 

@@ -19,9 +19,9 @@ export class ToolNodesService {
     private readonly promptTemplatesService: NewsletterPromptTemplatesService,
   ) {
     this.strategistModel = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-2.5-flash',
       temperature: 0.7,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     });
   }
 

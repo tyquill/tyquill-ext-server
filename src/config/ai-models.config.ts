@@ -58,19 +58,19 @@ export const AI_MODELS_CONFIG: AIModelsConfiguration = {
     quality: {
       model: 'gemini-2.5-flash',
       temperature: 0.1, // 엄격한 평가
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
     // 리플렉션 전용 창의적 모델
     reflection: {
       model: 'gemini-2.5-flash',
       temperature: 0.8, // 창의적 분석
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
     // 자기 교정용 균형 모델
     correction: {
       model: 'gemini-2.5-flash',
       temperature: 0.5, // 균형적 개선
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
   },
   agents: {
@@ -78,31 +78,31 @@ export const AI_MODELS_CONFIG: AIModelsConfiguration = {
     writer: {
       model: 'gemini-2.5-flash',
       temperature: 0.8,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
     // 편집자 에이전트 - 구조 및 스타일 개선
     editor: {
       model: 'gemini-2.5-flash',
       temperature: 0.6,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
     // 검토자 에이전트 - 비판적 분석
     reviewer: {
       model: 'gemini-2.5-flash',
       temperature: 0.4,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
     // 전략가 에이전트 - 비즈니스 임팩트 최적화
     strategist: {
       model: 'gemini-2.5-flash',
       temperature: 0.7,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
     // 종합 에이전트 - 결과 통합
     synthesis: {
       model: 'gemini-2.5-flash',
       temperature: 0.5,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
   },
   workflow: {
@@ -110,19 +110,19 @@ export const AI_MODELS_CONFIG: AIModelsConfiguration = {
     main: {
       model: 'gemini-2.5-pro',
       temperature: 0.6,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
     // 워크플로우 전략 모델
     strategist: {
-      model: 'gemini-2.5-pro',
+      model: 'gemini-2.5-flash',
       temperature: 0.7,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
     // 스크랩 분석 모델
     scrapAnalysis: {
       model: 'gemini-2.5-flash',
       temperature: 0.6,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 10000,
     },
   },
 };

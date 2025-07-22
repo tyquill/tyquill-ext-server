@@ -8,11 +8,11 @@ import { ArticleArchive } from '../article-archive/entities/article-archive.enti
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { ScrapCombinationService } from '../agent/scrap-combination.service';
 import { NewsletterWorkflowService } from '../agent/newsletter-workflow.service';
 
 @Injectable()
 export class ArticlesService {
+
   constructor(
     private readonly em: EntityManager,
     @InjectRepository(Article)
@@ -23,9 +23,30 @@ export class ArticlesService {
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
-    private readonly scrapCombinationService: ScrapCombinationService,
     private readonly newsletterWorkflowService: NewsletterWorkflowService,
-  ) {}
+  ) {
+  }
+
+  /**
+   * 페이지 콘텐츠를 분석하여 구조화된 템플릿을 반환합니다.
+   */
+  async analyzePageStructure(content: string): Promise<any> {
+    console.log('analyzePageStructure');
+    const result = await this.newsletterWorkflowService.analyzePageStructure(content);
+
+    try {
+      // LLM의 결과물이 항상 완벽한 JSON이 아닐 수 있으므로 파싱 시도
+      console.log(result);
+      const jsonResult = JSON.stringify(result);
+      return jsonResult;
+    } catch (error) {
+      console.error("Failed to parse structure analysis result:", error);
+      // 파싱 실패 시, 원본 텍스트를 기반으로 한 대체 구조 반환
+      return [
+        { title: "분석된 내용", description: "AI가 페이지 내용을 분석했습니다." },
+      ];
+    }
+  }
 
   /**
    * 아티클 생성
@@ -88,8 +109,6 @@ export class ArticlesService {
         };
       });
     }
-
-    console.log('🔍 scrapsWithComments:', scrapsWithComments);
 
     // AI 뉴스레터 생성
     const newsletterResult = await this.newsletterWorkflowService.generateNewsletter({

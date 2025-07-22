@@ -5,9 +5,64 @@ import { PromptTemplate } from '@langchain/core/prompts';
 export class NewsletterPromptTemplatesService {
   private simpleNewsletterTemplate: PromptTemplate;
   private simpleNewsletterTitleTemplate: PromptTemplate;
+  private structureAnalysisTemplate: PromptTemplate; // New template
 
   constructor() {
     this.initializeSimpleTemplate();
+    this.initializeStructureAnalysisTemplate(); // Initialize new template
+  }
+
+  /**
+   * 글 구조 분석 템플릿 초기화
+   */
+  private initializeStructureAnalysisTemplate(): void {
+    this.structureAnalysisTemplate = PromptTemplate.fromTemplate(
+      `# 페르소나
+당신은 모든 종류의 글을 분석하여 체계적인 구조로 정리하는 전문 콘텐츠 구조 설계자입니다.
+
+# 목표
+주어진 텍스트의 구조를 헤딩 계층(#, ##, ###, ####)에 따라 분석하고, 재사용 가능한 범용 템플릿을 JSON 형식으로 생성합니다.
+
+## 분석할 텍스트:
+{content}
+
+# 절대 법칙:
+- **JSON 출력 형식을 무조건 따를 것. 다른 어떤 텍스트도 포함해서는 안 됩니다.**
+
+# 작성 법칙:
+0. 무조건 한국어로 작성하세요.
+1. **가장 중요한 규칙:** 주어진 텍스트의 헤딩(Heading, #) 계층을 기반으로 JSON의 깊이(depth)를 결정하세요.
+    - 상위 헤딩(예: ##)은 상위 섹션이 됩니다.
+    - 상위 헤딩 아래에 있는 하위 헤딩(예: ### 또는 ####)들은 해당 상위 섹션의 children 배열 안에 하위 섹션으로 포함시키세요.
+2. 각 섹션의 (title)은 헤딩의 내용을 그대로 복사하지 말고, 해당 섹션의 핵심 역할이나 주제를 나타내는 **범용적인 명칭**으로 재작성하세요. (예: '문제 제기', '핵심 기능 소개', '사례 분석', '전문가 조언')
+4. (title)은 20자 이내로 길이를 제한하세요.
+5. 주어진 텍스트의 헤딩과 글의 내용을 기반하여 최대한 범용적인 템플릿을 생성할 것.
+
+## 출력 형식
+JSON 출력 형식:
+{{
+  "sections": [
+    {{
+      "title": "상위 섹션 1 제목",
+      "children": []
+    }},
+    {{
+      "title": "상위 섹션 2 제목",
+      "children": [
+        {{
+          "title": "하위 섹션 2-1 제목",
+          "children": []
+        }},
+        {{
+          "title": "하위 섹션 2-2 제목",
+          "children": []
+        }}
+      ]
+    }},
+    ...
+  ]
+}}`
+    );
   }
 
   /**
@@ -71,5 +126,12 @@ export class NewsletterPromptTemplatesService {
 
   getSimpleNewsletterTitleTemplate(): PromptTemplate {
     return this.simpleNewsletterTitleTemplate;
+  }
+
+  /**
+   * 구조 분석 템플릿 게터 메서드
+   */
+  getStructureAnalysisTemplate(): PromptTemplate {
+    return this.structureAnalysisTemplate;
   }
 }

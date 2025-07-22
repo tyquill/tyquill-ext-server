@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { StringOutputParser } from '@langchain/core/output_parsers';
+import { JsonOutputParser, StringOutputParser } from '@langchain/core/output_parsers';
 import {
   ScrapCombinationService,
   ScrapWithComment,
@@ -271,5 +271,19 @@ export class NewsletterWorkflowService {
       console.error('🚨 뉴스레터 생성 워크플로우 치명적 오류:', error);
       throw error;
     }
+  }
+
+  async analyzePageStructure(content: string): Promise<any> {
+    const template = this.promptTemplatesService.getStructureAnalysisTemplate();
+    const chain = template.pipe(new ChatGoogleGenerativeAI(
+      {
+        model: 'gemini-2.5-flash',
+        apiKey: process.env.GOOGLE_API_KEY,
+      }
+    )).pipe(new JsonOutputParser());
+    // console.log('🔍 content:', content);
+    const result = await chain.invoke({ content: content });
+    // console.log('🔍 result:', result);
+    return result;
   }
 }

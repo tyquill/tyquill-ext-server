@@ -116,6 +116,7 @@ export class ArticlesService {
       keyInsight: generateDto.keyInsight,
       scrapsWithComments,
       generationParams: generateDto.generationParams,
+      articleStructureTemplate: generateDto.articleStructureTemplate,
     });
 
     // 아티클 저장

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty, IsOptional, IsString, IsInt, IsNumber } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
+import { SectionTemplate } from 'src/types/section-template';
 
 export class ScrapWithOptionalComment {
   @ApiProperty()
@@ -31,6 +32,11 @@ export class GenerateArticleDto {
   @IsString()
   @IsOptional()
   generationParams?: string; // AI 생성 유저 추가 설정 문장
+
+  @ApiProperty()
+  @IsArray()
+  @IsOptional()
+  articleStructureTemplate?: SectionTemplate[];
 } 
 
 export class GenerateArticleResponse {

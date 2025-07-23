@@ -70,31 +70,46 @@ JSON 출력 형식:
    */
   private initializeSimpleTemplate(): void {
     this.simpleNewsletterTemplate = PromptTemplate.fromTemplate(
-      `당신은 1000억 뷰를 넘는 뉴스레터 작가입니다. 주어진 정보를 통해 글을 대필해서 다른 뉴스레터 작가가 당신과 같이 1000억 뷰를 넘을 수 있도록 도와주세요.
-      당신은 최고의 초안을 써서 다른 뉴스레터 작가가 당신과 같이 1000억 뷰를 넘을 수 있도록 도와주고 있으며, 당신의 초안이 너무 좋아서 다른 작가가 수정하지 않고 그대로 발행할 수 있도록 도와주세요.
-      당신이 쓴 글에서 당신이 1000억뷰 작가임을 드러내지 않고 그냥 다른 작가가 쓴 글처럼 작성해주세요.
+      `
+**당신은 1000억 뷰를 넘는 뉴스레터 작가입니다. 주어진 context와 following rules에 따라 뉴스레터를 작성해주세요.**
 
-작성 법칙:
-0. 뉴스레터 작성 시 무조건 마크다운 문법을 따라서 작성할 것
-1. 본문은 독자에게 실질적 가치를 제공
-2. 친근하면서도 전문적인 톤 유지
-3. 스크랩 데이터의 핵심 내용을 잘 반영
-4. 3-5개 문단으로 구성
-5. 무조건 한국어로 작성할 것
-6. 헤딩으로 섹션을 구분할 것. 각 섹션은 최소 1 depth 이상 작성할 것.
-7. 중요한 내용은 굵게 표시할 것
-8. 최소 2000자 이상 작성할 것
-9. 순서 리스트는 사용하지말고, bullet point로 작성할 것
-10. 줄바꿈은 무조건 마크다운 문법을 따라서 작성할 것. *** 이런식으로 작성하지 말고, 줄바꿈을 해주세요.
+<rules>
+# Base Rules
+- 뉴스레터 작성 시 무조건 마크다운 문법을 따라서 작성할 것
+- 본문은 독자에게 실질적 가치를 제공
+- 친근하면서도 전문적인 톤 유지
+- 스크랩 데이터의 핵심 내용을 잘 반영
+- 3-5개 문단으로 구성
+- 무조건 한국어로 작성할 것
+- 헤딩으로 섹션을 구분할 것. 각 섹션은 최소 1 depth 이상 작성할 것.
+- 중요한 내용은 굵게 표시할 것
+- 별도의 요청 글자수가 없다면, 최소 2000자 이상 작성할 것
+- 순서 리스트는 사용하지말고, bullet point로 작성할 것
+- 줄바꿈은 무조건 마크다운 문법을 따라서 작성할 것. *** 이런식으로 작성하지 말고, 줄바꿈을 해주세요.
 
+# If given structure template
+- 구조 템플릿의 각 섹션별 title과 insight를 참고하여 작성할 것.
+- 구조 템플릿의 각 섹션별 children을 참고하여 작성할 것.
+- 구조 템플릿의 각 섹션별 children의 각 섹션별 title과 insight를 참고하여 작성할 것.
+- 구조 템플릿의 각 섹션별 children의 각 섹션별 children을 참고하여 작성할 것.
+- 구조 템플릿의 각 섹션별 children의 각 섹션별 children의 각 섹션별 title과 insight를 참고하여 작성할 것.
+- 구조 템플릿의 각 섹션별 children의 각 섹션별 children의 각 섹션별 children을 참고하여 작성할 것.
+- 구조 템플릿의 각 섹션별 children의 각 섹션별 children의 각 섹션별 children의 각 섹션별 title과 insight를 참고하여 작성할 것.
+</rules>
+
+<context>
 주제: {topic}
 핵심 인사이트: {keyInsight}
 생성 파라미터: {generationParams}
+구조 템플릿: {articleStructureTemplate}
 
 스크랩 데이터:
 {scrapContent}
+</context>
 
-뉴스레터 본문만 작성해주세요. 제목은 포함하지 마세요.`,
+<response format>
+오직 뉴스레터 본문만 작성해주세요. 제목은 포함하지 마세요.
+</response format>`,
     );
 
     this.simpleNewsletterTitleTemplate = PromptTemplate.fromTemplate(

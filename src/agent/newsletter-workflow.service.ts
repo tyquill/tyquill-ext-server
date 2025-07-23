@@ -12,7 +12,7 @@ import {
   createModelInitConfig,
   APIKeyValidationError,
 } from '../config/ai-models.config';
-
+import { SectionTemplate } from 'src/types/section-template';
 
 
 export const NewsletterStateAnnotation = Annotation.Root({
@@ -20,7 +20,7 @@ export const NewsletterStateAnnotation = Annotation.Root({
   keyInsight: Annotation<string | undefined>,
   scrapsWithComments: Annotation<ScrapWithComment[]>,
   generationParams: Annotation<string | undefined>,
-  
+  articleStructureTemplate: Annotation<string | undefined>,
   // 스크랩 분석 데이터
   scrapContent: Annotation<string>,
 
@@ -38,6 +38,7 @@ export interface NewsletterInput {
   keyInsight?: string;
   scrapsWithComments: ScrapWithComment[];
   generationParams?: string;
+  articleStructureTemplate?: SectionTemplate[];
 }
 
 export interface NewsletterOutput {
@@ -176,6 +177,7 @@ export class NewsletterWorkflowService {
         keyInsight: state.keyInsight || '없음',
         generationParams: state.generationParams || '없음',
         scrapContent: state.scrapContent,
+        articleStructureTemplate: state.articleStructureTemplate,
       });
 
       console.log('🔍 result:', result);
@@ -238,6 +240,7 @@ export class NewsletterWorkflowService {
         keyInsight: input.keyInsight,
         scrapsWithComments: input.scrapsWithComments,
         generationParams: input.generationParams,
+        articleStructureTemplate: input.articleStructureTemplate,
         processingSteps: [],
         warnings: [],
         suggestions: [],

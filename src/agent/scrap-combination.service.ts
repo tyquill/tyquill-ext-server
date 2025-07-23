@@ -7,7 +7,7 @@ import {
   AI_MODELS_CONFIG,
   createModelInitConfig,
   APIKeyValidationError,
-} from '../config/ai-models.config';
+} from './config/ai-models.config';
 
 export interface ScrapWithComment {
   scrap: Scrap;

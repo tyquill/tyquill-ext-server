@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { JsonOutputParser, StringOutputParser } from '@langchain/core/output_parsers';
+import {
+  JsonOutputParser,
+  StringOutputParser,
+} from '@langchain/core/output_parsers';
 import {
   ScrapCombinationService,
   ScrapWithComment,
@@ -11,9 +14,13 @@ import {
   AI_MODELS_CONFIG,
   createModelInitConfig,
   APIKeyValidationError,
-} from '../config/ai-models.config';
+} from './config/ai-models.config';
 import { SectionTemplate } from 'src/types/section-template';
 
+type Feedback = {
+  generatedNewsletter: string;
+  feedback: string;
+};
 
 export const NewsletterStateAnnotation = Annotation.Root({
   topic: Annotation<string>,
@@ -24,9 +31,13 @@ export const NewsletterStateAnnotation = Annotation.Root({
   // 스크랩 분석 데이터
   scrapContent: Annotation<string>,
 
+  // 중간 데이터
+  countOfReflector: Annotation<number>,
+  feedbacks: Annotation<Feedback[] | undefined>,
+
   // 최종 결과
-  title: Annotation<string | undefined>,
-  content: Annotation<string | undefined>,
+  title: Annotation<string>,
+  content: Annotation<string>,
 
   // 추가 메타데이터
   processingSteps: Annotation<string[]>,
@@ -100,12 +111,20 @@ export class NewsletterWorkflowService {
     const graphBuilder = new StateGraph(NewsletterStateAnnotation)
       .addNode('prepare_scrap_content', this.prepareScrapContentNode.bind(this))
       .addNode('generate_newsletter', this.generateNewsletterNode.bind(this))
-      .addNode('generate_newsletter_title', this.generateNewsletterTitleNode.bind(this))
+      .addNode(
+        'generate_newsletter_title',
+        this.generateNewsletterTitleNode.bind(this),
+      )
+      .addNode('article_reflector', this.articleReflectorNode.bind(this))
 
       // 간단한 선형 구조
       .addEdge(START, 'prepare_scrap_content')
       .addEdge('prepare_scrap_content', 'generate_newsletter')
-      .addEdge('generate_newsletter', 'generate_newsletter_title')
+      .addEdge('article_reflector', 'generate_newsletter')
+      .addConditionalEdges(
+        'generate_newsletter',
+        this.conditionalEdges.bind(this)  
+      )
       .addEdge('generate_newsletter_title', END);
 
     // 그래프 컴파일
@@ -172,21 +191,22 @@ export class NewsletterWorkflowService {
         this.promptTemplatesService.getSimpleNewsletterTemplate();
       const chain = template.pipe(this.model).pipe(new StringOutputParser());
 
-      const result = await chain.invoke({
+      console.log('🔍 state.countOfReflector:', state.countOfReflector);
+
+      const result= await chain.invoke({
         topic: state.topic,
         keyInsight: state.keyInsight || '없음',
         generationParams: state.generationParams || '없음',
-        scrapContent: state.scrapContent,
-        articleStructureTemplate: state.articleStructureTemplate,
+        scrapContent: state.scrapContent || '없음',
+        articleStructureTemplate: state.articleStructureTemplate || '없음',
+        feedbacks: JSON.stringify(state.feedbacks) || '없음',
       });
-
-      console.log('🔍 result:', result);
-
 
       return {
         content: result,
         analysisReason: '단일 AI 모델로 생성된 뉴스레터입니다.',
         processingSteps,
+        countOfReflector: (state.countOfReflector || 0) + 1,
       };
     } catch (error) {
       console.error('뉴스레터 생성 오류:', error);
@@ -215,7 +235,7 @@ export class NewsletterWorkflowService {
 
       return {
         title: result.trim(),
-      }
+      };
     } catch (error) {
       console.error('뉴스레터 제목 생성 오류:', error);
       return `${state.topic} 뉴스레터`; // 기본 제목
@@ -276,17 +296,63 @@ export class NewsletterWorkflowService {
     }
   }
 
+  // 페이지 구조 분석
   async analyzePageStructure(content: string): Promise<any> {
     const template = this.promptTemplatesService.getStructureAnalysisTemplate();
-    const chain = template.pipe(new ChatGoogleGenerativeAI(
-      {
-        model: 'gemini-2.5-flash',
-        apiKey: process.env.GOOGLE_API_KEY,
-      }
-    )).pipe(new JsonOutputParser());
+    const chain = template
+      .pipe(
+        new ChatGoogleGenerativeAI({
+          model: 'gemini-2.5-flash',
+          apiKey: process.env.GOOGLE_API_KEY,
+        }),
+      )
+      .pipe(new JsonOutputParser());
     // console.log('🔍 content:', content);
     const result = await chain.invoke({ content: content });
     // console.log('🔍 result:', result);
     return result;
+  }
+
+  async articleReflectorNode(
+    state: typeof NewsletterStateAnnotation.State,
+    content: string,
+  ): Promise<any> {
+    console.log('🔍 articleReflectorNode', state);
+    const template = this.promptTemplatesService.getArticleReflectorTemplate();
+    const chain = template
+      .pipe(
+        new ChatGoogleGenerativeAI({
+          model: 'gemini-2.5-flash',
+          apiKey: process.env.GOOGLE_API_KEY,
+        }),
+      )
+      .pipe(new StringOutputParser());
+    const result = await chain.invoke({
+      topic: state.topic || '없음',
+      keyInsight: state.keyInsight || '없음',
+      generationParams: state.generationParams || '없음',
+      content: state.content || '없음',
+      articleStructureTemplate: state.articleStructureTemplate || '없음',
+    });
+    if (!state.feedbacks) {
+      state.feedbacks = [];
+    }
+    state.feedbacks.push({
+      generatedNewsletter: state.content,
+      feedback: result,
+    });
+    return {
+      feedbacks: state.feedbacks,
+    };
+  }
+
+  private conditionalEdges(
+    state: typeof NewsletterStateAnnotation.State,
+  ): string {
+    console.log('🔍 conditionalEdges', state.countOfReflector);
+    if (state.countOfReflector < 3) {
+      return 'article_reflector';
+    }
+    return 'generate_newsletter_title';
   }
 }

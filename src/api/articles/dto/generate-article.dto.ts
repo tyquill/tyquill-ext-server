@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
-import { SectionTemplate } from 'src/types/section-template';
 
 export class ScrapWithOptionalComment {
   @ApiProperty()
@@ -36,8 +35,14 @@ export class GenerateArticleDto {
   @ApiProperty()
   @IsArray()
   @IsOptional()
-  articleStructureTemplate?: SectionTemplate[];
+  articleStructureTemplate?: TemplateSectionDto[];
 } 
+
+export interface TemplateSectionDto {
+  title: string;
+  keyIdea: string;
+  children?: TemplateSectionDto[];
+}
 
 export class GenerateArticleResponse {
   @ApiProperty()

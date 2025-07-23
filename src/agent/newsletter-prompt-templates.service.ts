@@ -6,7 +6,7 @@ export class NewsletterPromptTemplatesService {
   private simpleNewsletterTemplate: PromptTemplate;
   private simpleNewsletterTitleTemplate: PromptTemplate;
   private structureAnalysisTemplate: PromptTemplate; // New template
-
+  private articleReflectorTemplate: PromptTemplate;
   constructor() {
     this.initializeSimpleTemplate();
     this.initializeStructureAnalysisTemplate(); // Initialize new template
@@ -71,7 +71,7 @@ JSON 출력 형식:
   private initializeSimpleTemplate(): void {
     this.simpleNewsletterTemplate = PromptTemplate.fromTemplate(
       `
-**당신은 1000억 뷰를 넘는 뉴스레터 작가입니다. 주어진 context와 following rules에 따라 뉴스레터를 작성해주세요.**
+**당신은 최고의 뉴스레터 작가입니다. 주어진 context와 rules에 따라 뉴스레터를 작성해주세요.**
 
 <rules>
 # Base Rules
@@ -82,6 +82,7 @@ JSON 출력 형식:
 - 3-5개 문단으로 구성
 - 무조건 한국어로 작성할 것
 - 헤딩으로 섹션을 구분할 것. 각 섹션은 최소 1 depth 이상 작성할 것.
+- ### #1 과 같은 형식으로 작성하지 말고, ### 1 과 같은 형식으로 작성할 것.
 - 중요한 내용은 굵게 표시할 것
 - 별도의 요청 글자수가 없다면, 최소 2000자 이상 작성할 것
 - 순서 리스트는 사용하지말고, bullet point로 작성할 것
@@ -95,6 +96,9 @@ JSON 출력 형식:
 - 구조 템플릿의 각 섹션별 children의 각 섹션별 children의 각 섹션별 title과 insight를 참고하여 작성할 것.
 - 구조 템플릿의 각 섹션별 children의 각 섹션별 children의 각 섹션별 children을 참고하여 작성할 것.
 - 구조 템플릿의 각 섹션별 children의 각 섹션별 children의 각 섹션별 children의 각 섹션별 title과 insight를 참고하여 작성할 것.
+
+# If given feedbacks
+- {feedbacks}에 있는 이전 generatedNewsletter와 이에대한 feedback을 참고하여 작성할 것.
 </rules>
 
 <context>
@@ -105,6 +109,9 @@ JSON 출력 형식:
 
 스크랩 데이터:
 {scrapContent}
+
+피드백:
+{feedbacks}
 </context>
 
 <response format>
@@ -130,6 +137,25 @@ JSON 출력 형식:
 
 위 내용에 맞는 간결하고 매력적인 제목을 하나만 작성해주세요.`,
     );
+
+
+    this.articleReflectorTemplate = PromptTemplate.fromTemplate(
+      `
+      당신은 전문 뉴스레터 편집자입니다. 토픽 {topic}과 핵심 인사이트 {keyInsight}에 대한 뉴스레터 본문 {content}를 읽고, 다음 기준에 따라 심층적인 피드백을 작성해주세요.
+
+<rules>
+- 글에서 전달하고자 하는 핵심 메시지가 명확하게 드러나는지 평가해주세요.
+- 글의 구조가 체계적이고 논리적인지 평가해주세요.
+- 글의 톤과 어조가 적절한지 평가해주세요.
+- 글의 내용이 주제와 핵심 인사이트를 잘 반영하고 있는지 평가해주세요.
+- 글이 {articleStructureTemplate}의 제목과 아이디어를 잘 반영하고 있는지 평가해주세요.
+</rules>
+
+<response format>
+오직 뉴스레터에 대한 **피드백만** 작성해주세요.
+</response format>
+      `
+    );
   }
 
   /**
@@ -148,5 +174,12 @@ JSON 출력 형식:
    */
   getStructureAnalysisTemplate(): PromptTemplate {
     return this.structureAnalysisTemplate;
+  }
+
+  /**
+   * 글 리플렉터 템플릿
+   */
+  getArticleReflectorTemplate(): PromptTemplate {
+    return this.articleReflectorTemplate;
   }
 }

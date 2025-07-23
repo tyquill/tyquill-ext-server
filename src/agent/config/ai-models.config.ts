@@ -32,7 +32,7 @@ export const AI_MODELS_CONFIG: AIModelsConfiguration = {
   workflow: {
     // 워크플로우 메인 모델 (유일한 모델)
     main: {
-      model: 'gemini-2.5-pro',
+      model: 'gemini-2.5-flash',
       temperature: 0.7,
       maxOutputTokens: 10000,
     },

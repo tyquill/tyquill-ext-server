@@ -9,13 +9,16 @@ export class Tag {
 
     @Property({ name: 'name', type: 'varchar', length: 100 })
     name: string;
-    
+
+    @Property({ name: 'is_deleted', type: 'boolean', default: false })
+    isDeleted: boolean = false;
+
     @Property({ name: 'created_at' })
     createdAt: Date = new Date();
 
     @ManyToOne(() => User, { fieldName: 'user_id' })
     user: User;
 
-    @ManyToOne(() => Scrap, { fieldName: 'Key' })
+    @ManyToOne(() => Scrap, { fieldName: 'scrap_id' })
     scrap: Scrap;
 }

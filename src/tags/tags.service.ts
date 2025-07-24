@@ -25,7 +25,7 @@ export class TagsService {
       throw new Error('User not found');
     }
 
-    const scrap = scrapId ? await this.scrapRepository.findOne({ scrapId }) : null;
+    const scrap = scrapId ? await this.scrapRepository.findOne({ scrapId, isDeleted: false }) : null;
     if (scrapId && !scrap) {
       throw new Error('Scrap not found');
     }
@@ -43,30 +43,31 @@ export class TagsService {
 
   async findAll(userId?: number): Promise<Tag[]> {
     const query = userId 
-      ? { user: { userId } }
+      ? { user: { userId }, isDeleted: false }
       : {};
     
     return await this.tagRepository.find(query, {
-      populate: ['user', 'scrap']
+      populate: ['user', 'scrap'],
+      filters: { isDeleted: false }
     });
   }
 
   async findOne(tagId: number): Promise<Tag | null> {
-    return await this.tagRepository.findOne({ tagId }, {
-      populate: ['user', 'scrap']
+    return await this.tagRepository.findOne({ tagId, isDeleted: false }, {
+      populate: ['user', 'scrap'],
     });
   }
 
   async findByUser(userId: number): Promise<Tag[]> {
     return await this.tagRepository.find(
-      { user: { userId } },
+      { user: { userId }, isDeleted: false },
       { populate: ['user', 'scrap'] }
     );
   }
 
   async findByScrap(scrapId: number): Promise<Tag[]> {
     return await this.tagRepository.find(
-      { scrap: { scrapId } },
+      { scrap: { scrapId }, isDeleted: false },
       { populate: ['user', 'scrap'] }
     );
   }
@@ -75,26 +76,28 @@ export class TagsService {
     return await this.tagRepository.find(
       { 
         user: { userId },
-        scrap: { scrapId }
+        scrap: { scrapId },
+        isDeleted: false
       },
-      { populate: ['user', 'scrap'] }
+      { populate: ['user', 'scrap'], filters: { isDeleted: false } }
     );
   }
 
   async update(tagId: number, updateTagDto: UpdateTagDto): Promise<Tag | null> {
-    const tag = await this.tagRepository.findOne({ tagId });
+    const tag = await this.tagRepository.findOne({ tagId, isDeleted: false });
     if (!tag) {
       return null;
     }
     Object.assign(tag, updateTagDto);
-    await this.em.flush();
+    await this.em.persistAndFlush(tag);
     return tag;
   }
 
   async remove(tagId: number): Promise<void> {
-    const tag = await this.tagRepository.findOne({ tagId });
+    const tag = await this.tagRepository.findOne({ tagId, isDeleted: false });
     if (tag) {
-      await this.em.removeAndFlush(tag);
+      tag.isDeleted = true;
+      await this.em.persistAndFlush(tag);
     }
   }
 
@@ -102,11 +105,12 @@ export class TagsService {
     const tag = await this.tagRepository.findOne({
       tagId,
       user: { userId },
-      scrap: { scrapId }
+      scrap: { scrapId, isDeleted: false }
     });
-    
+
     if (tag) {
-      await this.em.removeAndFlush(tag);
+      tag.isDeleted = true;
+      await this.em.persistAndFlush(tag);
     }
   }
 
@@ -117,14 +121,16 @@ export class TagsService {
     interface TagSearchQuery {
       name: { $ilike: string };
       user?: { userId: number };
+      isDeleted?: boolean;
     }
-    const query: TagSearchQuery = { name: { $ilike: `%${name}%` } };
+    const query: TagSearchQuery = { name: { $ilike: `%${name}%` }, isDeleted: false };
     if (userId) {
       query.user = { userId };
     }
     
     return await this.tagRepository.find(query, { 
-      populate: ['user', 'scrap'] 
+      populate: ['user', 'scrap'],
+      filters: { isDeleted: false }
     });
   }
 
@@ -136,7 +142,7 @@ export class TagsService {
     
     const result = await qb
       .select('DISTINCT t.name')
-      .where({ user: { userId } })
+      .where({ user: { userId }, isDeleted: false })
       .getResult();
     
     return result.map(r => r.name);

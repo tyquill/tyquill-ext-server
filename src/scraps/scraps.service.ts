@@ -67,6 +67,7 @@ export class ScrapsService {
     }
 
     await this.em.persistAndFlush(scrap);
+    scrap.content = scrap.content.substring(0, 100);
     return scrap;
   }
 

@@ -253,7 +253,7 @@ export class ArticlesService {
     return articles.map((article) => ({
       articleId: article.articleId,
       title: article.getLatestTitle() || article.topic,
-      content: article.getLatestContent() || '',
+      content: article.getLatestContent()?.substring(0, 100) || '',
       topic: article.topic,
       keyInsight: article.keyInsight,
       generationParams: article.generationParams,

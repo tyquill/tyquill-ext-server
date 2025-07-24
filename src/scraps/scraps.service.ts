@@ -48,7 +48,7 @@ export class ScrapsService {
     }
 
     const article = articleId
-      ? await this.articleRepository.findOne({ articleId })
+      ? await this.articleRepository.findOne({ articleId, isDeleted: false })
       : null;
     if (articleId && !article) {
       throw new Error('Article not found');
@@ -71,19 +71,21 @@ export class ScrapsService {
   }
 
   async findAll(userId?: number): Promise<Scrap[]> {
-    const query = userId ? { user: { userId } } : {};
+    const query = userId ? { user: { userId }, isDeleted: false } : {};
 
     return await this.scrapRepository.find(query, {
       populate: ['user', 'article', 'tags'],
+      filters: { isDeleted: false }
     });
   }
 
   async findOne(scrapId: number): Promise<Scrap | null> {
     return await this.scrapRepository.findOne(
-      { scrapId },
+      { scrapId, isDeleted: false },
       {
         populate: ['user', 'article', 'tags'],
-      },
+        filters: { isDeleted: false }
+      }
     );
   }
 
@@ -92,7 +94,7 @@ export class ScrapsService {
     sortBy?: 'created_at' | 'updated_at' | 'title',
     sortOrder?: 'ASC' | 'DESC',
   ): Promise<Scrap[]> {
-    const query = { user: { userId } };
+    const query = { user: { userId }, isDeleted: false };
     let orderBy: any = { createdAt: 'DESC' };
 
     switch (sortBy) {
@@ -110,13 +112,14 @@ export class ScrapsService {
     return await this.scrapRepository.find(query, {
       populate: ['user', 'article', 'tags'],
       orderBy: orderBy,
+      filters: { isDeleted: false }
     });
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {
     return await this.scrapRepository.find(
-      { article: { articleId } },
-      { populate: ['user', 'article', 'tags'] },
+      { article: { articleId }, isDeleted: false },
+      { populate: ['user', 'article', 'tags'], filters: { isDeleted: false } },
     );
   }
 
@@ -124,7 +127,7 @@ export class ScrapsService {
     scrapId: number,
     updateScrapDto: UpdateScrapDto,
   ): Promise<Scrap | null> {
-    const scrap = await this.scrapRepository.findOne({ scrapId });
+    const scrap = await this.scrapRepository.findOne({ scrapId, isDeleted: false });
     if (!scrap) {
       return null;
     }
@@ -142,20 +145,25 @@ export class ScrapsService {
     }
 
     Object.assign(scrap, updateScrapDto);
-    await this.em.flush();
+    await this.em.persistAndFlush(scrap);
     return scrap;
   }
 
   async remove(scrapId: number): Promise<void> {
     const scrap = await this.scrapRepository.findOne({ scrapId }, {
       populate: ['tags'],
+      filters: { isDeleted: false }
     });
 
     if (scrap) {
       if (scrap.tags.length > 0) {
-        await this.em.removeAndFlush(scrap.tags);
+        for (const tag of scrap.tags) {
+          tag.isDeleted = true;
+          this.em.persistAndFlush(tag);
+        }
       }
-      await this.em.removeAndFlush(scrap);
+      scrap.isDeleted = true;
+      await this.em.persistAndFlush(scrap);
     }
   }
 
@@ -168,10 +176,11 @@ export class ScrapsService {
         { content: { $ilike: `%${query}%` } },
         { userComment: { $ilike: `%${query}%` } },
       ],
+      isDeleted: false,
     });
 
     if (userId) {
-      qb.andWhere({ user: { userId } });
+      qb.andWhere({ user: { userId }, isDeleted: false });
     }
 
     qb.leftJoinAndSelect('s.user', 'u')
@@ -205,17 +214,18 @@ export class ScrapsService {
           { userComment: { $ilike: `%${searchTerm}%` } },
           { url: { $ilike: `%${searchTerm}%` } },
         ],
+        isDeleted: false,
       });
     }
 
     // 사용자 필터
     if (searchOptions.userId) {
-      qb.andWhere({ user: { userId: searchOptions.userId } });
+      qb.andWhere({ user: { userId: searchOptions.userId }, isDeleted: false });
     }
 
     // 기사 필터
     if (searchOptions.articleId) {
-      qb.andWhere({ article: { articleId: searchOptions.articleId } });
+      qb.andWhere({ article: { articleId: searchOptions.articleId }, isDeleted: false });
     }
 
     // 태그 기반 필터링
@@ -224,15 +234,16 @@ export class ScrapsService {
         tags: {
           name: { $in: searchOptions.tags },
         },
+        isDeleted: false,
       });
     }
 
     // 날짜 범위 필터
     if (searchOptions.dateFrom) {
-      qb.andWhere({ createdAt: { $gte: searchOptions.dateFrom } });
+      qb.andWhere({ createdAt: { $gte: searchOptions.dateFrom }, isDeleted: false });
     }
     if (searchOptions.dateTo) {
-      qb.andWhere({ createdAt: { $lte: searchOptions.dateTo } });
+      qb.andWhere({ createdAt: { $lte: searchOptions.dateTo }, isDeleted: false });
     }
 
     // 정렬
@@ -274,7 +285,8 @@ export class ScrapsService {
 
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
-      .leftJoinAndSelect('s.tags', 't');
+      .leftJoinAndSelect('s.tags', 't')
+      .where({ isDeleted: false });
 
     if (matchAll) {
       // 모든 태그가 포함된 스크랩 (AND 조건)
@@ -287,7 +299,7 @@ export class ScrapsService {
     }
 
     if (userId) {
-      qb.andWhere({ user: { userId } });
+      qb.andWhere({ user: { userId }, isDeleted: false });
     }
 
     return await qb.getResult();

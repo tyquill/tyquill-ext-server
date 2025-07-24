@@ -19,6 +19,9 @@ export class Article {
   @Property({ fieldName: 'generation_params', type: 'text', nullable: true })
   generationParams?: string;
 
+  @Property({ name: 'is_deleted', type: 'boolean', default: false })
+  isDeleted: boolean = false;
+
   @Property({ fieldName: 'created_at', onCreate: () => new Date() })
   createdAt = new Date();
 

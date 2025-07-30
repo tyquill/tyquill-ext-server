@@ -75,7 +75,7 @@ export class ScrapsService {
     const query = userId ? { user: { userId }, isDeleted: false } : {};
 
     return await this.scrapRepository.find(query, {
-      populate: ['user', 'article', 'tags'],
+      populate: ['tags'],
       filters: { isDeleted: false }
     });
   }
@@ -84,7 +84,7 @@ export class ScrapsService {
     return await this.scrapRepository.findOne(
       { scrapId, isDeleted: false },
       {
-        populate: ['user', 'article', 'tags'],
+        populate: ['tags'],
         filters: { isDeleted: false }
       }
     );
@@ -110,17 +110,23 @@ export class ScrapsService {
         break;
     }
 
-    return await this.scrapRepository.find(query, {
-      populate: ['user', 'article', 'tags'],
+    const scraps = await this.scrapRepository.find(query, {
+      populate: ['tags'],
       orderBy: orderBy,
       filters: { isDeleted: false }
     });
+
+    return scraps.map((scrap) => ({
+      ...scrap,
+      content: scrap.content.substring(0, 100),
+    }));
+  
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {
     return await this.scrapRepository.find(
       { article: { articleId }, isDeleted: false },
-      { populate: ['user', 'article', 'tags'], filters: { isDeleted: false } },
+      { populate: ['tags'], filters: { isDeleted: false } },
     );
   }
 

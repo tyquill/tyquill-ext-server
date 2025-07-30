@@ -124,60 +124,6 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
   }
 
   /**
-   * 선택된 스크랩들을 구조화하여 조합합니다
-   */
-  async combineScrapData(
-    scrapsWithComments: ScrapWithComment[],
-  ): Promise<CombinedScrapData> {
-    if (scrapsWithComments.length === 0) {
-      return {
-        mainContent: '',
-        sources: [],
-        keyPoints: [],
-        userComments: [],
-      };
-    }
-
-    const sources = this.createScrapSources(scrapsWithComments);
-    const keyPoints = await this.extractAiKeyPoints(scrapsWithComments);
-    const userComments = this.collectUserComments(scrapsWithComments);
-    const mainContent = this.createMainContent(scrapsWithComments, keyPoints);
-
-    return {
-      mainContent,
-      sources,
-      keyPoints,
-      userComments,
-    };
-  }
-
-  /**
-   * 스크랩들을 소스 정보로 변환합니다
-   */
-  private createScrapSources(
-    scrapsWithComments: ScrapWithComment[],
-  ): ScrapSource[] {
-    return scrapsWithComments.map((scrap) => ({
-      title: scrap.scrap.title,
-      url: scrap.scrap.url,
-      summary: this.createSummary(scrap.scrap.content),
-      userComment: scrap.userComment,
-    }));
-  }
-
-  /**
-   * 콘텐츠 요약을 생성합니다
-   */
-  private createSummary(content: string): string {
-    // 간단한 요약 로직 - 첫 200자 또는 첫 두 문장
-    const sentences = content.split(/[.!?]/);
-    if (sentences.length >= 2) {
-      return sentences.slice(0, 2).join('. ').trim() + '.';
-    }
-    return content.length > 200 ? content.substring(0, 200) + '...' : content;
-  }
-
-  /**
    * AI를 활용하여 콘텐츠를 요약합니다
    */
   private async createAiSummary(content: string): Promise<string> {
@@ -202,11 +148,11 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
         content: truncatedContent,
       });
 
-      return summary.trim() || this.createSummary(content);
+      return summary.trim();
     } catch (error) {
       console.error('AI 요약 오류:', error);
       // 실패 시 기존 방식으로 폴백
-      return this.createSummary(content);
+      return content;
     }
   }
 
@@ -221,7 +167,7 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
       const scrapData = scrapsWithComments
         .map((item, index) => {
           const { scrap } = item;
-          return `${index + 1}. ${scrap.title}\n   내용: ${this.createSummary(scrap.content)}\n   URL: ${scrap.url}`;
+          return `${index + 1}. ${scrap.title}\n   내용: ${scrap.content}\n   URL: ${scrap.url}`;
         })
         .join('\n\n');
 
@@ -247,7 +193,7 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
     } catch (error) {
       console.error('AI 핵심 포인트 추출 오류:', error);
       // 실패 시 기존 방식으로 폴백
-      return this.extractKeyPointsFromComments(scrapsWithComments);
+      return [];
     }
   }
 
@@ -267,52 +213,6 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
   }
 
   /**
-   * 콘텐츠에서 중요한 문장들을 찾습니다
-   */
-  private findImportantSentences(content: string): string[] {
-    const sentences = content
-      .split(/[.!?]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    const importantSentences: string[] = [];
-
-    // 키워드 기반 중요 문장 선별
-    const importantKeywords = [
-      '중요',
-      '핵심',
-      '주요',
-      '결론',
-      '요약',
-      '포인트',
-      '특징',
-      '장점',
-      '단점',
-      '결과',
-      '영향',
-      '변화',
-      '트렌드',
-      '전망',
-      '예상',
-      '분석',
-      '평가',
-    ];
-
-    sentences.forEach((sentence) => {
-      if (sentence.length > 20 && sentence.length < 150) {
-        const hasImportantKeyword = importantKeywords.some((keyword) =>
-          sentence.includes(keyword),
-        );
-        if (hasImportantKeyword) {
-          importantSentences.push(sentence);
-        }
-      }
-    });
-
-    // 최대 2개까지만 반환
-    return importantSentences.slice(0, 2);
-  }
-
-  /**
    * 사용자 코멘트들을 수집합니다
    */
   private collectUserComments(
@@ -321,75 +221,6 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
     return scrapsWithComments
       .filter((scrap) => scrap.userComment && scrap.userComment.trim())
       .map((scrap) => scrap.userComment!.trim());
-  }
-
-  /**
-   * 메인 콘텐츠를 생성합니다
-   */
-  private createMainContent(
-    scrapsWithComments: ScrapWithComment[],
-    keyPoints: string[],
-  ): string {
-    let mainContent = '';
-
-    // 개요 섹션
-    mainContent += '## 주요 내용\n\n';
-
-    // 각 스크랩의 핵심 내용
-    scrapsWithComments.forEach((scrap, index) => {
-      mainContent += `### ${index + 1}. ${scrap.scrap.title}\n`;
-      mainContent += `**출처**: ${scrap.scrap.url}\n\n`;
-
-      if (scrap.userComment) {
-        mainContent += `**개인 의견**: ${scrap.userComment}\n\n`;
-      }
-      mainContent += `${this.createSummary(scrap.scrap.content)}\n\n`;
-    });
-
-    // 핵심 포인트 섹션
-    if (keyPoints.length > 0) {
-      mainContent += '## 핵심 포인트\n\n';
-      keyPoints.forEach((point) => {
-        mainContent += `- ${point}\n`;
-      });
-      mainContent += '\n';
-    }
-
-    return mainContent;
-  }
-
-  /**
-   * 스크랩 데이터를 AI 프롬프트용 텍스트로 변환합니다
-   */
-  async formatForAiPrompt(
-    scrapsWithComments: ScrapWithComment[],
-  ): Promise<string> {
-    const combinedData = await this.combineScrapData(scrapsWithComments);
-
-    let promptText = '';
-
-    // 소스 정보
-    promptText += '참고 자료:\n';
-    combinedData.sources.forEach((source, index) => {
-      promptText += `${index + 1}. ${source.title}\n`;
-      promptText += `   URL: ${source.url}\n`;
-      promptText += `   내용: ${source.summary}\n`;
-      if (source.userComment) {
-        promptText += `   사용자 의견: ${source.userComment}\n`;
-      }
-      promptText += '\n';
-    });
-
-    // 핵심 포인트
-    if (combinedData.keyPoints.length > 0) {
-      promptText += '핵심 포인트:\n';
-      combinedData.keyPoints.forEach((point) => {
-        promptText += `- ${point}\n`;
-      });
-      promptText += '\n';
-    }
-
-    return promptText;
   }
 
   /**
@@ -413,16 +244,6 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
       const aiSummary = await this.createAiSummary(scrap.content);
       promptText += `   AI 요약: ${aiSummary}\n`;
 
-      // HTML 내용이 있으면 AI 기반 구조화된 정보 추출
-      if (scrap.htmlContent) {
-        const structuredInfo = await this.extractStructuredInfo(
-          scrap.htmlContent,
-        );
-        if (structuredInfo) {
-          promptText += `   구조화된 정보: ${structuredInfo}\n`;
-        }
-      }
-
       // 아티클 생성 시점의 사용자 코멘트 우선 사용
       if (userComment) {
         promptText += `   사용자 의견: ${userComment}\n`;
@@ -443,87 +264,5 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
     }
 
     return promptText;
-  }
-
-  /**
-   * 사용자 코멘트에서 핵심 포인트를 추출합니다
-   */
-  private extractKeyPointsFromComments(
-    scrapsWithComments: ScrapWithComment[],
-  ): string[] {
-    const keyPoints: string[] = [];
-
-    scrapsWithComments.forEach((item) => {
-      const { scrap, userComment } = item;
-      const commentToUse = userComment || scrap.userComment;
-
-      if (commentToUse && commentToUse.trim()) {
-        keyPoints.push(`[${scrap.title}] ${commentToUse}`);
-      }
-
-      // 콘텐츠에서도 핵심 문장 추출
-      const importantSentences = this.findImportantSentences(scrap.content);
-      importantSentences.forEach((sentence) => {
-        keyPoints.push(`[${scrap.title}] ${sentence}`);
-      });
-    });
-
-    return keyPoints;
-  }
-
-  /**
-   * AI를 활용하여 HTML 내용에서 구조화된 정보를 추출합니다
-   */
-  private async extractStructuredInfo(
-    htmlContent: string,
-  ): Promise<string | null> {
-    try {
-      const chain = this.htmlAnalysisTemplate
-        .pipe(this.model)
-        .pipe(new StringOutputParser());
-
-      const result = await chain.invoke({
-        htmlContent: htmlContent,
-      });
-
-      return this.parseHtmlAnalysisResult(result);
-    } catch (error) {
-      console.error('AI HTML 분석 오류:', error);
-      return null;
-    }
-  }
-
-  /**
-   * AI 분석 결과를 파싱합니다
-   */
-  private parseHtmlAnalysisResult(result: string): string | null {
-    const info: string[] = [];
-
-    const titleMatch = result.match(/TITLE_STRUCTURE:\s*(.+)/i);
-    if (titleMatch && titleMatch[1].trim()) {
-      info.push(`제목 구조: ${titleMatch[1].trim()}`);
-    }
-
-    const metaMatch = result.match(/META_INFO:\s*(.+)/i);
-    if (metaMatch && metaMatch[1].trim()) {
-      info.push(`메타 정보: ${metaMatch[1].trim()}`);
-    }
-
-    const elementsMatch = result.match(/KEY_ELEMENTS:\s*(.+)/i);
-    if (elementsMatch && elementsMatch[1].trim()) {
-      info.push(`주요 요소: ${elementsMatch[1].trim()}`);
-    }
-
-    const linksMatch = result.match(/EXTERNAL_LINKS:\s*(.+)/i);
-    if (linksMatch && linksMatch[1].trim()) {
-      info.push(`관련 링크: ${linksMatch[1].trim()}`);
-    }
-
-    const typeMatch = result.match(/CONTENT_TYPE:\s*(.+)/i);
-    if (typeMatch && typeMatch[1].trim()) {
-      info.push(`콘텐츠 유형: ${typeMatch[1].trim()}`);
-    }
-
-    return info.length > 0 ? info.join(' | ') : null;
   }
 }

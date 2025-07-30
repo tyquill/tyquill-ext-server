@@ -15,6 +15,9 @@ export class ArticleArchive {
   @Property({ fieldName: 'version_number', type: 'int', nullable: true })
   versionNumber?: number;
 
+  @Property({ name: 'is_deleted', type: 'boolean', default: false })
+  isDeleted: boolean = false;
+
   @Property({ fieldName: 'created_at', onCreate: () => new Date() })
   createdAt = new Date();
 

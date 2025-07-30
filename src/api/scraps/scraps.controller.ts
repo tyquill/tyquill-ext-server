@@ -5,6 +5,7 @@ import { CreateScrapDto } from './dto/create-scrap.dto';
 import { UpdateScrapDto } from './dto/update-scrap.dto';
 import { CreateTagDto } from '../tags/dto/create-tag.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { Scrap } from 'src/scraps/entities/scrap.entity';
 
 @UseGuards(JwtAuthGuard)
 @Controller('scraps')
@@ -22,7 +23,7 @@ export class ScrapsController {
   async create(
     @Body() createScrapDto: CreateScrapDto,
     @Request() req: any,
-  ) {
+  ): Promise<Scrap> {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
       const { articleId, ...scrapData } = createScrapDto;

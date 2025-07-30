@@ -20,6 +20,9 @@ export class Scrap {
     @Property({ name: 'html_content', type: 'text' })
     htmlContent: string;
 
+    @Property({ name: 'is_deleted', type: 'boolean', default: false })
+    isDeleted: boolean = false;
+
     @Property({ name: 'user_comment', type: 'text', nullable: true })
     userComment?: string;
 

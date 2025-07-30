@@ -1,8 +1,7 @@
 /**
- * AI 모델 설정 및 API 키 검증 유틸리티
+ * AI 모델 설정 및 API 키 검증 유틸리티 (단순화됨)
  * 
- * @description 뉴스레터 생성에 사용되는 AI 모델들의 설정을 중앙 관리하고,
- * API 키 검증을 통해 안전한 모델 초기화를 보장합니다.
+ * @description 뉴스레터 생성에 사용되는 단일 AI 모델 설정을 관리합니다.
  */
 
 /**
@@ -17,105 +16,30 @@ export interface AIModelConfig {
 }
 
 /**
- * 뉴스레터 품질 서비스용 모델 설정들
- */
-export interface QualityServiceModels {
-  quality: AIModelConfig;
-  reflection: AIModelConfig;
-  correction: AIModelConfig;
-}
-
-/**
- * 뉴스레터 에이전트 서비스용 모델 설정들
- */
-export interface AgentServiceModels {
-  writer: AIModelConfig;
-  editor: AIModelConfig;
-  reviewer: AIModelConfig;
-  strategist: AIModelConfig;
-  synthesis: AIModelConfig;
-}
-
-/**
- * 전체 AI 모델 설정
+ * 단순화된 AI 모델 설정
  */
 export interface AIModelsConfiguration {
-  quality: QualityServiceModels;
-  agents: AgentServiceModels;
   workflow: {
     main: AIModelConfig;
-    strategist: AIModelConfig;
+    scrapAnalysis: AIModelConfig;
   };
 }
 
 /**
- * 기본 AI 모델 설정들
+ * 단일 AI 모델 설정
  */
 export const AI_MODELS_CONFIG: AIModelsConfiguration = {
-  quality: {
-    // 품질 검증용 보수적 모델
-    quality: {
-      model: 'gemini-1.5-flash',
-      temperature: 0.1, // 엄격한 평가
-      maxOutputTokens: 2048,
-    },
-    // 리플렉션 전용 창의적 모델
-    reflection: {
-      model: 'gemini-2.0-flash',
-      temperature: 0.8, // 창의적 분석
-      maxOutputTokens: 2048,
-    },
-    // 자기 교정용 균형 모델
-    correction: {
-      model: 'gemini-2.0-flash',
-      temperature: 0.5, // 균형적 개선
-      maxOutputTokens: 2048,
-    },
-  },
-  agents: {
-    // 작성자 에이전트 - 창의적 콘텐츠 생성
-    writer: {
-      model: 'gemini-1.5-pro',
-      temperature: 0.8,
-      maxOutputTokens: 4096,
-    },
-    // 편집자 에이전트 - 구조 및 스타일 개선
-    editor: {
-      model: 'gemini-1.5-pro',
-      temperature: 0.6,
-      maxOutputTokens: 3072,
-    },
-    // 검토자 에이전트 - 비판적 분석
-    reviewer: {
-      model: 'gemini-1.5-pro',
-      temperature: 0.4,
-      maxOutputTokens: 2048,
-    },
-    // 전략가 에이전트 - 비즈니스 임팩트 최적화
-    strategist: {
-      model: 'gemini-1.5-pro',
-      temperature: 0.7,
-      maxOutputTokens: 2048,
-    },
-    // 종합 에이전트 - 결과 통합
-    synthesis: {
-      model: 'gemini-1.5-pro',
-      temperature: 0.5,
-      maxOutputTokens: 4096,
-    },
-  },
   workflow: {
-    // 워크플로우 메인 모델
+    // 워크플로우 메인 모델 (유일한 모델)
     main: {
-      model: 'gemini-1.5-pro',
-      temperature: 0.6,
-      maxOutputTokens: 4096,
-    },
-    // 워크플로우 전략 모델
-    strategist: {
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
       temperature: 0.7,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 10000,
+    },
+    scrapAnalysis: {
+      model: 'gemini-2.5-flash',
+      temperature: 0.7,
+      maxOutputTokens: 10000,
     },
   },
 };
@@ -207,10 +131,8 @@ export function logConfigurationInfo(): void {
     return;
   }
 
-  console.log('🤖 AI Models Configuration Loaded:');
-  console.log(`  - Quality Models: ${Object.keys(AI_MODELS_CONFIG.quality).length} models`);
-  console.log(`  - Agent Models: ${Object.keys(AI_MODELS_CONFIG.agents).length} models`);
-  console.log(`  - Workflow Models: ${Object.keys(AI_MODELS_CONFIG.workflow).length} models`);
+  console.log('🤖 AI Models Configuration Loaded (Simplified):');
+  console.log(`  - Workflow Models: ${Object.keys(AI_MODELS_CONFIG.workflow).length} model(s)`);
   
   const validation = validateEnvironment();
   if (validation.isValid) {
@@ -220,4 +142,4 @@ export function logConfigurationInfo(): void {
     validation.errors.forEach(error => console.log(`  - Error: ${error}`));
     validation.warnings.forEach(warning => console.log(`  - Warning: ${warning}`));
   }
-} 
+}

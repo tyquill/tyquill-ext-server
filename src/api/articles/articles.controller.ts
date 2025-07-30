@@ -32,6 +32,17 @@ export class ArticlesController {
   create(@Body() createArticleDto: CreateArticleDto) {
     return this.articlesService.create(createArticleDto);
   }
+  /**
+   * 페이지 콘텐츠를 분석하여 글 구조 템플릿을 생성합니다.
+   * POST /api/v1/articles/analyze-structure
+   */
+  @Version('1')
+  @Post('analyze-structure')
+  @ApiOperation({ summary: '페이지 콘텐츠를 분석하여 글 구조 템플릿 생성' })
+  @ApiResponse({ status: 201, description: '글 구조 분석 성공' })
+  async analyzeStructure(@Body('content') content: string) {
+    return this.articlesService.analyzePageStructure(content);
+  }
 
   /**
    * AI를 사용하여 뉴스레터를 생성합니다
@@ -54,7 +65,7 @@ export class ArticlesController {
    */
   @Version('1')
   @Get()
-  findAll(@Request() req: any, @Query('sortBy') sortBy?: 'created_at' | 'updated_at', @Query('sortOrder') sortOrder?: 'ASC' | 'DESC') {
+  findAll(@Request() req: any, @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title', @Query('sortOrder') sortOrder?: 'ASC' | 'DESC') {
     const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
     return this.articlesService.findByUser(userId);
   }

@@ -1,713 +1,415 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { StringOutputParser } from '@langchain/core/output_parsers';
-import { ScrapCombinationService, ScrapWithComment } from './scrap-combination.service';
-import { NewsletterToolsService, ToolResult } from './newsletter-tools.service';
+import {
+  JsonOutputParser,
+  StringOutputParser,
+} from '@langchain/core/output_parsers';
+import {
+  ScrapCombinationService,
+  ScrapWithComment,
+} from './scrap-combination.service';
 import { NewsletterPromptTemplatesService } from './newsletter-prompt-templates.service';
-import { NewsletterAgentService } from './newsletter-agent.service';
-import { 
-  NewsletterQualityService, 
-  QualityMetrics, 
-  ReflectionResult} from './newsletter-quality.service';
-import { ToolNodesService } from './node/tool-nodes.service';
-import { AgentNodesService } from './node/agent-nodes.service';
-import { QualityNodesService } from './node/quality-nodes.service';
-import { ContentParser } from '../utils/content-parser.util';
-import { 
-  AI_MODELS_CONFIG, 
-  createModelInitConfig, 
-  APIKeyValidationError 
-} from '../config/ai-models.config';
+import {
+  AI_MODELS_CONFIG,
+  createModelInitConfig,
+  APIKeyValidationError,
+} from './config/ai-models.config';
+import { SectionTemplate } from 'src/types/section-template';
 
 /**
- * 뉴스레터 워크플로우 설정 인터페이스
- * 
- * @description 뉴스레터 생성 워크플로우의 동작을 제어하는 설정값들을 정의합니다.
- * 이 설정들을 통해 품질 관리, 재시도 로직, 라우팅 결정 등을 조정할 수 있습니다.
+ * 피드백 데이터 타입
  */
-interface WorkflowConfig {
-  /**
-   * 신뢰도 기반 라우팅을 위한 임계값 설정
-   */
-  confidenceThresholds: {
-    /**
-     * 높은 신뢰도 임계값 (0-100)
-     * @description 이 값 이상의 신뢰도를 가진 콘텐츠는 즉시 승인되어 high_confidence 라우트로 진행
-     * @default 70
-     */
-    high: number;
-    
-    /**
-     * 중간 신뢰도 임계값 (0-100)
-     * @description 이 값 이상의 신뢰도를 가진 콘텐츠는 medium_confidence 라우트로 진행
-     * @default 40
-     */
-    medium: number;
-  };
-  
-  /**
-   * 재시도 및 교정 프로세스 제한 설정
-   */
-  retryLimits: {
-    /**
-     * 최대 자기교정 시도 횟수
-     * @description 품질이 기준에 미달할 때 자기교정을 시도하는 최대 횟수
-     * 무한 루프를 방지하고 성능을 보장하기 위한 제한
-     * @default 2
-     */
-    maxSelfCorrectionAttempts: number;
-  };
+interface Feedback {
+  generatedNewsletter: string;
+  feedback: string;
 }
 
-// 뉴스레터 유형 정의 (확장됨)
-export enum NewsletterType {
-  INFORMATIONAL = 'informational', // 정보전달형
-  PROMOTIONAL = 'promotional', // 광고/프로모션형  
-  ESSAY = 'essay', // 에세이/스토리텔링형
-  CURATION = 'curation', // 큐레이션/요약형
-  COMMUNITY = 'community', // 커뮤니티/참여형
-  WELCOME = 'welcome', // 웰컴 이메일
-  NURTURING = 'nurturing', // 너처링 이메일
-}
-
-// 확장된 뉴스레터 상태 정의 (도구 관련 필드 추가)
+/**
+ * 뉴스레터 워크플로우 상태 타입
+ */
 export const NewsletterStateAnnotation = Annotation.Root({
   // 입력 데이터
   topic: Annotation<string>,
   keyInsight: Annotation<string | undefined>,
   scrapsWithComments: Annotation<ScrapWithComment[]>,
   generationParams: Annotation<string | undefined>,
+  articleStructureTemplate: Annotation<SectionTemplate[] | undefined>,
   
-  // 분석 결과
-  newsletterType: Annotation<NewsletterType | undefined>,
-  analysisReason: Annotation<string | undefined>,
-  confidenceScore: Annotation<number | undefined>, // 분류 신뢰도
-  
-  // 스크랩 분석 데이터
+  // 중간 처리 데이터
   scrapContent: Annotation<string>,
-  
-  // 중간 결과
-  draftTitle: Annotation<string | undefined>,
-  draftContent: Annotation<string | undefined>,
-  
-  // 품질 검증
-  qualityMetrics: Annotation<QualityMetrics | undefined>,
-  validationIssues: Annotation<string[]>,
-  
-  // 리플렉션 시스템 (새로 추가)
-  reflectionResult: Annotation<ReflectionResult | undefined>,
-  selfCorrectionAttempts: Annotation<number>,
-  
-  // 멀티 에이전트 결과 (새로 추가)
-  writerOutput: Annotation<string | undefined>,
-  editorOutput: Annotation<string | undefined>,
-  reviewerOutput: Annotation<string | undefined>,
-  strategistOutput: Annotation<string | undefined>,
-  
-  // 도구 사용 결과 (새로 추가)
-  needsTools: Annotation<boolean | undefined>,
-  recommendedTools: Annotation<string[]>,
-  toolResults: Annotation<ToolResult[]>,
-  webSearchResults: Annotation<string | undefined>,
-  urlContentResults: Annotation<string | undefined>,
-  keywordResults: Annotation<string[]>,
-  factCheckResults: Annotation<string | undefined>,
+  countOfReflector: Annotation<number>,
+  feedbacks: Annotation<Feedback[]>,
   
   // 최종 결과
-  title: Annotation<string | undefined>,
-  content: Annotation<string | undefined>,
+  title: Annotation<string>,
+  content: Annotation<string>,
   
-  // 추가 메타데이터
+  // 메타데이터
   processingSteps: Annotation<string[]>,
   warnings: Annotation<string[]>,
-  suggestions: Annotation<string[]>,
-  reasoning: Annotation<string[]>, // 추론 과정 기록 (새로 추가)
-  
-  // 에러 처리
-  error: Annotation<string | undefined>,
+  errors: Annotation<string[]>,
 });
 
+/**
+ * 뉴스레터 입력 인터페이스
+ */
 export interface NewsletterInput {
   topic: string;
   keyInsight?: string;
   scrapsWithComments: ScrapWithComment[];
   generationParams?: string;
+  articleStructureTemplate?: SectionTemplate[];
 }
 
+/**
+ * 뉴스레터 출력 인터페이스
+ */
 export interface NewsletterOutput {
   title: string;
   content: string;
-  newsletterType: NewsletterType;
   analysisReason: string;
-  qualityMetrics: QualityMetrics;
   warnings: string[];
-  suggestions: string[];
-  reflectionResult?: ReflectionResult;
-  reasoning: string[];
-  // 도구 관련 결과 (새로 추가)
-  toolsUsed: string[];
-  toolResults?: ToolResult[];
 }
 
+/**
+ * 노드 실행 결과 타입
+ */
+interface NodeResult {
+  [key: string]: any;
+  processingSteps?: string[];
+  warnings?: string[];
+  errors?: string[];
+}
+
+/**
+ * 뉴스레터 워크플로우 서비스
+ */
 @Injectable()
 export class NewsletterWorkflowService {
-  private readonly model: ChatGoogleGenerativeAI;
-  private readonly strategistModel: ChatGoogleGenerativeAI;
+  private readonly logger = new Logger(NewsletterWorkflowService.name);
+  private model!: ChatGoogleGenerativeAI;
+  private titleModel!: ChatGoogleGenerativeAI;
+  private reflectorModel!: ChatGoogleGenerativeAI;
   private graph: any;
-
-  /**
-   * 워크플로우 설정값들 - 하드코딩된 값들을 여기서 중앙 관리
-   * 
-   * @description 뉴스레터 생성 워크플로우의 핵심 설정값들을 정의합니다.
-   * 이 설정들을 통해 워크플로우의 동작을 조정할 수 있으며,
-   * 향후 환경변수나 데이터베이스에서 로드하도록 확장 가능합니다.
-   */
-  private readonly config: WorkflowConfig = {
-    confidenceThresholds: {
-      high: 70,    // 높은 신뢰도 임계값 - 이 값 이상이면 즉시 승인
-      medium: 40,  // 중간 신뢰도 임계값 - 이 값 이상이면 중간 품질로 분류
-    },
-    retryLimits: {
-      maxSelfCorrectionAttempts: 2, // 최대 자기교정 시도 횟수 - 무한 루프 방지
-    },
-  };
-
-  /**
-   * 설정값 접근을 위한 getter 메서드들
-   * 향후 외부에서 설정을 동적으로 변경할 수 있는 확장성 제공
-   */
-  
-  /**
-   * 현재 confidence threshold 설정 반환
-   */
-  public getConfidenceThresholds(): { high: number; medium: number } {
-    return { ...this.config.confidenceThresholds };
-  }
-
-  /**
-   * 현재 retry 제한 설정 반환
-   */
-  public getRetryLimits(): { maxSelfCorrectionAttempts: number } {
-    return { ...this.config.retryLimits };
-  }
-
-  /**
-   * 전체 설정 객체 반환 (읽기 전용)
-   */
-  public getWorkflowConfig(): Readonly<WorkflowConfig> {
-    return {
-      confidenceThresholds: { ...this.config.confidenceThresholds },
-      retryLimits: { ...this.config.retryLimits },
-    };
-  }
 
   constructor(
     private readonly scrapCombinationService: ScrapCombinationService,
-    private readonly toolsService: NewsletterToolsService,
     private readonly promptTemplatesService: NewsletterPromptTemplatesService,
-    private readonly agentService: NewsletterAgentService,
-    private readonly qualityService: NewsletterQualityService,
-    // 새로운 노드 서비스들 주입
-    private readonly toolNodesService: ToolNodesService,
-    private readonly agentNodesService: AgentNodesService,
-    private readonly qualityNodesService: QualityNodesService,
   ) {
+    this.initializeModels();
+    this.initializeGraph();
+  }
+
+  /**
+   * AI 모델 초기화
+   */
+  private initializeModels(): void {
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🤖 Initializing NewsletterWorkflowService with AI models...');
-      }
+      this.logger.log('🤖 Initializing AI models for newsletter workflow...');
 
-      // 메인 모델 (일반적인 생성 작업용) - 설정 파일에서 로드
+      // 메인 모델 (뉴스레터 생성용)
       this.model = new ChatGoogleGenerativeAI(
-        createModelInitConfig(AI_MODELS_CONFIG.workflow.main)
+        createModelInitConfig(AI_MODELS_CONFIG.workflow.main),
       );
 
-      // 전략적 분석용 모델 - 설정 파일에서 로드
-      this.strategistModel = new ChatGoogleGenerativeAI(
-        createModelInitConfig(AI_MODELS_CONFIG.workflow.strategist)
+      // 제목 생성 전용 모델 (더 빠른 응답)
+      this.titleModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig({
+          ...AI_MODELS_CONFIG.workflow.main,
+          model: 'gemini-2.5-flash',
+        }),
       );
 
-      this.initializeGraph();
-      
-      console.log('✅ NewsletterWorkflowService: Workflow models initialized successfully');
+      // 리플렉터 모델 (분석용)
+      this.reflectorModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig({
+          ...AI_MODELS_CONFIG.workflow.main,
+          model: 'gemini-2.5-flash',
+        }),
+      );
+
+      this.logger.log('✅ AI models initialized successfully');
     } catch (error) {
       if (error instanceof APIKeyValidationError) {
-        console.error('❌ NewsletterWorkflowService initialization failed:', error.message);
-        throw new Error(`Failed to initialize workflow models: ${error.message}`);
+        this.logger.error(`❌ Model initialization failed: ${error.message}`);
+        throw new Error(`Failed to initialize AI models: ${error.message}`);
       }
-      console.error('❌ Unexpected error during NewsletterWorkflowService initialization:', error);
+      this.logger.error('❌ Unexpected error during model initialization:', error);
       throw error;
     }
   }
 
   /**
-   * 그래프 초기화
+   * LangGraph 워크플로우 초기화
    */
   private initializeGraph(): void {
-    // StateGraph 생성 (도구 지원 고도화된 멀티 에이전트 노드들)
-    const graphBuilder = new StateGraph(NewsletterStateAnnotation)
-      // 기본 파이프라인 노드들
-      .addNode('prepare_scrap_content', this.prepareScrapContentNode.bind(this))
-      .addNode('strategic_analysis', this.strategicAnalysisNode.bind(this))
-      .addNode('chain_of_thought', this.chainOfThoughtNode.bind(this))
-      .addNode('classify_newsletter_type', this.classifyNewsletterTypeNode.bind(this))
-      
-      // 도구 활용 노드들 (새로 추가)
-      .addNode('assess_tool_needs', this.assessToolNeedsNode.bind(this))
-      .addNode('execute_tools', this.executeToolsNode.bind(this))
-      .addNode('integrate_tool_results', this.integrateToolResultsNode.bind(this))
-      
-      // 멀티 에이전트 생성 노드들
-      .addNode('multi_agent_generation', this.multiAgentGenerationNode.bind(this))
-      
-      // 종합 및 품질 관리 노드들
-      .addNode('synthesize_outputs', this.synthesizeOutputsNode.bind(this))
-      .addNode('validate_quality', this.validateQualityNode.bind(this))
-      .addNode('reflection_analysis', this.reflectionAnalysisNode.bind(this))
-      .addNode('self_correction', this.selfCorrectionNode.bind(this))
-      .addNode('handle_error', this.handleErrorNode.bind(this))
-      
-      // 고도화된 도구 지원 에지 구조
-      .addEdge(START, 'prepare_scrap_content')
-      .addEdge('prepare_scrap_content', 'strategic_analysis')
-      .addEdge('strategic_analysis', 'chain_of_thought')
-      .addEdge('chain_of_thought', 'classify_newsletter_type')
-      .addEdge('classify_newsletter_type', 'assess_tool_needs')
-      
-      // 도구 사용 필요성 평가 후 분기
-      .addConditionalEdges(
-        'assess_tool_needs',
-        this.routeByToolNeeds.bind(this),
-        {
-          'use_tools': 'execute_tools',
-          'skip_tools': 'multi_agent_generation',
-          'error': 'handle_error',
-        }
-      )
-      
-      // 도구 실행 후 결과 통합
-      .addEdge('execute_tools', 'integrate_tool_results')
-      .addEdge('integrate_tool_results', 'multi_agent_generation')
-      
-      // 신뢰도 기반 멀티 에이전트 분기
-      .addConditionalEdges(
-        'multi_agent_generation',
-        this.routeByClassificationConfidence.bind(this),
-        {
-          'high_confidence': 'synthesize_outputs',
-          'medium_confidence': 'synthesize_outputs',
-          'low_confidence': 'handle_error',
-          'error': 'handle_error',
-        }
-      )
-      
-      // 품질 검증 및 리플렉션 체인
-      .addEdge('synthesize_outputs', 'validate_quality')
-      .addEdge('validate_quality', 'reflection_analysis')
-      
-      // 리플렉션 결과에 따른 분기 (무한 루프 방지)
-      .addConditionalEdges(
-        'reflection_analysis',
-        this.routeByReflectionResult.bind(this),
-        {
-          'high_quality': END,
-          'needs_improvement': 'self_correction',
-          'error': 'handle_error',
-        }
-      )
-      
-      // 자기 교정 후 종료 (무한 루프 방지)
-      .addEdge('self_correction', END)
-      .addEdge('handle_error', END);
+    try {
+      this.logger.log('🔄 Initializing newsletter workflow graph...');
 
-    // 그래프 컴파일
-    this.graph = graphBuilder.compile();
+      const graphBuilder = new StateGraph(NewsletterStateAnnotation)
+        .addNode('prepare_scrap_content', this.prepareScrapContentNode.bind(this))
+        .addNode('generate_newsletter', this.generateNewsletterNode.bind(this))
+        .addNode('generate_newsletter_title', this.generateNewsletterTitleNode.bind(this))
+        .addNode('article_reflector', this.articleReflectorNode.bind(this))
+
+        // 워크플로우 엣지 정의
+        .addEdge(START, 'prepare_scrap_content')
+        .addEdge('prepare_scrap_content', 'generate_newsletter')
+        .addEdge('article_reflector', 'generate_newsletter')
+        .addConditionalEdges('generate_newsletter', this.conditionalEdges.bind(this))
+        .addEdge('generate_newsletter_title', END);
+
+      this.graph = graphBuilder.compile();
+      this.logger.log('✅ Newsletter workflow graph compiled successfully');
+    } catch (error) {
+      this.logger.error('❌ Failed to initialize workflow graph:', error);
+      throw error;
+    }
   }
 
   /**
-   * 스크랩 데이터 준비 노드 (향상된 에러 처리)
+   * 스크랩 데이터 준비 노드
    */
-  private async prepareScrapContentNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'scrap_content_preparation'];
-    
+  private async prepareScrapContentNode(
+    state: typeof NewsletterStateAnnotation.State,
+  ): Promise<NodeResult> {
+    const processingSteps = [
+      ...(state.processingSteps || []),
+      'scrap_content_preparation',
+    ];
+
     try {
-      if (!state.scrapsWithComments || state.scrapsWithComments.length === 0) {
+      if (!state.scrapsWithComments?.length) {
         return {
           processingSteps,
-          warnings: [...(state.warnings || []), '스크랩 데이터가 제공되지 않았습니다.'],
+          warnings: [
+            ...(state.warnings || []),
+            '스크랩 데이터가 제공되지 않았습니다.',
+          ],
           scrapContent: '스크랩 데이터 없음. 주제와 핵심 인사이트만으로 진행합니다.',
-          toolResults: [],
         };
       }
 
       const scrapContent = await this.scrapCombinationService.formatForAiPromptWithComments(
-        state.scrapsWithComments
+        state.scrapsWithComments,
       );
-      
+
       return {
         scrapContent,
         processingSteps,
-        toolResults: [],
       };
     } catch (error) {
-      console.error('스크랩 데이터 준비 오류:', error);
+      this.logger.error('스크랩 데이터 준비 오류:', error);
       return {
-        error: '스크랩 데이터를 준비하는 중 오류가 발생했습니다.',
         processingSteps,
-        toolResults: [],
+        errors: [
+          ...(state.errors || []),
+          '스크랩 데이터를 준비하는 중 오류가 발생했습니다.',
+        ],
+        scrapContent: '스크랩 데이터 처리 실패. 기본 템플릿으로 진행합니다.',
       };
     }
   }
 
   /**
-   * 도구 사용 필요성 평가 노드 (ToolNodesService에 위임)
+   * 뉴스레터 생성 노드
    */
-  private async assessToolNeedsNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    return this.toolNodesService.assessToolNeeds(state);
-  }
+  private async generateNewsletterNode(
+    state: typeof NewsletterStateAnnotation.State,
+  ): Promise<NodeResult> {
+    const processingSteps = [
+      ...(state.processingSteps || []),
+      'newsletter_generation',
+    ];
 
-  /**
-   * 도구 실행 노드 (ToolNodesService에 위임)
-   */
-  private async executeToolsNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    return this.toolNodesService.executeTools(state);
-  }
-
-  /**
-   * 도구 결과 통합 노드 (ToolNodesService에 위임)
-   */
-  private async integrateToolResultsNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    return this.toolNodesService.integrateToolResults(state);
-  }
-
-  /**
-   * 도구 필요성 기반 라우팅 함수 (새로 추가)
-   */
-  private routeByToolNeeds(state: typeof NewsletterStateAnnotation.State): string {
-    if (state.error) {
-      return 'error';
-    }
-    
-    if (state.needsTools && state.recommendedTools && state.recommendedTools.length > 0) {
-      return 'use_tools';
-    } else {
-      return 'skip_tools';
-    }
-  }
-
-  /**
-   * 전략적 분석 노드 (새로 추가)
-   */
-  private async strategicAnalysisNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'strategic_analysis'];
-    const reasoning = [...(state.reasoning || [])];
-    
     try {
-      const template = this.promptTemplatesService.getStrategicAnalysisTemplate();
-      const chain = template.pipe(this.strategistModel).pipe(new StringOutputParser());
-      
-      const result = await chain.invoke({
-        topic: state.topic,
-        keyInsight: state.keyInsight || '없음',
-        generationParams: state.generationParams || '없음',
-        newsletterType: 'unknown', // 아직 분류되지 않음
-      });
+      this.logger.log(`📝 Generating newsletter (iteration: ${(state.countOfReflector || 0) + 1})`);
 
-      reasoning.push('전략적 분석 완료');
-
-      return {
-        strategistOutput: result,
-        processingSteps,
-        reasoning,
-        suggestions: [...(state.suggestions || []), '전략적 분석 수행됨'],
-      };
-    } catch (error) {
-      console.error('전략적 분석 오류:', error);
-      return {
-        error: '전략적 분석 중 오류가 발생했습니다.',
-        processingSteps,
-        reasoning,
-      };
-    }
-  }
-
-  /**
-   * Chain of Thought 추론 노드 (새로 추가)
-   */
-  private async chainOfThoughtNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'chain_of_thought_reasoning'];
-    const reasoning = [...(state.reasoning || [])];
-    
-    try {
-      const template = this.promptTemplatesService.getChainOfThoughtTemplate();
+      const template = this.promptTemplatesService.getSimpleNewsletterTemplate();
       const chain = template.pipe(this.model).pipe(new StringOutputParser());
-      
+
       const result = await chain.invoke({
         topic: state.topic,
         keyInsight: state.keyInsight || '없음',
         generationParams: state.generationParams || '없음',
-        scrapContent: state.scrapContent,
+        scrapContent: state.scrapContent || '없음',
+        articleStructureTemplate: state.articleStructureTemplate || '없음',
+        feedbacks: state.feedbacks?.length ? JSON.stringify(state.feedbacks) : '없음',
       });
 
-      reasoning.push('Chain of Thought 추론 완료');
-
       return {
+        content: result,
+        analysisReason: 'AI 모델로 생성된 뉴스레터입니다.',
         processingSteps,
-        reasoning,
+        countOfReflector: (state.countOfReflector || 0) + 1,
       };
     } catch (error) {
-      console.error('Chain of Thought 추론 오류:', error);
+      this.logger.error('뉴스레터 생성 오류:', error);
       return {
-        error: 'Chain of Thought 추론 중 오류가 발생했습니다.',
         processingSteps,
-        reasoning,
+        errors: [
+          ...(state.errors || []),
+          '뉴스레터 생성 중 오류가 발생했습니다.',
+        ],
+        content: `${state.topic}에 대한 기본 뉴스레터 내용입니다.`,
       };
     }
   }
 
   /**
-   * 멀티 에이전트 생성 노드 (AgentNodesService에 위임)
+   * 뉴스레터 제목 생성 노드
    */
-  private async multiAgentGenerationNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    return this.agentNodesService.executeMultiAgentGeneration(state);
-  }
-
-  /**
-   * 뉴스레터 유형 분류 노드 (리팩토링됨)
-   */
-  private async classifyNewsletterTypeNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'newsletter_type_classification'];
-    
+  private async generateNewsletterTitleNode(
+    state: typeof NewsletterStateAnnotation.State,
+  ): Promise<NodeResult> {
     try {
-      const template = this.promptTemplatesService.getTypeClassificationTemplate();
-      const chain = template.pipe(this.model).pipe(new StringOutputParser());
-      
+      this.logger.log('📝 Generating newsletter title');
+
+      const template = this.promptTemplatesService.getSimpleNewsletterTitleTemplate();
+      const chain = template.pipe(this.titleModel).pipe(new StringOutputParser());
+
       const result = await chain.invoke({
         topic: state.topic,
         keyInsight: state.keyInsight || '없음',
         generationParams: state.generationParams || '없음',
-        scrapContent: state.scrapContent,
+        content: state.content,
       });
 
-      const typeMatch = result.match(/TYPE:\s*(\w+)/i);
-      const confidenceMatch = result.match(/CONFIDENCE:\s*(\d+)/i);
-      const reasonMatch = result.match(/REASON:\s*(.+)/i);
-
-      if (!typeMatch) {
-        throw new Error('뉴스레터 유형을 분류할 수 없습니다.');
-      }
-
-      const newsletterType = typeMatch[1].toLowerCase() as NewsletterType;
-      const confidenceScore = confidenceMatch ? parseInt(confidenceMatch[1]) : 0;
-      const analysisReason = reasonMatch ? reasonMatch[1].trim() : '분석 이유를 확인할 수 없습니다.';
-
-      // 유효한 뉴스레터 유형인지 확인
-      if (!Object.values(NewsletterType).includes(newsletterType)) {
-        throw new Error(`알 수 없는 뉴스레터 유형: ${newsletterType}`);
-      }
-
       return {
-        newsletterType,
-        confidenceScore,
-        analysisReason,
-        processingSteps,
+        title: result.trim(),
       };
     } catch (error) {
-      console.error('뉴스레터 유형 분류 오류:', error);
+      this.logger.error('뉴스레터 제목 생성 오류:', error);
       return {
-        error: '뉴스레터 유형을 분류하는 중 오류가 발생했습니다.',
-        processingSteps,
+        title: `${state.topic} 뉴스레터`,
+        warnings: [
+          ...(state.warnings || []),
+          '제목 생성에 실패하여 기본 제목을 사용합니다.',
+        ],
       };
     }
   }
 
   /**
-   * 에이전트 결과 종합 노드 (AgentNodesService에 위임)
+   * 아티클 리플렉터 노드 (품질 개선)
    */
-  private async synthesizeOutputsNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    return this.agentNodesService.synthesizeAgentOutputs(state);
-  }
+  private async articleReflectorNode(
+    state: typeof NewsletterStateAnnotation.State,
+  ): Promise<NodeResult> {
+    try {
+      this.logger.log(`🔍 Running article reflector (iteration: ${state.countOfReflector})`);
 
-  /**
-   * 리플렉션 분석 노드 (QualityNodesService에 위임)
-   */
-  private async reflectionAnalysisNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    return this.qualityNodesService.performReflectionAnalysis(state);
-  }
+      const template = this.promptTemplatesService.getArticleReflectorTemplate();
+      const chain = template.pipe(this.reflectorModel).pipe(new StringOutputParser());
 
-  /**
-   * 자기 교정 노드 (QualityNodesService에 위임)
-   */
-  private async selfCorrectionNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    return this.qualityNodesService.performSelfCorrection(state);
-  }
+      const result = await chain.invoke({
+        topic: state.topic || '없음',
+        keyInsight: state.keyInsight || '없음',
+        generationParams: state.generationParams || '없음',
+        content: state.content || '없음',
+        articleStructureTemplate: state.articleStructureTemplate || '없음',
+      });
 
-  /**
-   * 향상된 신뢰도 기반 라우팅 함수
-   */
-  private routeByClassificationConfidence(state: typeof NewsletterStateAnnotation.State): string {
-    if (state.error) {
-      return 'error';
+      const feedback: Feedback = {
+        generatedNewsletter: state.content,
+        feedback: result,
+      };
+
+      return {
+        feedbacks: [...(state.feedbacks || []), feedback],
+      };
+    } catch (error) {
+      this.logger.error('아티클 리플렉터 오류:', error);
+      return {
+        feedbacks: state.feedbacks || [],
+        warnings: [
+          ...(state.warnings || []),
+          '아티클 리플렉터 실행에 실패했습니다.',
+        ],
+      };
     }
-    
-    const confidence = state.confidenceScore || 0;
-    if (confidence >= this.config.confidenceThresholds.high) {
-      return 'high_confidence';
-    } else if (confidence >= this.config.confidenceThresholds.medium) {
-      return 'medium_confidence';
-    } else {
-      return 'low_confidence';
+  }
+
+  /**
+   * 조건부 엣지 결정
+   */
+  private conditionalEdges(
+    state: typeof NewsletterStateAnnotation.State,
+  ): string {
+    const currentIteration = state.countOfReflector || 0;
+    this.logger.log(`🔍 Conditional edge decision: iteration ${currentIteration}`);
+
+    if (currentIteration < 3) {
+      return 'article_reflector';
     }
+    return 'generate_newsletter_title';
   }
 
   /**
-   * 리플렉션 결과 기반 라우팅 함수 (QualityNodesService에 위임)
-   */
-  private routeByReflectionResult(state: typeof NewsletterStateAnnotation.State): string {
-    return this.qualityNodesService.routeByReflectionResult(state);
-  }
-
-  /**
-   * 품질 검증 노드 (QualityNodesService에 위임)
-   */
-  private async validateQualityNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    return this.qualityNodesService.validateQuality(state);
-  }
-
-  /**
-   * 에러 처리 노드 (향상된 에러 메시지)
-   */
-  private async handleErrorNode(state: typeof NewsletterStateAnnotation.State): Promise<any> {
-    const processingSteps = [...(state.processingSteps || []), 'error_handling'];
-    
-    // 신뢰도가 낮은 경우 기본 큐레이션형으로 폴백
-    if (state.confidenceScore && state.confidenceScore < 50) {
-      try {
-        const template = this.promptTemplatesService.getCurationTemplate();
-        const chain = template.pipe(this.model).pipe(new StringOutputParser());
-        
-        const result = await chain.invoke({
-          topic: state.topic,
-          keyInsight: state.keyInsight || '',
-          generationParams: state.generationParams || '',
-          scrapContent: state.scrapContent,
-        });
-
-        const { title, content } = this.parseGeneratedContent(result);
-        
-        return {
-          title,
-          content,
-          newsletterType: NewsletterType.CURATION,
-          analysisReason: '신뢰도가 낮아 큐레이션형으로 폴백했습니다.',
-          processingSteps,
-          warnings: [...(state.warnings || []), '분류 신뢰도가 낮아 기본 형식을 사용했습니다.'],
-        };
-      } catch (error) {
-        console.error('폴백 생성 실패:', error);
-      }
-    }
-
-    return {
-      title: '오류 발생',
-      content: `뉴스레터 생성 중 오류가 발생했습니다: ${state.error}\n\n처리 단계: ${processingSteps.join(' → ')}`,
-      processingSteps,
-    };
-  }
-
-  /**
-   * 생성된 콘텐츠에서 제목과 본문 파싱 (ContentParser 유틸리티에 위임)
-   */
-  private parseGeneratedContent(content: string): { title: string; content: string } {
-    return ContentParser.parseNewsletterContent(content);
-  }
-
-  /**
-   * 고도화된 멀티 에이전트 뉴스레터 생성 메인 메소드
+   * 뉴스레터 생성 메인 메소드
    */
   async generateNewsletter(input: NewsletterInput): Promise<NewsletterOutput> {
     try {
-      console.log(`🚀 고도화된 멀티 에이전트 뉴스레터 생성 시작`);
-      console.log(`📝 주제: ${input.topic}`);
-      console.log(`💡 핵심 인사이트: ${input.keyInsight || '없음'}`);
-      console.log(`📊 스크랩 개수: ${input.scrapsWithComments?.length || 0}개`);
-      console.log(`⚙️ 생성 파라미터: ${input.generationParams || '없음'}`);
+      this.logger.log('🚀 Starting newsletter generation workflow');
+      this.logger.log(`📝 Topic: ${input.topic}`);
+      this.logger.log(`💡 Key insight: ${input.keyInsight || 'None'}`);
+      this.logger.log(`📊 Scraps count: ${input.scrapsWithComments?.length || 0}`);
+      this.logger.log(`⚙️ Generation params: ${input.generationParams || 'None'}`);
 
-      const startTime = Date.now();
-      
       const result = await this.graph.invoke({
         topic: input.topic,
         keyInsight: input.keyInsight,
         scrapsWithComments: input.scrapsWithComments,
         generationParams: input.generationParams,
+        articleStructureTemplate: input.articleStructureTemplate,
         processingSteps: [],
         warnings: [],
-        suggestions: [],
-        validationIssues: [],
-        reasoning: [],
-        selfCorrectionAttempts: 0,
-        // 도구 관련 필드 초기화
-        needsTools: false,
-        recommendedTools: [],
-        toolResults: [],
-        webSearchResults: undefined,
-        urlContentResults: undefined,
-        keywordResults: [],
-        factCheckResults: undefined,
+        errors: [],
+        feedbacks: [],
+        countOfReflector: 0,
       });
 
-      const processingTime = Date.now() - startTime;
-
-      if (result.error) {
-        console.error(`❌ 뉴스레터 생성 실패: ${result.error}`);
-        throw new Error(result.error);
+      if (result.errors?.length) {
+        this.logger.error(`❌ Newsletter generation failed: ${result.errors.join(', ')}`);
+        throw new Error(`Newsletter generation failed: ${result.errors.join(', ')}`);
       }
-
-      // 향상된 품질 메트릭 기본값
-      const defaultQualityMetrics: QualityMetrics = {
-        clarity: 5,
-        engagement: 5,
-        accuracy: 5,
-        completeness: 5,
-        creativity: 5,
-        persuasiveness: 5,
-        overall: 5,
-        confidence: 50,
-      };
 
       const output: NewsletterOutput = {
         title: result.title,
         content: result.content,
-        newsletterType: result.newsletterType || NewsletterType.CURATION,
-        analysisReason: result.analysisReason || '고도화된 멀티 에이전트 도구 시스템으로 분석했습니다.',
-        qualityMetrics: result.qualityMetrics || defaultQualityMetrics,
+        analysisReason: result.analysisReason || 'AI 시스템으로 생성된 뉴스레터입니다.',
         warnings: result.warnings || [],
-        suggestions: result.suggestions || [],
-        reflectionResult: result.reflectionResult,
-        reasoning: result.reasoning || [],
-        // 도구 관련 결과 추가
-        toolsUsed: result.recommendedTools || [],
-        toolResults: result.toolResults || [],
       };
 
-      // 상세한 결과 로깅
-      console.log(`\n🎉 뉴스레터 생성 완료!`);
-      console.log(`⏱️ 처리 시간: ${processingTime}ms`);
-      console.log(`📋 유형: ${output.newsletterType}`);
-      console.log(`📊 품질 점수: ${output.qualityMetrics.overall}/10 (신뢰도: ${output.qualityMetrics.confidence}%)`);
-
-      if (output.toolsUsed.length > 0) {
-        console.log(`🔧 사용된 도구: ${output.toolsUsed.join(', ')}`);
-      }
-
-      const processingSteps = result.processingSteps || [];
-      console.log(`🔄 처리 단계: ${processingSteps.join(' → ')}`);
+      this.logger.log('🎉 Newsletter generation completed successfully');
 
       return output;
     } catch (error) {
-      console.error('🚨 뉴스레터 생성 워크플로우 치명적 오류:', error);
+      this.logger.error('🚨 Newsletter generation workflow failed:', error);
       throw error;
     }
   }
-} 
+
+  /**
+   * 페이지 구조 분석 (독립적인 메소드)
+   */
+  async analyzePageStructure(content: string): Promise<any> {
+    try {
+      this.logger.log('🔍 Analyzing page structure');
+
+      const template = this.promptTemplatesService.getStructureAnalysisTemplate();
+      const chain = template
+        .pipe(this.model)
+        .pipe(new JsonOutputParser());
+
+      const result = await chain.invoke({ content });
+      
+      this.logger.log('✅ Page structure analysis completed');
+      return result;
+    } catch (error) {
+      this.logger.error('❌ Page structure analysis failed:', error);
+      throw error;
+    }
+  }
+}

@@ -43,6 +43,9 @@ export class GoogleAuthRequestDto {
  * 토큰 갱신 요청 DTO
  */
 export class RefreshTokenDto {
+  @ApiProperty({ description: 'Refresh token for token renewal' })
+  @IsString()
+  @IsNotEmpty()
   refreshToken: string;
 }
 

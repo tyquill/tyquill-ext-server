@@ -275,7 +275,7 @@ export class ScrapsController {
       }
 
       // 태그 존재 및 권한 확인 후 삭제
-      await this.tagsService.removeFromScrap(userId, scrapId, tagId);
+      await this.tagsService.remove(tagId);
       return { message: 'Tag removed from scrap successfully' };
     } catch (error: any) {
       if (error instanceof HttpException) {

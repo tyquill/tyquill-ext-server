@@ -225,36 +225,52 @@ KEY_POINTS: [핵심 포인트 1] | [핵심 포인트 2] | [핵심 포인트 3]
 
   /**
    * 아티클 생성 시점의 사용자 코멘트와 함께 스크랩 데이터를 AI 프롬프트용 텍스트로 변환합니다
+   * 병렬 처리를 통해 성능을 대폭 개선합니다.
    */
   async formatForAiPromptWithComments(
     scrapsWithComments: ScrapWithComment[],
   ): Promise<string> {
-    let promptText = '';
+    // 소스 정보 시작
+    let promptText = '참고 자료:\n';
 
-    // 소스 정보
-    promptText += '참고 자료:\n';
+    // 모든 AI 작업을 병렬로 실행
+    const [scrapAnalyses, aiKeyPoints] = await Promise.all([
+      // 1. 스크랩 분석 병렬 처리
+      Promise.all(
+        scrapsWithComments.map(async (item, index) => {
+          const { scrap, userComment } = item;
+          
+          // AI 기반 콘텐츠 요약을 병렬로 처리
+          const aiSummary = await this.createAiSummary(scrap.content);
+          
+          return {
+            index: index + 1,
+            title: scrap.title,
+            url: scrap.url,
+            aiSummary,
+            userComment: userComment || scrap.userComment,
+          };
+        })
+      ),
+      // 2. 핵심 포인트 추출 병렬 처리
+      this.extractAiKeyPoints(scrapsWithComments),
+    ]);
 
-    // 각 스크랩에 대해 AI 기반 분석 수행
-    for (let i = 0; i < scrapsWithComments.length; i++) {
-      const { scrap, userComment } = scrapsWithComments[i];
-      promptText += `${i + 1}. ${scrap.title}\n`;
-      promptText += `   URL: ${scrap.url}\n`;
+    // 분석 결과를 순서대로 정렬하여 프롬프트 구성
+    scrapAnalyses
+      .sort((a, b) => a.index - b.index)
+      .forEach((analysis) => {
+        promptText += `${analysis.index}. ${analysis.title}\n`;
+        promptText += `   URL: ${analysis.url}\n`;
+        promptText += `   AI 요약: ${analysis.aiSummary}\n`;
 
-      // AI 기반 콘텐츠 요약
-      const aiSummary = await this.createAiSummary(scrap.content);
-      promptText += `   AI 요약: ${aiSummary}\n`;
+        if (analysis.userComment) {
+          promptText += `   사용자 의견: ${analysis.userComment}\n`;
+        }
+        promptText += '\n';
+      });
 
-      // 아티클 생성 시점의 사용자 코멘트 우선 사용
-      if (userComment) {
-        promptText += `   사용자 의견: ${userComment}\n`;
-      } else if (scrap.userComment) {
-        promptText += `   기존 메모: ${scrap.userComment}\n`;
-      }
-      promptText += '\n';
-    }
-
-    // AI 기반 핵심 포인트 추출
-    const aiKeyPoints = await this.extractAiKeyPoints(scrapsWithComments);
+    // 핵심 포인트 추가
     if (aiKeyPoints.length > 0) {
       promptText += '핵심 포인트:\n';
       aiKeyPoints.forEach((point) => {

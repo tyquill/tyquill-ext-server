@@ -94,26 +94,11 @@ export class TagsService {
   }
 
   async remove(tagId: number): Promise<void> {
-    const tag = await this.tagRepository.findOne({ tagId, isDeleted: false });
+    const tag = await this.tagRepository.findOne({ tagId });
     if (tag) {
-      tag.isDeleted = true;
-      await this.em.persistAndFlush(tag);
+      await this.em.removeAndFlush(tag);
     }
   }
-
-  async removeFromScrap(userId: number, scrapId: number, tagId: number): Promise<void> {
-    const tag = await this.tagRepository.findOne({
-      tagId,
-      user: { userId },
-      scrap: { scrapId, isDeleted: false }
-    });
-
-    if (tag) {
-      tag.isDeleted = true;
-      await this.em.persistAndFlush(tag);
-    }
-  }
-
   /**
    * 태그명으로 검색
    */

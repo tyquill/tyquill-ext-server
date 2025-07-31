@@ -165,8 +165,7 @@ export class ScrapsService {
     if (scrap) {
       if (scrap.tags.length > 0) {
         for (const tag of scrap.tags) {
-          tag.isDeleted = true;
-          this.em.persistAndFlush(tag);
+          this.em.removeAndFlush(tag);
         }
       }
       scrap.isDeleted = true;

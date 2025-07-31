@@ -53,21 +53,21 @@ export class TagsService {
   }
 
   async findOne(tagId: number): Promise<Tag | null> {
-    return await this.tagRepository.findOne({ tagId, isDeleted: false }, {
+    return await this.tagRepository.findOne({ tagId }, {
       populate: ['user', 'scrap'],
     });
   }
 
   async findByUser(userId: number): Promise<Tag[]> {
     return await this.tagRepository.find(
-      { user: { userId }, isDeleted: false },
+      { user: { userId } },
       { populate: ['user', 'scrap'] }
     );
   }
 
   async findByScrap(scrapId: number): Promise<Tag[]> {
     return await this.tagRepository.find(
-      { scrap: { scrapId }, isDeleted: false },
+      { scrap: { scrapId } },
       { populate: ['user', 'scrap'] }
     );
   }
@@ -77,14 +77,13 @@ export class TagsService {
       { 
         user: { userId },
         scrap: { scrapId },
-        isDeleted: false
       },
       { populate: ['user', 'scrap'], filters: { isDeleted: false } }
     );
   }
 
   async update(tagId: number, updateTagDto: UpdateTagDto): Promise<Tag | null> {
-    const tag = await this.tagRepository.findOne({ tagId, isDeleted: false });
+    const tag = await this.tagRepository.findOne({ tagId });
     if (!tag) {
       return null;
     }
@@ -108,14 +107,13 @@ export class TagsService {
       user?: { userId: number };
       isDeleted?: boolean;
     }
-    const query: TagSearchQuery = { name: { $ilike: `%${name}%` }, isDeleted: false };
+    const query: TagSearchQuery = { name: { $ilike: `%${name}%` } };
     if (userId) {
       query.user = { userId };
     }
     
     return await this.tagRepository.find(query, { 
       populate: ['user', 'scrap'],
-      filters: { isDeleted: false }
     });
   }
 
@@ -127,7 +125,7 @@ export class TagsService {
     
     const result = await qb
       .select('DISTINCT t.name')
-      .where({ user: { userId }, isDeleted: false })
+      .where({ user: { userId } })
       .getResult();
     
     return result.map(r => r.name);

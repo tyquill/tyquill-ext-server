@@ -36,6 +36,11 @@ export class GenerateArticleDto {
   @IsArray()
   @IsOptional()
   articleStructureTemplate?: TemplateSectionDto[];
+
+  @ApiProperty()
+  @IsNumber()
+  @IsOptional()
+  writingStyleId?: number;
 } 
 
 export interface TemplateSectionDto {

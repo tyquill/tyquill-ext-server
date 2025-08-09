@@ -11,10 +11,12 @@ import { Scrap } from './scraps/entities/scrap.entity';
 import { Tag } from './tags/entities/tag.entity';
 import { User } from './users/entities/user.entity';
 import { UserOAuth } from './users/entities/user-oauth.entity';
+import { WritingStyle } from './writing-styles/entities/writing-style.entity';
+import { WritingStyleExample } from './writing-styles/entities/writing-style-example.entity';
 
 export default defineConfig({
   // 명시적으로 엔티티 지정
-  entities: [Article, ArticleArchive, Scrap, Tag, User, UserOAuth],
+  entities: [Article, ArticleArchive, Scrap, Tag, User, UserOAuth, WritingStyle, WritingStyleExample],
   clientUrl: process.env.DATABASE_URL,
   //   dbName: process.env.DATABASE_NAME,
   schema: 'public',

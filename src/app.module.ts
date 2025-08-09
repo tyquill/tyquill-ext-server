@@ -10,6 +10,7 @@ import { ArticleArchiveModule } from './article-archive/article-archive.module';
 import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
+import { WritingStylesModule } from './writing-styles/writing-styles.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AuthModule } from './auth/auth.module';
     TagsModule,
     ArticlesModule,
     ArticleArchiveModule,
+    WritingStylesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

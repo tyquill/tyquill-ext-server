@@ -13,6 +13,7 @@ import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { NewsletterWorkflowService } from '../agent/newsletter-workflow.service';
+import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 
 @Injectable()
 export class ArticlesService {
@@ -27,6 +28,8 @@ export class ArticlesService {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private readonly newsletterWorkflowService: NewsletterWorkflowService,
+    @InjectRepository(WritingStyleExample)
+    private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
   ) {}
 
   /**
@@ -130,6 +133,18 @@ export class ArticlesService {
       });
     }
 
+    let writingStyleExampleContents: string[] = [];
+    if (generateDto.writingStyleId) {
+      const writingStyleExamples = await this.writingStyleExampleRepository.find(
+        {writingStyle: {id: generateDto.writingStyleId, user: user}},
+        {populate: ['writingStyle']},
+      );
+      writingStyleExampleContents = writingStyleExamples.map((example) => example.content);
+      if (!writingStyleExamples) {
+        throw new NotFoundException('쓰기 스타일을 찾을 수 없습니다.');
+      }
+    }
+
     // AI 뉴스레터 생성
     const newsletterResult =
       await this.newsletterWorkflowService.generateNewsletter({
@@ -138,6 +153,7 @@ export class ArticlesService {
         scrapsWithComments,
         generationParams: generateDto.generationParams,
         articleStructureTemplate: generateDto.articleStructureTemplate,
+        writingStyleExampleContents,
       });
 
     // 아티클 저장

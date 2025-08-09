@@ -7,9 +7,11 @@ export class NewsletterPromptTemplatesService {
   private simpleNewsletterTitleTemplate: PromptTemplate;
   private structureAnalysisTemplate: PromptTemplate; // New template
   private articleReflectorTemplate: PromptTemplate;
+  private writingStyleRewriteTemplate: PromptTemplate;
   constructor() {
     this.initializeSimpleTemplate();
     this.initializeStructureAnalysisTemplate(); // Initialize new template
+    this.initializeWritingStyleRewriteTemplate();
   }
 
   /**
@@ -181,5 +183,47 @@ JSON 출력 형식:
    */
   getArticleReflectorTemplate(): PromptTemplate {
     return this.articleReflectorTemplate;
+  }
+
+  /**
+   * 문체 재작성 템플릿 초기화
+   */
+  private initializeWritingStyleRewriteTemplate(): void {
+    this.writingStyleRewriteTemplate = PromptTemplate.fromTemplate(
+      `당신은 전문적인 문체 변환 전문가입니다. 주어진 뉴스레터 내용을 참고 문체 예시에 맞게 재작성해주세요.
+
+<rules>
+- 원본 내용의 핵심 메시지와 구조는 유지하되, 문체만 변경할 것
+- 참고 문체 예시의 톤, 어조, 문장 구조를 분석하여 적용할 것
+- 마크다운 형식은 그대로 유지할 것
+- 내용의 논리적 흐름은 보존할 것
+- 무조건 한국어로 작성할 것
+- * * * 과 같은 형식의 마크다운을 쓰지마세요
+- bullet point는 '-' 기호를 사용할 것
+- 표준 마크다운 문법을 따라서 작성할 것
+</rules>
+
+<context>
+주제: {topic}
+핵심 인사이트: {keyInsight}
+
+원본 뉴스레터 내용:
+{content}
+
+참고 문체 예시:
+{writingStyleExamples}
+</context>
+
+<response format>
+참고 문체에 맞게 재작성된 뉴스레터 본문만 작성해주세요. 제목은 포함하지 마세요.
+</response format>`
+    );
+  }
+
+  /**
+   * 문체 재작성 템플릿 게터 메서드
+   */
+  getWritingStyleRewriteTemplate(): PromptTemplate {
+    return this.writingStyleRewriteTemplate;
   }
 }

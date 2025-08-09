@@ -5,6 +5,7 @@ import {
   JsonOutputParser,
   StringOutputParser,
 } from '@langchain/core/output_parsers';
+import { PromptTemplate } from '@langchain/core/prompts';
 import {
   ScrapCombinationService,
   ScrapWithComment,
@@ -16,6 +17,8 @@ import {
   APIKeyValidationError,
 } from './config/ai-models.config';
 import { SectionTemplate } from 'src/types/section-template';
+import { writeFileSync } from 'fs';
+
 
 /**
  * 피드백 데이터 타입
@@ -35,7 +38,7 @@ export const NewsletterStateAnnotation = Annotation.Root({
   scrapsWithComments: Annotation<ScrapWithComment[]>,
   generationParams: Annotation<string | undefined>,
   articleStructureTemplate: Annotation<SectionTemplate[] | undefined>,
-  
+  writingStyleExampleContents: Annotation<string[] | undefined>,
   // 중간 처리 데이터
   scrapContent: Annotation<string>,
   countOfReflector: Annotation<number>,
@@ -60,6 +63,7 @@ export interface NewsletterInput {
   scrapsWithComments: ScrapWithComment[];
   generationParams?: string;
   articleStructureTemplate?: SectionTemplate[];
+  writingStyleExampleContents?: string[];
 }
 
 /**
@@ -91,6 +95,7 @@ export class NewsletterWorkflowService {
   private model!: ChatGoogleGenerativeAI;
   private titleModel!: ChatGoogleGenerativeAI;
   private reflectorModel!: ChatGoogleGenerativeAI;
+  private rewriteModel!: ChatGoogleGenerativeAI;
   private graph: any;
 
   constructor(
@@ -129,6 +134,14 @@ export class NewsletterWorkflowService {
         }),
       );
 
+      // rewrite 모델
+      this.rewriteModel = new ChatGoogleGenerativeAI(
+        createModelInitConfig({
+          ...AI_MODELS_CONFIG.workflow.main,
+          model: 'gemini-2.5-pro',
+        }),
+      );
+
       this.logger.log('✅ AI models initialized successfully');
     } catch (error) {
       if (error instanceof APIKeyValidationError) {
@@ -143,7 +156,7 @@ export class NewsletterWorkflowService {
   /**
    * LangGraph 워크플로우 초기화
    */
-  private initializeGraph(): void {
+  private async initializeGraph(): Promise<any> {
     try {
       this.logger.log('🔄 Initializing newsletter workflow graph...');
 
@@ -152,19 +165,45 @@ export class NewsletterWorkflowService {
         .addNode('generate_newsletter', this.generateNewsletterNode.bind(this))
         .addNode('generate_newsletter_title', this.generateNewsletterTitleNode.bind(this))
         .addNode('article_reflector', this.articleReflectorNode.bind(this))
-
+        .addNode('rewrite_writing_style', this.rewriteWritingStyleNode.bind(this))
         // 워크플로우 엣지 정의
         .addEdge(START, 'prepare_scrap_content')
         .addEdge('prepare_scrap_content', 'generate_newsletter')
         .addEdge('article_reflector', 'generate_newsletter')
         .addConditionalEdges('generate_newsletter', this.conditionalEdges.bind(this))
+        .addEdge('rewrite_writing_style', 'generate_newsletter_title')
         .addEdge('generate_newsletter_title', END);
 
       this.graph = graphBuilder.compile();
       this.logger.log('✅ Newsletter workflow graph compiled successfully');
+
+      // 그래프 시각화는 선택적으로 실행 (실패해도 애플리케이션은 계속 실행)
+      await this.generateGraphVisualization();
     } catch (error) {
       this.logger.error('❌ Failed to initialize workflow graph:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 워크플로우 그래프 시각화 생성 (선택적 기능)
+   */
+  private async generateGraphVisualization(): Promise<void> {
+    try {
+      this.logger.log('🎨 Generating workflow graph visualization...');
+      
+      const representation = this.graph.getGraph();
+      const image = await representation.drawMermaidPng();
+      const graphStateArrayBuffer = await image.arrayBuffer();
+      
+      const filePath = "./graphState.png";
+      writeFileSync(filePath, new Uint8Array(graphStateArrayBuffer));
+      
+      this.logger.log('✅ Graph visualization saved successfully');
+    } catch (error) {
+      this.logger.warn('⚠️ Failed to generate graph visualization (non-critical):', error);
+      this.logger.warn('📝 This is likely due to Mermaid.INK API being temporarily unavailable');
+      this.logger.warn('🔄 Newsletter workflow will continue to function normally');
     }
   }
 
@@ -338,12 +377,23 @@ export class NewsletterWorkflowService {
     state: typeof NewsletterStateAnnotation.State,
   ): string {
     const currentIteration = state.countOfReflector || 0;
-    this.logger.log(`🔍 Conditional edge decision: iteration ${currentIteration}`);
+    const hasWritingStyleExamples = state.writingStyleExampleContents && state.writingStyleExampleContents.length > 0;
+    
+    this.logger.log(`🔍 Conditional edge decision: iteration ${currentIteration}, has writing style examples: ${hasWritingStyleExamples}`);
 
+    // 반복 횟수가 3 미만이면 리플렉터로
     if (currentIteration < 3) {
       return 'article_reflector';
     }
-    return 'generate_newsletter_title';
+    
+    // 반복 완료 후, 문체 예시가 있으면 문체 재작성으로, 없으면 제목 생성으로
+    if (hasWritingStyleExamples) {
+      this.logger.log('📝 Proceeding to writing style rewrite node');
+      return 'rewrite_writing_style';
+    } else {
+      this.logger.log('📝 Skipping writing style rewrite, proceeding to title generation');
+      return 'generate_newsletter_title';
+    }
   }
 
   /**
@@ -368,6 +418,7 @@ export class NewsletterWorkflowService {
         errors: [],
         feedbacks: [],
         countOfReflector: 0,
+        writingStyleExampleContents: input.writingStyleExampleContents,
       });
 
       if (result.errors?.length) {
@@ -410,6 +461,63 @@ export class NewsletterWorkflowService {
     } catch (error) {
       this.logger.error('❌ Page structure analysis failed:', error);
       throw error;
+    }
+  }
+
+  async rewriteWritingStyleNode(
+    state: typeof NewsletterStateAnnotation.State,
+  ): Promise<NodeResult> {
+    const processingSteps = [
+      ...(state.processingSteps || []),
+      'writing_style_rewrite',
+    ];
+
+    try {
+      // 문체 예시가 없으면 원본 내용 그대로 반환
+      if (!state.writingStyleExampleContents || state.writingStyleExampleContents.length === 0) {
+        this.logger.log('📝 No writing style examples provided, skipping rewrite');
+        return {
+          content: state.content,
+          processingSteps,
+          warnings: [
+            ...(state.warnings || []),
+            '문체 예시가 제공되지 않아 원본 내용을 유지합니다.',
+          ],
+        };
+      }
+
+      this.logger.log('📝 Rewriting content with writing style examples');
+
+      const template = this.promptTemplatesService.getWritingStyleRewriteTemplate();
+      const chain = template.pipe(this.rewriteModel).pipe(new StringOutputParser());
+
+      const writingStyleExamples = state.writingStyleExampleContents.join('\n\n---\n\n');
+
+      const result = await chain.invoke({
+        topic: state.topic,
+        keyInsight: state.keyInsight || '없음',
+        content: state.content,
+        writingStyleExamples,
+      });
+
+      return {
+        content: result,
+        processingSteps,
+      };
+    } catch (error) {
+      this.logger.error('문체 재작성 오류:', error);
+      return {
+        content: state.content,
+        processingSteps,
+        warnings: [
+          ...(state.warnings || []),
+          '문체 재작성 중 오류가 발생하여 원본 내용을 유지합니다.',
+        ],
+        errors: [
+          ...(state.errors || []),
+          '문체 재작성 중 오류가 발생했습니다.',
+        ],
+      };
     }
   }
 }

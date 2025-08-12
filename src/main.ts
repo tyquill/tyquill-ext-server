@@ -79,6 +79,22 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3000;
+  // 서버 타임아웃 설정 (긴 생성 작업 지원)
+  const server: any = app.getHttpServer();
+  if (server && typeof server.setTimeout === 'function') {
+    // 요청 처리 타임아웃(비활동) 연장
+    server.setTimeout(15 * 60 * 1000); // 15분
+  }
+  // keep-alive/헤더 타임아웃 조정 (ALB/Nginx 504 예방)
+  if (server) {
+    // 헤더 수신 대기시간은 keepAliveTimeout보다 커야 함
+    server.keepAliveTimeout = 61 * 1000; // 61초
+    server.headersTimeout = 65 * 1000;   // 65초
+    // Node18+: requestTimeout이 기본 5분인 경우가 있어 늘려줌
+    if (typeof server.requestTimeout === 'number') {
+      server.requestTimeout = 15 * 60 * 1000; // 15분
+    }
+  }
   await app.listen(port);
   
   console.log(`🚀 Application is running on: http://localhost:${port}`);

@@ -19,6 +19,9 @@ export class Article {
   @Property({ fieldName: 'generation_params', type: 'text', nullable: true })
   generationParams?: string;
 
+  @Property({ fieldName: 'generation_status', type: 'varchar', length: 20, default: 'completed' })
+  generationStatus: 'processing' | 'completed' | 'failed' = 'completed';
+
   @Property({ name: 'is_deleted', type: 'boolean', default: false })
   isDeleted: boolean = false;
 

@@ -9,7 +9,6 @@ export class CreateScrapDto {
 
   @ApiProperty()
   @IsString()
-  @MaxLength(500)
   title: string;
 
   @ApiProperty()

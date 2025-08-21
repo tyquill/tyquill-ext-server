@@ -13,7 +13,6 @@ export class UpdateScrapDto extends PartialType(CreateScrapDto) {
   @ApiProperty()
   @IsOptional()
   @IsString()
-  @MaxLength(500)
   title?: string;
 
 

@@ -8,25 +8,7 @@ import {
   createModelInitConfig,
   APIKeyValidationError,
 } from './config/ai-models.config';
-
-export interface ScrapWithComment {
-  scrap: Scrap;
-  userComment?: string;
-}
-
-export interface CombinedScrapData {
-  mainContent: string;
-  sources: ScrapSource[];
-  keyPoints: string[];
-  userComments: string[];
-}
-
-export interface ScrapSource {
-  title: string;
-  url: string;
-  summary: string;
-  userComment?: string;
-}
+import { ScrapWithComment } from './types';
 
 @Injectable()
 export class ScrapCombinationService {

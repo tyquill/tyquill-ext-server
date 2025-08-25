@@ -1,6 +1,6 @@
 /**
  * 인증 모듈
- * 
+ *
  * @description JWT 기반 Google OAuth 인증을 위한 NestJS 모듈입니다.
  * Linear issue CHI-40 요구사항에 따라 구현되었습니다.
  */
@@ -41,12 +41,7 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
   ],
   controllers: [AuthController, CallbackController],
-  providers: [
-    AuthService,
-    JwtStrategy,
-    JwtAuthGuard,
-    OptionalJwtAuthGuard,
-  ],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, OptionalJwtAuthGuard],
   exports: [
     AuthService,
     JwtAuthGuard,
@@ -59,4 +54,4 @@ export class AuthModule {
   constructor() {
     console.log('🔐 AuthModule initialized');
   }
-} 
+}

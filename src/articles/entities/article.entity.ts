@@ -10,7 +10,7 @@ export class Article {
   articleId!: number;
 
 
-  @Property({ fieldName: 'topic', type: 'varchar', length: 100 })
+  @Property({ fieldName: 'topic', type: 'varchar', length: 500 })
   topic!: string;
 
   @Property({ fieldName: 'key_insight', type: 'text' })

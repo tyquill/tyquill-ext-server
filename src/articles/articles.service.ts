@@ -17,7 +17,7 @@ import { ArticleArchive } from '../article-archive/entities/article-archive.enti
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { NewsletterWorkflowService } from '../agent/newsletter-workflow.service';
+import { NewsletterAgentService } from '../services/newsletter-agent.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 
 @Injectable()
@@ -34,7 +34,7 @@ export class ArticlesService {
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
-    private readonly newsletterWorkflowService: NewsletterWorkflowService,
+    private readonly newsletterAgentService: NewsletterAgentService,
     @InjectRepository(WritingStyleExample)
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
   ) {}
@@ -44,8 +44,7 @@ export class ArticlesService {
    */
   async analyzePageStructure(content: string): Promise<any> {
     console.log('analyzePageStructure');
-    const result =
-      await this.newsletterWorkflowService.analyzePageStructure(content);
+    const result = await this.newsletterAgentService.analyzePageStructure(content);
 
     try {
       // LLM의 결과물이 항상 완벽한 JSON이 아닐 수 있으므로 파싱 시도
@@ -152,16 +151,27 @@ export class ArticlesService {
       }
     }
 
+    // Convert scrapsWithComments to the format expected by FastAPI
+    const formattedScrapsWithComments = scrapsWithComments.map(item => ({
+      scrap: {
+        id: item.scrap.scrapId,
+        title: item.scrap.title,
+        url: item.scrap.url,
+        content: item.scrap.content,
+        userComment: item.scrap.userComment,
+      },
+      userComment: item.userComment,
+    }));
+
     // AI 뉴스레터 생성
-    const newsletterResult =
-      await this.newsletterWorkflowService.generateNewsletter({
-        topic: generateDto.topic,
-        keyInsight: generateDto.keyInsight,
-        scrapsWithComments,
-        generationParams: generateDto.generationParams,
-        articleStructureTemplate: generateDto.articleStructureTemplate,
-        writingStyleExampleContents,
-      });
+    const newsletterResult = await this.newsletterAgentService.generateNewsletter({
+      topic: generateDto.topic,
+      keyInsight: generateDto.keyInsight,
+      scrapsWithComments: formattedScrapsWithComments,
+      generationParams: generateDto.generationParams,
+      articleStructureTemplate: generateDto.articleStructureTemplate,
+      writingStyleExampleContents,
+    });
 
     // 아티클 저장
     const article = new Article();
@@ -610,11 +620,23 @@ export class ArticlesService {
         writingStyleExampleContents = writingStyleExamples.map((example) => example.content);
       }
 
+      // Convert scrapsWithComments to the format expected by FastAPI
+      const formattedScrapsWithComments = scrapsWithComments.map(item => ({
+        scrap: {
+          id: item.scrap.scrapId,
+          title: item.scrap.title,
+          url: item.scrap.url,
+          content: item.scrap.content,
+          userComment: item.scrap.userComment,
+        },
+        userComment: item.userComment,
+      }));
+
       // AI 뉴스레터 생성
-      const newsletterResult = await this.newsletterWorkflowService.generateNewsletter({
+      const newsletterResult = await this.newsletterAgentService.generateNewsletter({
         topic: generateDto.topic,
         keyInsight: generateDto.keyInsight,
-        scrapsWithComments,
+        scrapsWithComments: formattedScrapsWithComments,
         generationParams: generateDto.generationParams,
         articleStructureTemplate: generateDto.articleStructureTemplate,
         writingStyleExampleContents,

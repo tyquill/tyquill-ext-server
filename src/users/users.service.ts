@@ -180,7 +180,7 @@ export class UsersService {
   }
 
   /**
-   * 사용자 UUID로 조회 (Supabase JWT의 sub 필드용)
+   * 사용자 UUID로 조회 (JWT의 sub 필드용)
    */
   async findByUuid(uuid: string): Promise<User | null> {
     // UUID는 OAuth ID로 저장되므로 OAuth 테이블에서 조회

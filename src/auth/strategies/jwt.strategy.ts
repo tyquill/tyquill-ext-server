@@ -1,7 +1,7 @@
 /**
- * Supabase JWT 인증 전략
+ * JWT 인증 전략
  * 
- * @description Supabase에서 발급된 JWT 토큰을 검증하는 Passport 전략입니다.
+ * @description JWT 토큰을 검증하는 Passport 전략입니다.
  * Linear issue CHI-40 요구사항에 따라 구현되었습니다.
  */
 

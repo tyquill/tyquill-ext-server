@@ -31,6 +31,6 @@ import { WritingStylesModule } from './writing-styles/writing-styles.module';
 })
 export class AppModule {
   constructor() {
-    console.log('🚀 Application module initialized with Supabase OAuth authentication');
+    console.log('🚀 Application module initialized with OAuth authentication');
   }
 }

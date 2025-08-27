@@ -1,7 +1,7 @@
 /**
  * 인증 컨트롤러
  * 
- * @description Supabase Google OAuth 인증을 위한 REST API 엔드포인트를 제공합니다.
+ * @description Google OAuth 인증을 위한 REST API 엔드포인트를 제공합니다.
  * Linear issue CHI-40 요구사항에 따라 구현되었습니다.
  */
 

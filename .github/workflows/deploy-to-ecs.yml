@@ -5,6 +5,10 @@ on:
     branches:
       - migrate-to-ecs
 
+permissions:
+  id-token: write
+  contents: read
+  
 jobs:
   build-and-push:
     name: Build and Push to ECR
@@ -22,6 +26,7 @@ jobs:
         with:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: GithubActions-${{ github.run_id }}
 
       - name: Login to ECR
         id: login-ecr

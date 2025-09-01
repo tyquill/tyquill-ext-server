@@ -32,7 +32,7 @@ export class NewsletterAgentService {
   private readonly agentApiUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL', 'http://localhost:8001');
+    this.agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL') || 'http://localhost:8001';
     this.logger.log(`🤖 NewsletterAgentService initialized with agent URL: ${this.agentApiUrl}`);
   }
 

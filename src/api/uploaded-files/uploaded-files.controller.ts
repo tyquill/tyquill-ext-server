@@ -17,7 +17,7 @@ import { diskStorage } from 'multer';
 import * as os from 'os';
 import { Express } from 'express';
 import { UploadedFilesService } from '../../uploaded-files/uploaded-files.service';
-import { CreateUploadedFileDto } from './dto/create-uploaded-file.dto';
+// import { CreateUploadedFileDto } from './dto/create-uploaded-file.dto';
 import { UpdateUploadedFileDto } from './dto/update-uploaded-file.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
@@ -61,18 +61,7 @@ export class UploadedFilesController {
     );
   }
 
-  @Version('1')
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  async create(
-    @Body() createUploadedFileDto: CreateUploadedFileDto & { fileUrl: string; fileName: string; fileSize: number; mimeType: string },
-    @Request() req: any,
-  ) {
-    return this.uploadedFilesService.create(
-      createUploadedFileDto,
-      req.user.id,
-    );
-  }
+  // metadata-only create endpoint removed; use /uploaded-files/upload instead
 
   @Version('1')
   @Get()

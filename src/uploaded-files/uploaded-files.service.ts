@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateUploadedFileDto } from '../api/uploaded-files/dto/create-uploaded-file.dto';
+// import { CreateUploadedFileDto } from '../api/uploaded-files/dto/create-uploaded-file.dto';
 import { UpdateUploadedFileDto } from '../api/uploaded-files/dto/update-uploaded-file.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { InjectRepository } from '@mikro-orm/nestjs';
@@ -7,7 +7,6 @@ import { UploadedFile } from './entities/uploaded-file.entity';
 import { User } from '../users/entities/user.entity';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
-import { Express } from 'express';
 
 @Injectable()
 export class UploadedFilesService {
@@ -29,67 +28,7 @@ export class UploadedFilesService {
     });
   }
 
-  async create(
-    createUploadedFileDto: CreateUploadedFileDto & { 
-      fileUrl: string; 
-      fileName: string; 
-      fileSize: number; 
-      mimeType: string;
-    },
-    userId: number,
-  ): Promise<UploadedFile> {
-    const user = await this.userRepository.findOne({ userId });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Basic validations and ownership guardrails
-    if (!createUploadedFileDto.fileUrl || !createUploadedFileDto.fileName) {
-      throw new Error('fileUrl and fileName are required');
-    }
-    if (createUploadedFileDto.mimeType !== 'application/pdf') {
-      throw new Error('Only PDF uploads are allowed');
-    }
-    if (!/\.pdf$/i.test(createUploadedFileDto.fileName)) {
-      throw new Error('File name must end with .pdf');
-    }
-
-    // Ensure the URL points to our S3 bucket and proper user namespace
-    const bucket = process.env.AWS_S3_BUCKET;
-    const region = process.env.AWS_REGION || 'us-east-1';
-    try {
-      const url = new URL(createUploadedFileDto.fileUrl);
-      const expectedHost = `${bucket}.s3.${region}.amazonaws.com`;
-      if (url.host !== expectedHost) {
-        throw new Error(`fileUrl host mismatch: expected ${expectedHost}`);
-      }
-      const key = url.pathname.startsWith('/') ? url.pathname.slice(1) : url.pathname;
-      const expectedPrefix = `uploads/${userId}/`;
-      if (!key.startsWith(expectedPrefix)) {
-        throw new Error('fileUrl key must be under your user namespace');
-      }
-    } catch (e: any) {
-      throw new Error(`Invalid fileUrl: ${e.message}`);
-    }
-
-    // Idempotency: avoid duplicates by filePath for the same user
-    const existing = await this.uploadedFileRepository.findOne({ filePath: createUploadedFileDto.fileUrl, user: { userId } });
-    if (existing) {
-      return existing;
-    }
-
-    const uploadedFile = new UploadedFile();
-    uploadedFile.title = createUploadedFileDto.title;
-    uploadedFile.description = createUploadedFileDto.description || '';
-    uploadedFile.fileName = createUploadedFileDto.fileName;
-    uploadedFile.filePath = createUploadedFileDto.fileUrl;
-    uploadedFile.mimeType = createUploadedFileDto.mimeType;
-    uploadedFile.fileSize = createUploadedFileDto.fileSize;
-    uploadedFile.user = user;
-
-    await this.em.persistAndFlush(uploadedFile);
-    return uploadedFile;
-  }
+  // metadata-only create() was removed in favor of server-proxy upload flow
 
   async findAll(userId?: number): Promise<UploadedFile[]> {
     const where = userId ? { user: { userId } } : {};
@@ -168,17 +107,16 @@ export class UploadedFilesService {
       // S3 URL 생성
       const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${fileKey}`;
 
-      // 데이터베이스에 파일 정보 저장
-      const uploadedFile = new UploadedFile();
-      uploadedFile.title = title;
-      uploadedFile.description = description;
-      uploadedFile.fileName = file.originalname;
-      uploadedFile.filePath = fileUrl;
-      uploadedFile.mimeType = file.mimetype;
-      uploadedFile.fileSize = file.size;
-      uploadedFile.user = user;
-
-      await this.em.persistAndFlush(uploadedFile);
+      // 데이터베이스에 파일 정보 저장 (공통 로직 사용)
+      const uploadedFile = await this.persistUploadedFile({
+        user,
+        title,
+        description,
+        fileName: file.originalname,
+        filePath: fileUrl,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+      });
 
       // 임시 파일 정리
       if (tmpPath) {
@@ -190,5 +128,31 @@ export class UploadedFilesService {
       console.error('S3 upload error:', error);
       throw new Error('Failed to upload file to S3');
     }
+  }
+
+  private async persistUploadedFile(params: {
+    user: User;
+    title: string;
+    description: string;
+    fileName: string;
+    filePath: string;
+    mimeType: string;
+    fileSize: number;
+  }): Promise<UploadedFile> {
+    // Idempotency by (user, filePath)
+    const existing = await this.uploadedFileRepository.findOne({ filePath: params.filePath, user: { userId: params.user.userId } });
+    if (existing) return existing;
+
+    const uploadedFile = new UploadedFile();
+    uploadedFile.title = params.title;
+    uploadedFile.description = params.description || '';
+    uploadedFile.fileName = params.fileName;
+    uploadedFile.filePath = params.filePath;
+    uploadedFile.mimeType = params.mimeType;
+    uploadedFile.fileSize = params.fileSize;
+    uploadedFile.user = params.user;
+
+    await this.em.persistAndFlush(uploadedFile);
+    return uploadedFile;
   }
 }

@@ -2,9 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface NewsletterInput {
-  topic: string;
-  keyInsight?: string;
-  scrapsWithComments: Array<{
+  readonly topic: string;
+  readonly keyInsight?: string;
+  readonly scrapsWithComments: Array<{
     scrap: {
       id: number;
       title: string;
@@ -14,16 +14,25 @@ interface NewsletterInput {
     };
     userComment?: string;
   }>;
-  generationParams?: string;
-  articleStructureTemplate?: any[];
-  writingStyleExampleContents?: string[];
+  readonly generationParams?: string;
+  readonly articleStructureTemplate?: any[];
+  readonly writingStyleExampleContents?: string[];
 }
 
 interface NewsletterOutput {
   title: string;
   content: string;
-  analysisReason: string;
-  warnings: string[];
+  analysisReason?: string;
+  warnings?: string[];
+}
+
+interface PageStructureSection {
+  title: string;
+  children?: PageStructureSection[];
+}
+
+interface PageStructureAnalysis {
+  sections: PageStructureSection[];
 }
 
 @Injectable()
@@ -32,7 +41,7 @@ export class NewsletterAgentService {
   private readonly agentApiUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL') || 'http://localhost:8001';
+    this.agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL')!;
     this.logger.log(`🤖 NewsletterAgentService initialized with agent URL: ${this.agentApiUrl}`);
   }
 
@@ -66,7 +75,7 @@ export class NewsletterAgentService {
     }
   }
 
-  async analyzePageStructure(content: string): Promise<any> {
+  async analyzePageStructure(content: string): Promise<PageStructureAnalysis> {
     try {
       this.logger.log('🔍 Analyzing page structure');
 
@@ -83,7 +92,7 @@ export class NewsletterAgentService {
         throw new Error(`API call failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      const result = await response.json();
+      const result = await response.json() as PageStructureAnalysis;
       
       this.logger.log('✅ Page structure analysis completed');
       return result;

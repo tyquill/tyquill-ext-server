@@ -1,6 +1,7 @@
 import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { Scrap } from '../../scraps/entities/scrap.entity';
 import { User } from '../../users/entities/user.entity';
+import { UploadedFile } from '../../uploaded-files/entities/uploaded-file.entity';
 
 @Entity({ tableName: 'tags' })
 export class Tag {
@@ -18,4 +19,7 @@ export class Tag {
 
     @ManyToOne(() => Scrap, { fieldName: 'scrap_id' })
     scrap: Scrap;
+
+    @ManyToOne(() => UploadedFile, { fieldName: 'uploaded_file_id' })
+    uploadedFile: UploadedFile;
 }

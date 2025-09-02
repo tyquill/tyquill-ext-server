@@ -6,7 +6,6 @@ import { Scrap } from './entities/scrap.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
-import { ScrapCombinationService } from '../agent/scrap-combination.service';
 
 export interface SearchOptions {
   query?: string;
@@ -34,7 +33,6 @@ export class ScrapsService {
     private readonly userRepository: EntityRepository<User>,
     @InjectRepository(Article)
     private readonly articleRepository: EntityRepository<Article>,
-    private readonly scrapCombinationService: ScrapCombinationService,
   ) {}
 
   async create(
@@ -337,7 +335,8 @@ export class ScrapsService {
   }
 
   /**
-   * 추출된 텍스트를 AI를 통해 요약합니다
+   * 추출된 텍스트를 간단히 요약합니다
+   * TODO: 필요시 FastAPI 서비스를 호출하여 AI 요약 기능 구현
    */
   private async generateAiSummary(text: string): Promise<string> {
     if (!text || text.length < 50) {
@@ -345,12 +344,11 @@ export class ScrapsService {
     }
 
     try {
-      // ScrapCombinationService의 AI 요약 기능 활용
-      const summary =
-        await this.scrapCombinationService['createAiSummary'](text);
-      return summary || text;
+      // 현재는 단순 텍스트 트리밍으로 대체
+      // 향후 필요시 FastAPI AI 요약 서비스 호출 가능
+      return text.length > 500 ? text.substring(0, 500) + '...' : text;
     } catch (error) {
-      console.error('AI 요약 생성 실패:', error);
+      console.error('요약 생성 실패:', error);
       // 실패 시 원본 텍스트의 일부만 반환
       return text.length > 500 ? text.substring(0, 500) + '...' : text;
     }

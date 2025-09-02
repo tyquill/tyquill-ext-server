@@ -6,13 +6,11 @@ import { ScrapsController } from '../api/scraps/scraps.controller';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
 import { TagsModule } from '../tags/tags.module';
-import { AgentModule } from '../agent/agent.module';
 
 @Module({
   imports: [
     MikroOrmModule.forFeature([Scrap, User, Article]),
     TagsModule,
-    AgentModule,
   ],
   controllers: [ScrapsController],
   providers: [ScrapsService],

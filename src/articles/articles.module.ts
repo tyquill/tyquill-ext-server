@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ArticlesService } from './articles.service';
 import { ArticlesController } from '../api/articles/articles.controller';
-import { AgentModule } from '../agent/agent.module';
+import { NewsletterAgentService } from '../services/newsletter-agent.service';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
@@ -12,10 +12,9 @@ import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-e
 @Module({
   imports: [
     MikroOrmModule.forFeature([Article, ArticleArchive, Scrap, User, WritingStyleExample]),
-    AgentModule,
   ],
   controllers: [ArticlesController],
-  providers: [ArticlesService],
+  providers: [ArticlesService, NewsletterAgentService],
   exports: [ArticlesService],
 })
 export class ArticlesModule {}

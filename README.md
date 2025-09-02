@@ -36,6 +36,12 @@ DATABASE_URL=postgresql://username:password@localhost:5432/tyquill_db
 # AI 서비스 설정
 GOOGLE_API_KEY=your_google_gemini_api_key_here
 
+# Tyquill Agent API URL (AI 에이전트 서비스)
+# Development: http://localhost:8001
+# Production (VPC private): http://tyquill-agent-service.tyquill.local:8001
+# Note: Production URL is only accessible within the same VPC (AWS Service Discovery)
+TYQUILL_AGENT_API_URL=http://localhost:8001
+
 # 애플리케이션 설정
 NODE_ENV=development
 PORT=3000

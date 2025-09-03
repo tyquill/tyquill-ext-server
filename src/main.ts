@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import { VersioningType, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
-// Removed Supabase config import
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -42,6 +41,7 @@ async function bootstrap() {
     .addTag('Tags', 'Tag management endpoints')
     .addTag('Users', 'User management endpoints')
     .addTag('Article Archive', 'Article archive management endpoints')
+    .addTag('Library Items', 'Unified library items (scraps/uploads) endpoints')
     .build();
 
   // api prefix 추가

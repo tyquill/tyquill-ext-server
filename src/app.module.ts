@@ -11,6 +11,8 @@ import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { WritingStylesModule } from './writing-styles/writing-styles.module';
+import { UploadedFilesModule } from './uploaded-files/uploaded-files.module';
+import { LibraryItemsModule } from './library-items/library-items.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { WritingStylesModule } from './writing-styles/writing-styles.module';
     ArticlesModule,
     ArticleArchiveModule,
     WritingStylesModule,
+    UploadedFilesModule,
+    LibraryItemsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

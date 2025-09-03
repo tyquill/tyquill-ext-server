@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
+import { Tag } from '../tags/entities/tag.entity';
+import { User } from '../users/entities/user.entity';
 import { ScrapsService } from '../scraps/scraps.service';
 import { UploadedFilesService } from '../uploaded-files/uploaded-files.service';
 import { CreateScrapDto } from '../api/scraps/dto/create-scrap.dto';
@@ -33,6 +35,10 @@ export class LibraryItemsService {
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(UploadedFile)
     private readonly uploadedFileRepository: EntityRepository<UploadedFile>,
+    @InjectRepository(Tag)
+    private readonly tagRepository: EntityRepository<Tag>,
+    @InjectRepository(User)
+    private readonly userRepository: EntityRepository<User>,
     private readonly scrapsService: ScrapsService,
     private readonly uploadedFilesService: UploadedFilesService,
   ) {}
@@ -101,4 +107,123 @@ export class LibraryItemsService {
     createdAt: u.createdAt,
     tags: u.tags?.getItems()?.map(t => t.name),
   });
+
+  private async findExistingTag(
+    em: EntityManager,
+    itemId: number,
+    itemType: LibraryItemType,
+    tagName: string,
+    userId: number,
+  ): Promise<Tag | null> {
+    const criteria: any = {
+      user: { userId },
+      name: tagName,
+    };
+
+    if (itemType === 'SCRAP') {
+      criteria.scrap = { scrapId: itemId };
+    } else {
+      criteria.uploadedFile = { uploadedFileId: itemId };
+    }
+
+    return em.findOne(Tag, criteria);
+  }
+
+  // Tag management methods for library items
+  async addTag(itemId: number, itemType: LibraryItemType, tagName: string, userId: number): Promise<Tag> {
+    return this.em.transactional(async (em) => {
+    const user = await em.findOne(User, { userId });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if tag already exists for this item
+    const existingTag = await this.findExistingTag(em, itemId, itemType, tagName, userId);
+
+    if (existingTag) {
+      return existingTag;
+    }
+
+    // Create new tag
+    const tag = new Tag();
+    tag.name = tagName;
+    tag.user = user;
+
+    if (itemType === 'SCRAP') {
+      const scrap = await em.findOne(Scrap, { scrapId: itemId, user: { userId } });
+      if (!scrap) {
+        throw new NotFoundException('Scrap not found');
+      }
+      tag.scrap = scrap;
+    } else {
+      const uploadedFile = await em.findOne(UploadedFile, { uploadedFileId: itemId, user: { userId } });
+      if (!uploadedFile) {
+        throw new NotFoundException('Uploaded file not found');
+      }
+      tag.uploadedFile = uploadedFile;
+    }
+
+    await em.persistAndFlush(tag);
+      return tag;
+    });
+  }
+
+  async removeTag(itemId: number, itemType: LibraryItemType, tagId: number, userId: number): Promise<void> {
+    if (itemType === 'SCRAP') {
+      const scrap = await this.scrapRepository.findOne({ scrapId: itemId, user: { userId } });
+      if (!scrap) {
+        throw new NotFoundException('Scrap not found or access denied');
+      }
+    } else {
+      const uploadedFile = await this.uploadedFileRepository.findOne({ uploadedFileId: itemId, user: { userId } });
+      if (!uploadedFile) {
+        throw new NotFoundException('Uploaded file not found or access denied');
+      }
+    }
+    let tag: Tag | null = null;
+    
+    if (itemType === 'SCRAP') {
+      tag = await this.tagRepository.findOne({
+        tagId,
+        user: { userId },
+        scrap: { scrapId: itemId },
+      });
+    } else {
+      tag = await this.tagRepository.findOne({
+        tagId,
+        user: { userId },
+        uploadedFile: { uploadedFileId: itemId },
+      });
+    }
+
+    if (!tag) {
+      throw new NotFoundException('Tag not found');
+    }
+
+    await this.em.removeAndFlush(tag);
+  }
+
+  async getTags(itemId: number, itemType: LibraryItemType, userId: number): Promise<Tag[]> {
+    if (itemType === 'SCRAP') {
+      return this.tagRepository.find({
+        user: { userId },
+        scrap: { scrapId: itemId },
+      },
+      { 
+        populate: ['user', 'scrap'], 
+        orderBy: { createdAt: 'DESC' } 
+      },
+    );
+    } else {
+      return this.tagRepository.find({
+        user: { userId },
+        uploadedFile: { uploadedFileId: itemId },
+      },
+      { 
+        populate: ['user', 'uploadedFile'], 
+        orderBy: { createdAt: 'DESC' } 
+      },
+    );
+    }
+  }
 }

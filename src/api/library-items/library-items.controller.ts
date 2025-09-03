@@ -10,12 +10,13 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { LibraryItemsService, LibraryItemDto, LibraryItemType } from '../../library-items/library-items.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateScrapDto } from '../scraps/dto/create-scrap.dto';
-import { Param } from '@nestjs/common';
 
 @UseGuards(JwtAuthGuard)
 @Controller('library-items')
@@ -63,6 +64,42 @@ export class LibraryItemsController {
     }
     const userId = parseInt(req.user.id);
     return this.libraryItemsService.uploadViaS3(file, body, userId);
+  }
+
+  @Version('1')
+  @Post(':itemId/tags')
+  async addTag(
+    @Param('itemId') itemId: string,
+    @Query('type') type: LibraryItemType,
+    @Body() body: { name: string },
+    @Request() req: any,
+  ) {
+    const userId = parseInt(req.user.id);
+    return this.libraryItemsService.addTag(parseInt(itemId), type, body.name, userId);
+  }
+
+  @Version('1')
+  @Delete(':itemId/tags/:tagId')
+  async removeTag(
+    @Param('itemId') itemId: string,
+    @Param('tagId') tagId: string,
+    @Query('type') type: LibraryItemType,
+    @Request() req: any,
+  ) {
+    const userId = parseInt(req.user.id);
+    await this.libraryItemsService.removeTag(parseInt(itemId), type, parseInt(tagId), userId);
+    return { success: true };
+  }
+
+  @Version('1')
+  @Get(':itemId/tags')
+  async getTags(
+    @Param('itemId') itemId: string,
+    @Query('type') type: LibraryItemType,
+    @Request() req: any,
+  ) {
+    const userId = parseInt(req.user.id);
+    return this.libraryItemsService.getTags(parseInt(itemId), type, userId);
   }
 
 }

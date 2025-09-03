@@ -89,6 +89,7 @@ export class UploadedFilesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(@Req() req: any, @Param('id') id: string) {
-    return this.uploadedFilesService.remove(+id, req.user.id);
+    this.uploadedFilesService.remove(+id, req.user.id);
+    return { message: 'Uploaded file deleted successfully' };
   }
 }

@@ -4,7 +4,6 @@ import { IsString, IsOptional, IsNumber, IsUrl, MaxLength } from 'class-validato
 export class CreateScrapDto {
   @ApiProperty()
   @IsUrl()
-  @MaxLength(2000)
   url: string;
 
   @ApiProperty()

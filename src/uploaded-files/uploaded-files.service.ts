@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 // import { CreateUploadedFileDto } from '../api/uploaded-files/dto/create-uploaded-file.dto';
 import { UpdateUploadedFileDto } from '../api/uploaded-files/dto/update-uploaded-file.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
@@ -11,6 +11,7 @@ import * as fs from 'fs';
 @Injectable()
 export class UploadedFilesService {
   private s3Client: S3Client;
+  private bucket: string;
 
   constructor(
     private readonly em: EntityManager,
@@ -19,11 +20,23 @@ export class UploadedFilesService {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
   ) {
+    this.bucket = process.env.AWS_S3_BUCKET || '';
+    if (this.bucket === '') {
+      throw new Error('AWS_S3_BUCKET is not set');
+    }
+
+    const region = process.env.AWS_REGION || 'us-east-1';
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID || '';
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || '';
+    if (accessKeyId === '' || secretAccessKey === '') {
+      throw new Error('AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY is not set');
+    }
+
     this.s3Client = new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: region,
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
       },
     });
   }
@@ -100,7 +113,7 @@ export class UploadedFilesService {
       const body = bodyStream ?? file.buffer; // fallback to buffer if needed
 
       const putCommand = new PutObjectCommand({
-        Bucket: process.env.AWS_S3_BUCKET,
+        Bucket: this.bucket,
         Key: fileKey,
         Body: body,
         ContentType: file.mimetype,
@@ -125,13 +138,15 @@ export class UploadedFilesService {
 
       // 임시 파일 정리
       if (tmpPath) {
-        fs.promises.unlink(tmpPath).catch(() => {});
+        fs.promises.unlink(tmpPath).catch((error) => {
+          console.warn('Failed to delete temporary file: ${tmpPath}', error);
+        });
       }
       return uploadedFile;
 
     } catch (error) {
       console.error('S3 upload error:', error);
-      throw new Error('Failed to upload file to S3');
+      throw new InternalServerErrorException('Failed to upload file to S3');
     }
   }
 

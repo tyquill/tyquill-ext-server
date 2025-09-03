@@ -1,10 +1,22 @@
-import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
+import { BeforeCreate, BeforeUpdate, Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { Scrap } from '../../scraps/entities/scrap.entity';
 import { User } from '../../users/entities/user.entity';
 import { UploadedFile } from '../../uploaded-files/entities/uploaded-file.entity';
 
 @Entity({ tableName: 'tags' })
 export class Tag {
+
+    @BeforeCreate()
+    @BeforeUpdate()
+    validate() {
+        const hasScrap = this.scrap !== null && this.scrap !== undefined;
+        const hasUploadedFile = this.uploadedFile !== null && this.uploadedFile !== undefined;
+        if ((hasScrap && hasUploadedFile) || (!hasScrap && !hasUploadedFile)) {
+            throw new Error('Tag must have either scrap or uploaded file');
+        }
+    }
+
+
     @PrimaryKey({ name: 'tag_id' })
     tagId: number;
 

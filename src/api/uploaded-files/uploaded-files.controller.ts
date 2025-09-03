@@ -11,6 +11,7 @@ import {
   Version,
   UseInterceptors,
   UploadedFile,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -73,21 +74,21 @@ export class UploadedFilesController {
   @Version('1')
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string) {
-    return this.uploadedFilesService.findOne(+id);
+  findOne(@Req() req: any, @Param('id') id: string) {
+    return this.uploadedFilesService.findOne(+id, req.user.id);
   }
 
   @Version('1')
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() updateUploadedFileDto: UpdateUploadedFileDto) {
-    return this.uploadedFilesService.update(+id, updateUploadedFileDto);
+  update(@Req() req: any, @Param('id') id: string, @Body() updateUploadedFileDto: UpdateUploadedFileDto) {
+    return this.uploadedFilesService.update(+id, updateUploadedFileDto, req.user.id);
   }
 
   @Version('1')
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
-    return this.uploadedFilesService.remove(+id);
+  remove(@Req() req: any, @Param('id') id: string) {
+    return this.uploadedFilesService.remove(+id, req.user.id);
   }
 }

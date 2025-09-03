@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 // import { CreateUploadedFileDto } from '../api/uploaded-files/dto/create-uploaded-file.dto';
 import { UpdateUploadedFileDto } from '../api/uploaded-files/dto/update-uploaded-file.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
@@ -38,7 +38,7 @@ export class UploadedFilesService {
     });
   }
 
-  async findOne(id: number): Promise<UploadedFile> {
+  async findOne(id: number, userId: number): Promise<UploadedFile> {
     const uploadedFile = await this.uploadedFileRepository.findOne(
       { uploadedFileId: id },
       { populate: ['user', 'tags'] },
@@ -48,14 +48,19 @@ export class UploadedFilesService {
       throw new NotFoundException(`UploadedFile #${id} not found`);
     }
 
+    if (uploadedFile.user.userId !== userId) {
+      throw new ForbiddenException('You are not allowed to access this uploaded file');
+    }
+
     return uploadedFile;
   }
 
   async update(
     id: number,
     updateUploadedFileDto: UpdateUploadedFileDto,
+    userId: number,
   ): Promise<UploadedFile> {
-    const uploadedFile = await this.findOne(id);
+    const uploadedFile = await this.findOne(id, userId);
 
     if (updateUploadedFileDto.title !== undefined) {
       uploadedFile.title = updateUploadedFileDto.title;
@@ -68,8 +73,8 @@ export class UploadedFilesService {
     return uploadedFile;
   }
 
-  async remove(id: number): Promise<void> {
-    const uploadedFile = await this.findOne(id);
+  async remove(id: number, userId: number): Promise<void> {
+    const uploadedFile = await this.findOne(id, userId);
     await this.em.removeAndFlush(uploadedFile);
   }
 

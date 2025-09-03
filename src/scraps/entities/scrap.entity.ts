@@ -23,6 +23,9 @@ export class Scrap {
     @Property({ name: 'is_deleted', type: 'boolean', default: false })
     isDeleted: boolean = false;
 
+    @Property({ name: 'description', type: 'text', nullable: true })
+    description?: string;
+
     @Property({ name: 'user_comment', type: 'text', nullable: true })
     userComment?: string;
 

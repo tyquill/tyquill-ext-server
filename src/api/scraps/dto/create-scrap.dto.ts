@@ -4,7 +4,6 @@ import { IsString, IsOptional, IsNumber, IsUrl, MaxLength } from 'class-validato
 export class CreateScrapDto {
   @ApiProperty()
   @IsUrl()
-  @MaxLength(2000)
   url: string;
 
   @ApiProperty()
@@ -14,6 +13,11 @@ export class CreateScrapDto {
   @ApiProperty()
   @IsString()
   content: string;
+
+  @ApiProperty({ required: false, description: '스크랩 설명 (요약/메모)' })
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @ApiProperty()
   @IsOptional()

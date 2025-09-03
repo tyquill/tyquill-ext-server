@@ -24,6 +24,7 @@ export interface LibraryItemDto {
   tags?: string[];
 }
 
+const MAX_PREVIEW_TEXT_LENGTH = 150;
 @Injectable()
 export class LibraryItemsService {
   constructor(
@@ -81,7 +82,7 @@ export class LibraryItemsService {
     type: 'SCRAP',
     title: s.title,
     description: s.description || s.userComment,
-    previewText: s.description ? s.description.substring(0, 150) : (s.content ? s.content.substring(0, 150) : undefined),
+    previewText: s.description ? s.description.substring(0, MAX_PREVIEW_TEXT_LENGTH) : (s.content ? s.content.substring(0, MAX_PREVIEW_TEXT_LENGTH) : undefined),
     url: s.url,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
@@ -93,7 +94,7 @@ export class LibraryItemsService {
     type: 'UPLOAD',
     title: u.title,
     description: u.description,
-    previewText: u.description ? u.description.substring(0, 150) : undefined,
+    previewText: u.description ? u.description.substring(0, MAX_PREVIEW_TEXT_LENGTH) : undefined,
     url: u.filePath,
     mimeType: u.mimeType,
     fileSize: u.fileSize,

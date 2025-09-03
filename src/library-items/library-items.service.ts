@@ -110,7 +110,8 @@ export class LibraryItemsService {
 
   // Tag management methods for library items
   async addTag(itemId: number, itemType: LibraryItemType, tagName: string, userId: number): Promise<Tag> {
-    const user = await this.userRepository.findOne({ userId });
+    return this.em.transactional(async (em) => {
+    const user = await em.findOne(User, { userId });
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -118,13 +119,13 @@ export class LibraryItemsService {
     // Check if tag already exists for this item
     let existingTag: Tag | null = null;
     if (itemType === 'SCRAP') {
-      existingTag = await this.tagRepository.findOne({
+      existingTag = await em.findOne(Tag, {
         user: { userId },
         scrap: { scrapId: itemId },
         name: tagName,
       });
     } else {
-      existingTag = await this.tagRepository.findOne({
+      existingTag = await em.findOne(Tag, {
         user: { userId },
         uploadedFile: { uploadedFileId: itemId },
         name: tagName,
@@ -141,21 +142,22 @@ export class LibraryItemsService {
     tag.user = user;
 
     if (itemType === 'SCRAP') {
-      const scrap = await this.scrapRepository.findOne({ scrapId: itemId, user: { userId } });
+      const scrap = await em.findOne(Scrap, { scrapId: itemId, user: { userId } });
       if (!scrap) {
         throw new NotFoundException('Scrap not found');
       }
       tag.scrap = scrap;
     } else {
-      const uploadedFile = await this.uploadedFileRepository.findOne({ uploadedFileId: itemId, user: { userId } });
+      const uploadedFile = await em.findOne(UploadedFile, { uploadedFileId: itemId, user: { userId } });
       if (!uploadedFile) {
         throw new NotFoundException('Uploaded file not found');
       }
       tag.uploadedFile = uploadedFile;
     }
 
-    await this.em.persistAndFlush(tag);
-    return tag;
+    await em.persistAndFlush(tag);
+      return tag;
+    });
   }
 
   async removeTag(itemId: number, itemType: LibraryItemType, tagId: number, userId: number): Promise<void> {

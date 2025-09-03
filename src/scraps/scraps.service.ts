@@ -57,6 +57,7 @@ export class ScrapsService {
     scrap.title = createScrapDto.title;
     scrap.content = createScrapDto.content;
     scrap.htmlContent = '';
+    scrap.description = createScrapDto.description;
     scrap.userComment = createScrapDto.userComment;
     scrap.user = user;
 
@@ -215,6 +216,7 @@ export class ScrapsService {
         $or: [
           { title: { $ilike: `%${searchTerm}%` } },
           { content: { $ilike: `%${searchTerm}%` } },
+          { description: { $ilike: `%${searchTerm}%` } },
           { userComment: { $ilike: `%${searchTerm}%` } },
           { url: { $ilike: `%${searchTerm}%` } },
         ],

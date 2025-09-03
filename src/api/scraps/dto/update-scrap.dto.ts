@@ -26,4 +26,9 @@ export class UpdateScrapDto extends PartialType(CreateScrapDto) {
   @IsOptional()
   @IsString()
   userComment?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

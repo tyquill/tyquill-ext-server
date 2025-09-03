@@ -15,6 +15,11 @@ export class CreateScrapDto {
   @IsString()
   content: string;
 
+  @ApiProperty({ required: false, description: '스크랩 설명 (요약/메모)' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   @ApiProperty()
   @IsOptional()
   @IsString()

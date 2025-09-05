@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, Logger } from '@nestjs/common';
 // import { CreateUploadedFileDto } from '../api/uploaded-files/dto/create-uploaded-file.dto';
 import { UpdateUploadedFileDto } from '../api/uploaded-files/dto/update-uploaded-file.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
@@ -7,11 +7,13 @@ import { UploadedFile } from './entities/uploaded-file.entity';
 import { User } from '../users/entities/user.entity';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
-
+import { FileAnalysisAgentService } from '../agents/services/file-analysis-agent.service';
 @Injectable()
 export class UploadedFilesService {
+  private readonly logger = new Logger(UploadedFilesService.name);
   private s3Client: S3Client;
   private bucket: string;
+  private readonly ANALYZABLE_MIME_TYPES = new Set(['application/pdf'] as const);  
 
   constructor(
     private readonly em: EntityManager,
@@ -19,6 +21,7 @@ export class UploadedFilesService {
     private readonly uploadedFileRepository: EntityRepository<UploadedFile>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
+    private readonly fileAnalysisAgentService: FileAnalysisAgentService,
   ) {
     this.bucket = process.env.AWS_S3_BUCKET || '';
     if (this.bucket === '') {
@@ -91,6 +94,14 @@ export class UploadedFilesService {
     await this.em.removeAndFlush(uploadedFile);
   }
 
+  async getAnalysis(id: number, userId: number): Promise<{ markdown: string | null; updatedAt?: Date }> {
+    const uploaded = await this.findOne(id, userId);
+    return { 
+      markdown: uploaded.aiContent ?? null, 
+      updatedAt: uploaded.createdAt,
+    };
+  }
+
   async uploadToS3AndSave(
     file: Express.Multer.File,
     title: string,
@@ -136,6 +147,11 @@ export class UploadedFilesService {
         fileSize: file.size,
       });
 
+      // PDF 또는 문서 파일인 경우 AI 분석 수행
+      if (this.shouldAnalyzeFile(file.mimetype)) {
+        this.analyzeFileInBackground(uploadedFile, fileUrl);
+      }
+
       // 임시 파일 정리
       if (tmpPath) {
         fs.promises.unlink(tmpPath).catch((error) => {
@@ -174,5 +190,28 @@ export class UploadedFilesService {
 
     await this.em.persistAndFlush(uploadedFile);
     return uploadedFile;
+  }
+
+  private shouldAnalyzeFile(mimeType: string): boolean {
+    return this.ANALYZABLE_MIME_TYPES.has(mimeType as any);
+  }
+
+  private async analyzeFileInBackground(uploadedFile: UploadedFile, fileUrl: string): Promise<void> {
+    try {
+      this.logger.log(`🔍 Starting AI analysis for file: ${uploadedFile.fileName}`);
+
+      const analysisResult = await this.fileAnalysisAgentService.analyzeFile(
+        fileUrl
+      );
+
+      // Update the uploaded file with AI analysis
+      uploadedFile.aiContent = analysisResult;
+      await this.em.flush();
+
+      this.logger.log(`✅ AI analysis completed for file: ${uploadedFile.fileName}`);
+    } catch (error) {
+      this.logger.error(`❌ Failed to analyze file ${uploadedFile.fileName}:`, error);
+      // Don't throw - let the file upload succeed even if analysis fails
+    }
   }
 }

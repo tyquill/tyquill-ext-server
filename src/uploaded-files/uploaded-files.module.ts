@@ -5,11 +5,13 @@ import { UploadedFilesController } from '../api/uploaded-files/uploaded-files.co
 import { UploadedFile } from './entities/uploaded-file.entity';
 import { User } from '../users/entities/user.entity';
 import { AuthModule } from '../auth/auth.module';
+import { AgentsModule } from '../agents/agents.module';
 
 @Module({
   imports: [
     MikroOrmModule.forFeature([UploadedFile, User]),
     AuthModule,
+    AgentsModule,
   ],
   controllers: [UploadedFilesController],
   providers: [UploadedFilesService],

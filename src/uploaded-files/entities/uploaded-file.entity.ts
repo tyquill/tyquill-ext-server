@@ -25,6 +25,9 @@ export class UploadedFile {
   @Property({ name: 'file_size' })
   fileSize: number;
 
+  @Property({ name: 'ai_content', type: 'text', nullable: true })
+  aiContent?: string;
+
   @Property({ name: 'created_at' })
   createdAt: Date = new Date();
 

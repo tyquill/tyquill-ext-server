@@ -92,4 +92,12 @@ export class UploadedFilesController {
     this.uploadedFilesService.remove(+id, req.user.id);
     return { message: 'Uploaded file deleted successfully' };
   }
+
+  @Version('1')
+  @Get(':id/analysis')
+  @UseGuards(JwtAuthGuard)
+  async getAnalysis(@Req() req: any, @Param('id') id: string) {
+    const data = await this.uploadedFilesService.getAnalysis(+id, req.user.id);
+    return data;
+  }
 }

@@ -100,4 +100,12 @@ export class UploadedFilesController {
     const data = await this.uploadedFilesService.getAnalysis(+id, req.user.id);
     return data;
   }
+
+  @Version('1')
+  @Post(':id/analysis/retry')
+  @UseGuards(JwtAuthGuard)
+  async retryAnalysis(@Req() req: any, @Param('id') id: string) {
+    const res = await this.uploadedFilesService.retryAnalysis(+id, req.user.id);
+    return res;
+  }
 }

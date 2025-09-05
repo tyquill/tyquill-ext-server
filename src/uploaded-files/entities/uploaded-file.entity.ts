@@ -31,6 +31,9 @@ export class UploadedFile {
   @Property({ name: 'created_at' })
   createdAt: Date = new Date();
 
+  @Property({ name: 'updated_at', onUpdate: () => new Date() })
+  updatedAt: Date = new Date();
+
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user: User;
 

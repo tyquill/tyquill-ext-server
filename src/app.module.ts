@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import mikroOrmConfig from './mikro-orm.config';
@@ -36,7 +36,10 @@ import { QueueModule } from './queue/queue.module';
   providers: [AppService],
 })
 export class AppModule {
+
+  private readonly logger = new Logger(AppModule.name);
+
   constructor() {
-    console.log('🚀 Application module initialized with OAuth authentication and SQS queues');
+    this.logger.log('🚀 Application module initialized with OAuth authentication and SQS queues');
   }
 }

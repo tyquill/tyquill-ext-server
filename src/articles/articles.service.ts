@@ -17,7 +17,7 @@ import { ArticleArchive } from '../article-archive/entities/article-archive.enti
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { NewsletterAgentService } from '../services/newsletter-agent.service';
+import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 
 @Injectable()

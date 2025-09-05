@@ -8,7 +8,14 @@ export class FileAnalysisAgentService {
   private readonly agentApiUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL')!;
+    this.logger.log(`🤖 FileAnalysisAgentService initialized with agent URL: ${this.agentApiUrl}`);
+
+    const url = this.configService.get<string>('TYQUILL_AGENT_API_URL')!;
+    if (!url) {
+      this.logger.error('Missing required configuration: TYQUILL_AGENT_API_URL');
+      throw new Error('TYQUILL_AGENT_API_URL is not set');
+    }
+    this.agentApiUrl = url;
     this.logger.log(`🤖 FileAnalysisAgentService initialized with agent URL: ${this.agentApiUrl}`);
   }
 

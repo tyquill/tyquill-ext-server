@@ -15,11 +15,13 @@ export class FileAnalysisProducerService {
   ) {}
 
   async sendFileAnalysisRequest(data: FileAnalysisMessage): Promise<string> {
+    let job: any = null;
+    
     try {
       const message = new FileAnalysisRequestDto(data);
       
       // Create job tracking record
-      const job = await this.jobStatusService.createJob({
+      job = await this.jobStatusService.createJob({
         jobType: JobType.FILE_ANALYSIS,
         userId: data.userId,
         payload: {
@@ -76,7 +78,21 @@ export class FileAnalysisProducerService {
       this.logger.log(`✅ File analysis request sent successfully for file: ${data.fileName} (Job: ${job.jobUuid})`);
       return job.jobUuid;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`❌ Failed to send file analysis request for file: ${data.fileName}`, error);
+      
+      // If job was created, mark it as FAILED before rethrowing
+      if (job && job.jobUuid) {
+        try {
+          await this.jobStatusService.updateJobStatus(job.jobUuid, JobStatus.FAILED, {
+            errorMessage: `Failed to send to queue: ${errorMessage}`,
+          });
+          this.logger.log(`🚨 Marked job ${job.jobUuid} as FAILED due to queue send error`);
+        } catch (updateError) {
+          this.logger.error(`❌ Failed to update job status to FAILED for job ${job.jobUuid}`, updateError);
+        }
+      }
+      
       throw error;
     }
   }

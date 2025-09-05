@@ -9,13 +9,14 @@ import { ScrapsService } from '../scraps/scraps.service';
 import { UploadedFilesService } from '../uploaded-files/uploaded-files.service';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
+import { FileAnalysisAgentService } from '../services/file-analysis-agent.service';
 
 @Module({
   imports: [
     MikroOrmModule.forFeature([Scrap, UploadedFile, Tag, User, Article]),
   ],
   controllers: [LibraryItemsController],
-  providers: [LibraryItemsService, ScrapsService, UploadedFilesService],
+  providers: [LibraryItemsService, ScrapsService, UploadedFilesService, FileAnalysisAgentService],
   exports: [LibraryItemsService],
 })
 export class LibraryItemsModule {}

@@ -17,7 +17,8 @@ export class UploadedFilesService {
   private s3Client: S3Client;
   private bucket: string;
   private readonly ANALYZABLE_MIME_TYPES = new Set(['application/pdf'] as const);  
-
+  private readonly MAX_JOB_SEARCH_LIMIT = 50;
+  
   constructor(
     private readonly em: EntityManager,
     @InjectRepository(UploadedFile)
@@ -106,7 +107,7 @@ export class UploadedFilesService {
     let status: JobStatus | undefined;
     let error: string | undefined;
     try {
-      const jobs = await this.jobStatusService.getJobsByUser(userId, 50);
+      const jobs = await this.jobStatusService.getJobsByUser(userId, this.MAX_JOB_SEARCH_LIMIT);
       const latest = jobs.find(j => (j.payload && j.payload.uploadedFileId === id));
       if (latest) {
         jobUuid = latest.jobUuid;
@@ -246,6 +247,22 @@ export class UploadedFilesService {
 
   async retryAnalysis(id: number, userId: number): Promise<{ jobUuid: string | null; status: 'queued' | 'error' }> {
     const uploaded = await this.findOne(id, userId);
+
+    try {
+      const recentJobs = await this.jobStatusService.getJobsByUser(userId, this.MAX_JOB_SEARCH_LIMIT);
+      const pendingJob = recentJobs.find(
+        j => j.payload?.uploadedFileId === id &&
+        (j.status === JobStatus.PENDING || j.status === JobStatus.PROCESSING)
+      );
+
+      if (pendingJob) {
+        this.logger.warn(`Analysis already in progress for file ${id} (Job: ${pendingJob.jobUuid})`);
+        return { jobUuid: pendingJob.jobUuid, status: 'queued' };
+      }
+    } catch (error) {
+      this.logger.error(`❌ Failed to retry analysis for file ${id}:`, error);
+    }
+    
     const jobUuid = await this.queueFileAnalysis(uploaded, uploaded.filePath);
     return { jobUuid, status: jobUuid ? 'queued' : 'error' };
   }

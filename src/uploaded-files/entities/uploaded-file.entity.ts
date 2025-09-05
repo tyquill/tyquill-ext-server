@@ -28,8 +28,11 @@ export class UploadedFile {
   @Property({ name: 'ai_content', type: 'text', nullable: true })
   aiContent?: string;
 
-  @Property({ name: 'created_at' })
+  @Property({ name: 'created_at', onCreate: () => new Date(), defaultRaw: 'now()' })
   createdAt: Date = new Date();
+
+  @Property({ name: 'updated_at', onUpdate: () => new Date(), defaultRaw: 'now()' })
+  updatedAt: Date = new Date();
 
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user: User;

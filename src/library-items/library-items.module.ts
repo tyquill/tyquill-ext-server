@@ -5,20 +5,21 @@ import { Scrap } from '../scraps/entities/scrap.entity';
 import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
 import { Tag } from '../tags/entities/tag.entity';
 import { LibraryItemsController } from '../api/library-items/library-items.controller';
-import { ScrapsService } from '../scraps/scraps.service';
-import { UploadedFilesService } from '../uploaded-files/uploaded-files.service';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
 import { AgentsModule } from '../agents/agents.module';
+import { ScrapsModule } from '../scraps/scraps.module';
+import { UploadedFilesModule } from '../uploaded-files/uploaded-files.module';
 
 @Module({
   imports: [
     MikroOrmModule.forFeature([Scrap, UploadedFile, Tag, User, Article]),
     AgentsModule,
+    ScrapsModule,
+    UploadedFilesModule,
   ],
   controllers: [LibraryItemsController],
-  providers: [LibraryItemsService, ScrapsService, UploadedFilesService],
+  providers: [LibraryItemsService],
   exports: [LibraryItemsService],
 })
 export class LibraryItemsModule {}
-

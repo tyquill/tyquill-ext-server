@@ -1,0 +1,12 @@
+export const QUEUE_NAMES = {
+  FILE_ANALYSIS: 'TYQUILL_FILE_ANALYSIS_JOB.fifo',
+  FILE_ANALYSIS_DLQ: 'TYQUILL_FILE_ANALYSIS_JOB_DLQ.fifo',
+} as const;
+
+export const MESSAGE_TYPES = {
+  FILE_ANALYSIS_REQUEST: 'FILE_ANALYSIS_REQUEST',
+  FILE_ANALYSIS_RESPONSE: 'FILE_ANALYSIS_RESPONSE',
+} as const;
+
+export type QueueName = typeof QUEUE_NAMES[keyof typeof QUEUE_NAMES];
+export type MessageType = typeof MESSAGE_TYPES[keyof typeof MESSAGE_TYPES];

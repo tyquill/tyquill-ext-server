@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, UseGuards, Request, Version } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards, Request, Version, BadRequestException } from '@nestjs/common';
 import { JobStatusService } from '../services/job-status.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Job } from '../entities/job-status.entity';
@@ -21,7 +21,14 @@ export class JobStatusController {
     @Query('limit') limit?: string,
   ): Promise<Job[]> {
     const limitNum = limit ? parseInt(limit, 10) : 50;
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 1000) {
+      throw new BadRequestException('Invalid limit parameter');
+    }
+
     const userId = parseInt(req.user.id);
+    if (isNaN(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
     return this.jobStatusService.getJobsByUser(userId, limitNum);
   }
 
@@ -29,6 +36,9 @@ export class JobStatusController {
   @Get('failed')
   async getFailedJobs(@Query('limit') limit?: string): Promise<Job[]> {
     const limitNum = limit ? parseInt(limit, 10) : 100;
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 1000) {
+      throw new BadRequestException('Invalid limit parameter');
+    }
     return this.jobStatusService.getFailedJobs(limitNum);
   }
 

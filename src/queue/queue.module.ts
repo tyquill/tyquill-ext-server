@@ -17,11 +17,15 @@ import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
     SqsModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
+        const queueUrl = configService.get<string>('AWS_SQS_FILE_ANALYSIS_QUEUE_URL')!;
+        if (!queueUrl) {
+          throw new Error('AWS_SQS_FILE_ANALYSIS_QUEUE_URL is not set');
+        }
         return {
           producers: [
             {
               name: QUEUE_NAMES.FILE_ANALYSIS,
-              queueUrl: configService.get<string>('AWS_SQS_FILE_ANALYSIS_QUEUE_URL')!,
+              queueUrl: queueUrl,
               region: configService.get<string>('AWS_REGION') || 'us-east-1',
             },
           ],

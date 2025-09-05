@@ -40,8 +40,11 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
+    "@ssut/nestjs-sqs": "^3.0.1",
     "@types/cheerio": "^0.22.35",
+    "@types/uuid": "^10.0.0",
     "@uploadthing/shared": "^7.1.10",
+    "aws-sdk": "^2.1692.0",
     "axios": "^1.11.0",
     "cheerio": "^1.1.2",
     "class-transformer": "^0.5.1",
@@ -53,7 +56,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "turndown": "^7.2.0",
-    "uploadthing": "^7.7.4"
+    "uploadthing": "^7.7.4",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

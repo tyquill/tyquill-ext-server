@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { WritingStylesModule } from './writing-styles/writing-styles.module';
 import { UploadedFilesModule } from './uploaded-files/uploaded-files.module';
 import { LibraryItemsModule } from './library-items/library-items.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -29,12 +30,13 @@ import { LibraryItemsModule } from './library-items/library-items.module';
     WritingStylesModule,
     UploadedFilesModule,
     LibraryItemsModule,
+    QueueModule, // SQS 큐 모듈 추가
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
   constructor() {
-    console.log('🚀 Application module initialized with OAuth authentication');
+    console.log('🚀 Application module initialized with OAuth authentication and SQS queues');
   }
 }

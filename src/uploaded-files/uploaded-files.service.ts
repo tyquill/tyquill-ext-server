@@ -7,13 +7,13 @@ import { UploadedFile } from './entities/uploaded-file.entity';
 import { User } from '../users/entities/user.entity';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
-import { FileAnalysisAgentService } from '../services/file-analysis-agent.service';
-
+import { FileAnalysisAgentService } from '../agents/services/file-analysis-agent.service';
 @Injectable()
 export class UploadedFilesService {
   private readonly logger = new Logger(UploadedFilesService.name);
   private s3Client: S3Client;
   private bucket: string;
+  private readonly ANALYZABLE_MIME_TYPES = new Set(['application/pdf'] as const);  
 
   constructor(
     private readonly em: EntityManager,
@@ -96,7 +96,10 @@ export class UploadedFilesService {
 
   async getAnalysis(id: number, userId: number): Promise<{ markdown: string | null; updatedAt?: Date }> {
     const uploaded = await this.findOne(id, userId);
-    return { markdown: uploaded.aiContent ?? null, updatedAt: uploaded.createdAt };
+    return { 
+      markdown: uploaded.aiContent ?? null, 
+      updatedAt: uploaded.createdAt,
+    };
   }
 
   async uploadToS3AndSave(
@@ -190,10 +193,7 @@ export class UploadedFilesService {
   }
 
   private shouldAnalyzeFile(mimeType: string): boolean {
-    const analyzableMimeTypes = [
-      'application/pdf',
-    ];
-    return analyzableMimeTypes.includes(mimeType);
+    return this.ANALYZABLE_MIME_TYPES.has(mimeType as any);
   }
 
   private async analyzeFileInBackground(uploadedFile: UploadedFile, fileUrl: string): Promise<void> {

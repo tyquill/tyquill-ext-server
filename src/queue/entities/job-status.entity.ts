@@ -38,11 +38,11 @@ export class Job {
   @Property({ nullable: true })
   errorMessage?: string;
 
-  @Property({ nullable: true })
-  retryCount?: number = 0;
+  @Property()
+  retryCount: number = 0;
 
-  @Property({ nullable: true })
-  maxRetries?: number = 3;
+  @Property()
+  maxRetries: number = 3;
 
   @Property({ nullable: true })
   sqsMessageId?: string;

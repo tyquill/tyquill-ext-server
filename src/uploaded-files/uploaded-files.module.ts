@@ -5,6 +5,7 @@ import { UploadedFilesController } from '../api/uploaded-files/uploaded-files.co
 import { UploadedFile } from './entities/uploaded-file.entity';
 import { User } from '../users/entities/user.entity';
 import { AuthModule } from '../auth/auth.module';
+import { FileAnalysisAgentService } from '../services/file-analysis-agent.service';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { AuthModule } from '../auth/auth.module';
     AuthModule,
   ],
   controllers: [UploadedFilesController],
-  providers: [UploadedFilesService],
+  providers: [UploadedFilesService, FileAnalysisAgentService],
   exports: [UploadedFilesService],
 })
 export class UploadedFilesModule {}

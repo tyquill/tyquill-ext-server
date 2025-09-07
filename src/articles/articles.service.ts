@@ -10,6 +10,9 @@ import {
   GenerateArticleV2Response,
   ArticleStatusV2Response,
 } from '../api/articles/dto/generate-article-v2.dto';
+import {
+  GenerateArticleV3Dto,
+} from '../api/articles/dto/generate-article-v3.dto';
 import { UpdateArticleDto } from '../api/articles/dto/update-article.dto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
@@ -19,6 +22,7 @@ import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
+import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
 
 @Injectable()
 export class ArticlesService {
@@ -37,6 +41,8 @@ export class ArticlesService {
     private readonly newsletterAgentService: NewsletterAgentService,
     @InjectRepository(WritingStyleExample)
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
+    @InjectRepository(UploadedFile)
+    private readonly uploadedFileRepository: EntityRepository<UploadedFile>,
   ) {}
 
   /**
@@ -658,6 +664,232 @@ export class ArticlesService {
 
     } catch (error) {
       this.logger.error(`❌ Background generation failed for articleId=${articleId}:`, error);
+
+      try {
+        // 실패 상태로 업데이트
+        const article = await this.articleRepository.findOne({ articleId });
+        if (article) {
+          article.generationStatus = 'failed';
+          await this.em.persistAndFlush(article);
+        }
+      } catch (updateError) {
+        this.logger.error(`❌ Failed to update error status for articleId=${articleId}:`, updateError);
+      }
+    }
+  }
+
+  // ========== V3 API Methods (PDF 지원) ==========
+
+  /**
+   * V3 API: 비동기 아티클 생성 - PDF 업로드 지원
+   */
+  async generateArticleV3(
+    userId: number,
+    generateDto: GenerateArticleV3Dto,
+  ): Promise<GenerateArticleV2Response> {
+    this.logger.log(`🚀 Starting V2 async article generation for user ${userId}`);
+
+    // 사용자 검증
+    const user = await this.userRepository.findOne({ userId: userId });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    // 즉시 processing 상태로 아티클 생성
+    const article = new Article();
+    article.topic = generateDto.topic;
+    article.keyInsight = generateDto.keyInsight;
+    article.generationParams = generateDto.generationParams;
+    article.generationStatus = 'processing';
+    article.user = user;
+
+    await this.em.persistAndFlush(article);
+
+    // 백그라운드에서 실제 생성 작업 실행
+    setImmediate(async () => {
+      await this.performBackgroundGenerationV3(article.articleId, generateDto);
+    });
+
+    this.logger.log(`✅ V2 article generation queued: articleId=${article.articleId}`);
+
+    return {
+      articleId: article.articleId,
+      status: 'processing',
+      message: '뉴스레터 생성이 시작되었습니다.',
+      createdAt: article.createdAt,
+    };
+  }
+
+  /**
+   * V2 API: 아티클 상태 확인 (PDF 진행률 포함)
+   */
+  async getArticleStatusV3(articleId: number): Promise<ArticleStatusV2Response> {
+    const article = await this.articleRepository.findOne(
+      { articleId, isDeleted: false },
+      { populate: ['user', 'archives'] }
+    );
+
+    if (!article) {
+      throw new NotFoundException('아티클을 찾을 수 없습니다.');
+    }
+
+    const latestArchive = article.getLatestArchive();
+
+    const response: ArticleStatusV2Response = {
+      articleId: article.articleId,
+      status: article.generationStatus,
+      title: latestArchive?.title,
+      content: latestArchive?.content,
+      createdAt: article.createdAt,
+    };
+
+    return response;
+  }
+
+  /**
+   * V2 API: 사용자별 아티클 조회 (PDF 정보 포함)
+   */
+  async findByUserV3(userId: number): Promise<any[]> {
+    const user = await this.userRepository.findOne({ userId });
+
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    const articles = await this.articleRepository.find(
+      { user, isDeleted: false },
+      {
+        populate: ['user', 'archives'],
+        orderBy: { createdAt: 'DESC' },
+      },
+    );
+
+    // 각 아티클에 대해 PDF 정보를 포함한 응답 생성
+    return articles.map((article) => ({
+      articleId: article.articleId,
+      title: article.getLatestTitle() || article.topic,
+      content: article.getLatestContent()?.substring(0, 100) || '',
+      topic: article.topic,
+      keyInsight: article.keyInsight,
+      generationParams: article.generationParams,
+      generationStatus: article.generationStatus,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      user: article.user,
+      // V3에서는 PDF 참고 자료 정보도 포함할 수 있음 (추후 구현)
+      pdfReferences: [], // 임시로 빈 배열
+    }));
+  }
+
+  /**
+   * V3 백그라운드에서 실제 아티클 생성 수행 (PDF 지원)
+   */
+  private async performBackgroundGenerationV3(
+    articleId: number,
+    generateDto: GenerateArticleV3Dto,
+  ): Promise<void> {
+    try {
+      this.logger.log(`🔄 V3 Background generation started for articleId=${articleId}`);
+
+      // 아티클 다시 조회
+      const article = await this.articleRepository.findOne(
+        { articleId },
+        { populate: ['user'] }
+      );
+      
+      if (!article) {
+        this.logger.error(`❌ Article not found during background generation: ${articleId}`);
+        return;
+      }
+
+      // 스크랩 데이터 준비 (V2와 동일)
+      let scrapsWithComments: Array<{ scrap: Scrap; userComment?: string }> = [];
+
+      if (generateDto.scrapWithOptionalComment && generateDto.scrapWithOptionalComment.length > 0) {
+        const scraps = await this.scrapRepository.find({
+          scrapId: {
+            $in: generateDto.scrapWithOptionalComment.map(comment => comment.scrapId),
+          },
+          user: article.user,
+          isDeleted: false,
+        });
+
+        scrapsWithComments = scraps.map((scrap) => {
+          const scrapComment = generateDto.scrapWithOptionalComment?.find(
+            (comment) => comment.scrapId === scrap.scrapId,
+          );
+          return {
+            scrap,
+            userComment: scrapComment?.userComment,
+          };
+        });
+      }
+
+      // PDF 업로드 데이터 준비
+      let pdfUploadsWithPrompts: Array<{ url: string; usagePrompt: string; aiContent: string }> = [];
+      
+      if (generateDto.uploadWithUsagePrompt && generateDto.uploadWithUsagePrompt.length > 0) {
+        // TODO: LibraryItem 엔티티에서 실제 PDF 데이터를 가져와야 함
+        // 현재는 ID와 프롬프트만 저장
+        const uploadedFileIds = generateDto.uploadWithUsagePrompt.map(upload => upload.uploadedFileId);
+        const uploadedFiles = await this.uploadedFileRepository.find({ uploadedFileId: { $in: uploadedFileIds } });
+        pdfUploadsWithPrompts = uploadedFiles.map(file => ({
+          url: file.filePath,
+          usagePrompt: generateDto.uploadWithUsagePrompt?.find(upload => upload.uploadedFileId === file.uploadedFileId)?.usagePrompt || '',
+          aiContent: file.aiContent || '',
+        }));
+      }
+
+      // 문체 예시 준비
+      let writingStyleExampleContents: string[] = [];
+      if (generateDto.writingStyleId) {
+        const writingStyleExamples = await this.writingStyleExampleRepository.find(
+          { writingStyle: { id: generateDto.writingStyleId, user: article.user } },
+          { populate: ['writingStyle'] },
+        );
+        writingStyleExampleContents = writingStyleExamples.map((example) => example.content);
+      }
+
+      // Convert scrapsWithComments to the format expected by FastAPI
+      const formattedScrapsWithComments = scrapsWithComments.map(item => ({
+        scrap: {
+          id: item.scrap.scrapId,
+          title: item.scrap.title,
+          url: item.scrap.url,
+          content: item.scrap.content,
+          userComment: item.scrap.userComment,
+        },
+        userComment: item.userComment,
+      }));
+
+      // V3: AI 뉴스레터 생성 (PDF 정보 포함)
+      const newsletterResult = await this.newsletterAgentService.generateNewsletter({
+        topic: generateDto.topic,
+        keyInsight: generateDto.keyInsight,
+        scrapsWithComments: formattedScrapsWithComments,
+        generationParams: generateDto.generationParams,
+        articleStructureTemplate: generateDto.articleStructureTemplate,
+        writingStyleExampleContents,
+        // V3에서 추가: PDF 업로드 정보
+        pdfUrlsWithPrompts: pdfUploadsWithPrompts, // 이 부분은 newsletterAgentService에서 지원해야 함
+      });
+
+      // AI 생성 결과를 아카이브에 저장
+      const archive = new ArticleArchive();
+      archive.title = newsletterResult.title;
+      archive.content = newsletterResult.content;
+      archive.versionNumber = 1;
+      archive.article = article;
+
+      // 아티클 상태 업데이트
+      article.generationStatus = 'completed';
+
+      await this.em.persistAndFlush([archive, article]);
+
+      this.logger.log(`🎉 V3 Background generation completed for articleId=${articleId}`);
+
+    } catch (error) {
+      this.logger.error(`❌ V3 Background generation failed for articleId=${articleId}:`, error);
 
       try {
         // 실패 상태로 업데이트

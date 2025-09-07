@@ -13,10 +13,10 @@ export class UploadedFile {
   @Property({ name: 'description' })
   description: string;
 
-  @Property({ name: 'file_name' })
+  @Property({ name: 'file_name', type: 'varchar', length: 255 })
   fileName: string;
 
-  @Property({ name: 'file_path' })
+  @Property({ name: 'file_path', type: 'text' })
   filePath: string;
 
   @Property({ name: 'mime_type' })

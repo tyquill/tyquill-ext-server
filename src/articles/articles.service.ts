@@ -687,7 +687,7 @@ export class ArticlesService {
     userId: number,
     generateDto: GenerateArticleV3Dto,
   ): Promise<GenerateArticleV2Response> {
-    this.logger.log(`🚀 Starting V2 async article generation for user ${userId}`);
+    this.logger.log(`🚀 Starting V3 async article generation for user ${userId}`);
 
     // 사용자 검증
     const user = await this.userRepository.findOne({ userId: userId });
@@ -710,7 +710,7 @@ export class ArticlesService {
       await this.performBackgroundGenerationV3(article.articleId, generateDto);
     });
 
-    this.logger.log(`✅ V2 article generation queued: articleId=${article.articleId}`);
+    this.logger.log(`✅ V3 article generation queued: articleId=${article.articleId}`);
 
     return {
       articleId: article.articleId,

@@ -832,7 +832,10 @@ export class ArticlesService {
         // TODO: LibraryItem 엔티티에서 실제 PDF 데이터를 가져와야 함
         // 현재는 ID와 프롬프트만 저장
         const uploadedFileIds = generateDto.uploadWithUsagePrompt.map(upload => upload.uploadedFileId);
-        const uploadedFiles = await this.uploadedFileRepository.find({ uploadedFileId: { $in: uploadedFileIds } });
+        const uploadedFiles = await this.uploadedFileRepository.find({ 
+          uploadedFileId: { $in: uploadedFileIds },
+          user: article.user,
+        });
         pdfUploadsWithPrompts = uploadedFiles.map(file => ({
           url: file.filePath,
           usagePrompt: generateDto.uploadWithUsagePrompt?.find(upload => upload.uploadedFileId === file.uploadedFileId)?.usagePrompt || '',

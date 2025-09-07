@@ -13,10 +13,10 @@ export class UploadedFile {
   @Property({ name: 'description' })
   description: string;
 
-  @Property({ name: 'file_name' })
+  @Property({ name: 'file_name', type: 'varchar', length: 255 })
   fileName: string;
 
-  @Property({ name: 'file_path' })
+  @Property({ name: 'file_path', type: 'text' })
   filePath: string;
 
   @Property({ name: 'mime_type' })
@@ -25,8 +25,14 @@ export class UploadedFile {
   @Property({ name: 'file_size' })
   fileSize: number;
 
-  @Property({ name: 'created_at' })
+  @Property({ name: 'ai_content', type: 'text', nullable: true })
+  aiContent?: string;
+
+  @Property({ name: 'created_at', onCreate: () => new Date(), defaultRaw: 'now()' })
   createdAt: Date = new Date();
+
+  @Property({ name: 'updated_at', onUpdate: () => new Date(), defaultRaw: 'now()' })
+  updatedAt: Date = new Date();
 
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user: User;

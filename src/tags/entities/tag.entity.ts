@@ -7,7 +7,6 @@ import { UploadedFile } from '../../uploaded-files/entities/uploaded-file.entity
 export class Tag {
 
     @BeforeCreate()
-    @BeforeUpdate()
     validate() {
         const hasScrap = this.scrap !== null && this.scrap !== undefined;
         const hasUploadedFile = this.uploadedFile !== null && this.uploadedFile !== undefined;

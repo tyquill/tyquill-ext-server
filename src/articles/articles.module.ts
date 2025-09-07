@@ -1,20 +1,22 @@
 import { Module } from '@nestjs/common';
 import { ArticlesService } from './articles.service';
 import { ArticlesController } from '../api/articles/articles.controller';
-import { NewsletterAgentService } from '../services/newsletter-agent.service';
+import { AgentsModule } from '../agents/agents.module';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
+import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
 
 @Module({
   imports: [
-    MikroOrmModule.forFeature([Article, ArticleArchive, Scrap, User, WritingStyleExample]),
+    MikroOrmModule.forFeature([Article, ArticleArchive, Scrap, User, WritingStyleExample, UploadedFile]),
+    AgentsModule,
   ],
   controllers: [ArticlesController],
-  providers: [ArticlesService, NewsletterAgentService],
+  providers: [ArticlesService],
   exports: [ArticlesService],
 })
 export class ArticlesModule {}

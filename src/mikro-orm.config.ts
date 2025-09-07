@@ -14,6 +14,7 @@ import { UserOAuth } from './users/entities/user-oauth.entity';
 import { WritingStyle } from './writing-styles/entities/writing-style.entity';
 import { WritingStyleExample } from './writing-styles/entities/writing-style-example.entity';
 import { UploadedFile } from './uploaded-files/entities/uploaded-file.entity';
+import { Job } from './queue/entities/job-status.entity';
 
 export default defineConfig({
   host: process.env.DATABASE_HOST,
@@ -22,7 +23,7 @@ export default defineConfig({
   user: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
   // 명시적으로 엔티티 지정
-  entities: [Article, ArticleArchive, Scrap, Tag, User, UserOAuth, WritingStyle, WritingStyleExample, UploadedFile],
+  entities: [Article, ArticleArchive, Scrap, Tag, User, UserOAuth, WritingStyle, WritingStyleExample, UploadedFile, Job],
   schema: 'public',
   debug: true,
   allowGlobalContext: true,

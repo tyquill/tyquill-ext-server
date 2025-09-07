@@ -17,6 +17,11 @@ interface NewsletterInput {
   readonly generationParams?: string;
   readonly articleStructureTemplate?: any[];
   readonly writingStyleExampleContents?: string[];
+  readonly pdfUrlsWithPrompts?: Array<{
+    url: string;
+    usagePrompt: string;
+    aiContent?: string;
+  }>;
 }
 
 interface NewsletterOutput {
@@ -51,6 +56,7 @@ export class NewsletterAgentService {
       this.logger.log(`📝 Topic: ${input.topic}`);
       this.logger.log(`💡 Key insight: ${input.keyInsight || 'None'}`);
       this.logger.log(`📊 Scraps count: ${input.scrapsWithComments?.length || 0}`);
+      this.logger.log(`📄 PDF files count: ${input.pdfUrlsWithPrompts?.length || 0}`);
 
       const response = await fetch(`${this.agentApiUrl}/api/v1/newsletter/generate`, {
         method: 'POST',

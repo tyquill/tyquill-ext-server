@@ -11,6 +11,8 @@ import { FileAnalysisProducerService } from '../queue/services/file-analysis-pro
 import { FileAnalysisMessage } from '../queue/dto/file-analysis.dto';
 import { JobStatusService } from '../queue/services/job-status.service';
 import { JobStatus } from '../queue/entities/job-status.entity';
+import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'crypto';
 @Injectable()
 export class UploadedFilesService {
   private readonly logger = new Logger(UploadedFilesService.name);
@@ -140,8 +142,8 @@ export class UploadedFilesService {
       }
 
       // S3 업로드를 위한 키 생성
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const fileKey = `uploads/${userId}/${Date.now()}-${safeName}`;
+      const hashDirectory = createHash('sha512').update(userId.toString()).digest('hex').substring(0, 8);
+      const fileKey = `uploads/${hashDirectory}/${uuidv4()}`;
       
       // 파일을 스트림으로 업로드 (메모리 부담 줄이기)
       const tmpPath = (file as any).path as string | undefined;

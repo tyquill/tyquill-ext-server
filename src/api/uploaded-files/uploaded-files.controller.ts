@@ -46,7 +46,7 @@ export class UploadedFilesController {
         cb(null, `${Date.now()}-${safe}`);
       },
     }),
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit (adjust as needed)
+    limits: { fileSize: 30 * 1024 * 1024 }, // 30MB limit (adjust as needed)
     fileFilter: (req, file, cb) => {
       if (file.mimetype !== 'application/pdf') {
         return cb(null, false);

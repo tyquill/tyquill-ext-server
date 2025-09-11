@@ -23,6 +23,8 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
+import { PosthogService } from '../analytics/posthog.service';
+import { EVENT_NAMES } from '../analytics/events';
 
 @Injectable()
 export class ArticlesService {
@@ -43,6 +45,7 @@ export class ArticlesService {
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
     @InjectRepository(UploadedFile)
     private readonly uploadedFileRepository: EntityRepository<UploadedFile>,
+    private readonly posthog: PosthogService,
   ) {}
 
   /**
@@ -114,6 +117,12 @@ export class ArticlesService {
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
+
+    // Check if this user has any previously completed articles (before creating one now)
+    const existingCompleted = await this.articleRepository.findOne(
+      { user, isDeleted: false, generationStatus: 'completed' as any },
+      { fields: ['articleId'] as any },
+    );
 
     // 스크랩 데이터 준비
     let scrapsWithComments: Array<{ scrap: Scrap; userComment?: string }> = [];
@@ -195,6 +204,12 @@ export class ArticlesService {
     archive.versionNumber = 1;
     archive.article = article;
     await this.em.persistAndFlush(archive);
+
+    // Fire activation event if first AI draft completion
+    if (!existingCompleted && this.posthog.isEnabled()) {
+      const distinctId = user.email || String(user.userId);
+      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVATION_FIRST_AI_DRAFT_COMPLETED);
+    }
 
     return {
       id: article.articleId,
@@ -656,11 +671,22 @@ export class ArticlesService {
       archive.article = article;
 
       // 아티클 상태 업데이트
+      // Check if user had any completed article before this one
+      const hadCompletedBefore = await this.articleRepository.findOne(
+        { user: article.user, isDeleted: false, generationStatus: 'completed' as any },
+        { fields: ['articleId'] as any },
+      );
+
       article.generationStatus = 'completed';
 
       await this.em.persistAndFlush([archive, article]);
 
       this.logger.log(`🎉 Background generation completed for articleId=${articleId}`);
+
+      if (!hadCompletedBefore && this.posthog.isEnabled()) {
+        const distinctId = article.user.email || String(article.user.userId);
+        this.posthog.capture(distinctId, EVENT_NAMES.ACTIVATION_FIRST_AI_DRAFT_COMPLETED);
+      }
 
     } catch (error) {
       this.logger.error(`❌ Background generation failed for articleId=${articleId}:`, error);
@@ -885,11 +911,21 @@ export class ArticlesService {
       archive.article = article;
 
       // 아티클 상태 업데이트
+      // Check if user had any completed article before this one
+      const hadCompletedBefore = await this.articleRepository.findOne(
+        { user: article.user, isDeleted: false, generationStatus: 'completed' as any },
+        { fields: ['articleId'] as any },
+      );
       article.generationStatus = 'completed';
 
       await this.em.persistAndFlush([archive, article]);
 
       this.logger.log(`🎉 V3 Background generation completed for articleId=${articleId}`);
+
+      if (!hadCompletedBefore && this.posthog.isEnabled()) {
+        const distinctId = article.user.email || String(article.user.userId);
+        this.posthog.capture(distinctId, EVENT_NAMES.ACTIVATION_FIRST_AI_DRAFT_COMPLETED);
+      }
 
     } catch (error) {
       this.logger.error(`❌ V3 Background generation failed for articleId=${articleId}:`, error);

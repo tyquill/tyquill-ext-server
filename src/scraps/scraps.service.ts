@@ -6,6 +6,8 @@ import { Scrap } from './entities/scrap.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
+import { PosthogService } from '../analytics/posthog.service';
+import { EVENT_NAMES } from '../analytics/events';
 
 export interface SearchOptions {
   query?: string;
@@ -33,6 +35,7 @@ export class ScrapsService {
     private readonly userRepository: EntityRepository<User>,
     @InjectRepository(Article)
     private readonly articleRepository: EntityRepository<Article>,
+    private readonly posthog: PosthogService,
   ) {}
 
   async create(
@@ -44,6 +47,12 @@ export class ScrapsService {
     if (!user) {
       throw new Error('User not found');
     }
+
+    // Lightweight existence check BEFORE creating, to detect first scrap
+    const existing = await this.scrapRepository.findOne(
+      { user: { userId }, isDeleted: false },
+      { fields: ['scrapId'] as any },
+    );
 
     const article = articleId
       ? await this.articleRepository.findOne({ articleId, isDeleted: false })
@@ -67,6 +76,13 @@ export class ScrapsService {
 
     await this.em.persistAndFlush(scrap);
     scrap.content = scrap.content.substring(0, 100);
+
+    // Fire activation event on first scrap
+    if (!existing && this.posthog.isEnabled()) {
+      const distinctId = user.email || String(user.userId);
+      // Send bare activation event without any properties
+      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVATION_FIRST_SCRAP);
+    }
     return scrap;
   }
 

@@ -3,6 +3,8 @@ import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { User } from './entities/user.entity';
 import { UserOAuth, OAuthProvider } from './entities/user-oauth.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
+import { PosthogService } from '../analytics/posthog.service';
+import { EVENT_NAMES } from '../analytics/events';
 
 /**
  * OAuth 사용자 생성 데이터
@@ -32,6 +34,7 @@ export class UsersService {
     private readonly userRepository: EntityRepository<User>,
     @InjectRepository(UserOAuth)
     private readonly userOAuthRepository: EntityRepository<UserOAuth>,
+    private readonly posthog: PosthogService,
   ) {}
 
   async findOne(id: number): Promise<User | null> {
@@ -52,7 +55,16 @@ export class UsersService {
     const user = new User();
     Object.assign(user, userData);
     await this.em.persistAndFlush(user);
+    // Acquisition event: signup completed (only for new users)
+    this.trackSignUpEvent(user);
     return user;
+  }
+
+  private trackSignUpEvent(user: User) {
+    if (this.posthog.isEnabled()) {
+      const distinctId = user.email || String(user.userId);
+      this.posthog.capture(distinctId, EVENT_NAMES.ACQUISITION_SIGNUP_COMPLETED);
+    }
   }
 
   /**
@@ -102,6 +114,9 @@ export class UsersService {
       user.email = data.email;
       user.name = data.name;
       await this.em.persistAndFlush(user);
+      
+      // Acquisition event for first-time user creation via OAuth
+      this.trackSignUpEvent(user);
     }
 
     // 3. OAuth 계정 연결

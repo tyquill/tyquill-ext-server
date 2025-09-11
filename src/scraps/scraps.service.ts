@@ -6,6 +6,8 @@ import { Scrap } from './entities/scrap.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
+import { PosthogService } from '../analytics/posthog.service';
+import { EVENT_NAMES } from '../analytics/events';
 
 export interface SearchOptions {
   query?: string;
@@ -33,6 +35,7 @@ export class ScrapsService {
     private readonly userRepository: EntityRepository<User>,
     @InjectRepository(Article)
     private readonly articleRepository: EntityRepository<Article>,
+    private readonly posthog: PosthogService,
   ) {}
 
   async create(
@@ -44,6 +47,8 @@ export class ScrapsService {
     if (!user) {
       throw new Error('User not found');
     }
+
+    // Removed first-scrap existence check (no longer needed for activation event)
 
     const article = articleId
       ? await this.articleRepository.findOne({ articleId, isDeleted: false })
@@ -67,7 +72,17 @@ export class ScrapsService {
 
     await this.em.persistAndFlush(scrap);
     scrap.content = scrap.content.substring(0, 100);
+
+    // Always emit activity event for retention
+    this.trackCreateScrapEvent(user);
     return scrap;
+  }
+
+  private trackCreateScrapEvent(user) {
+    if (this.posthog.isEnabled()) {
+      const distinctId = user.email || String(user.userId);
+      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_SCRAP_CREATED);
+    }
   }
 
   async findAll(userId?: number): Promise<Scrap[]> {

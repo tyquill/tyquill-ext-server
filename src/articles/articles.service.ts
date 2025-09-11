@@ -23,6 +23,8 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
+import { PosthogService } from '../analytics/posthog.service';
+import { EVENT_NAMES } from '../analytics/events';
 
 @Injectable()
 export class ArticlesService {
@@ -43,6 +45,7 @@ export class ArticlesService {
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
     @InjectRepository(UploadedFile)
     private readonly uploadedFileRepository: EntityRepository<UploadedFile>,
+    private readonly posthog: PosthogService,
   ) {}
 
   /**
@@ -114,6 +117,8 @@ export class ArticlesService {
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
+
+    // Removed: first-completion existence check (using generic activity events)
 
     // 스크랩 데이터 준비
     let scrapsWithComments: Array<{ scrap: Scrap; userComment?: string }> = [];
@@ -196,6 +201,9 @@ export class ArticlesService {
     archive.article = article;
     await this.em.persistAndFlush(archive);
 
+    // Always emit activity event for retention
+    this.trackAiGenerateArticleDraftEvent(user);
+
     return {
       id: article.articleId,
       title: newsletterResult.title,
@@ -203,6 +211,13 @@ export class ArticlesService {
       createdAt: article.createdAt,
       userId: user.userId,
     } as GenerateArticleResponse;
+  }
+
+  private trackAiGenerateArticleDraftEvent(user) {
+    if (this.posthog.isEnabled()) {
+      const distinctId = user.email || String(user.userId);
+      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
+    }
   }
 
   /**
@@ -662,6 +677,8 @@ export class ArticlesService {
 
       this.logger.log(`🎉 Background generation completed for articleId=${articleId}`);
 
+      this.trackAiGenerateArticleDraftEvent(article.user);
+
     } catch (error) {
       this.logger.error(`❌ Background generation failed for articleId=${articleId}:`, error);
 
@@ -890,6 +907,8 @@ export class ArticlesService {
       await this.em.persistAndFlush([archive, article]);
 
       this.logger.log(`🎉 V3 Background generation completed for articleId=${articleId}`);
+
+      this.trackAiGenerateArticleDraftEvent(article.user);
 
     } catch (error) {
       this.logger.error(`❌ V3 Background generation failed for articleId=${articleId}:`, error);

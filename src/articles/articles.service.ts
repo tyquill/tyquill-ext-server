@@ -118,11 +118,7 @@ export class ArticlesService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
-    // Check if this user has any previously completed articles (before creating one now)
-    const existingCompleted = await this.articleRepository.findOne(
-      { user, isDeleted: false, generationStatus: 'completed' as any },
-      { fields: ['articleId'] as any },
-    );
+    // Removed: first-completion existence check (using generic activity events)
 
     // 스크랩 데이터 준비
     let scrapsWithComments: Array<{ scrap: Scrap; userComment?: string }> = [];
@@ -205,10 +201,12 @@ export class ArticlesService {
     archive.article = article;
     await this.em.persistAndFlush(archive);
 
-    // Fire activation event if first AI draft completion
-    if (!existingCompleted && this.posthog.isEnabled()) {
+    // Removed first-AI activation event (using generic activity events in funnel)
+
+    // Always emit activity event for retention
+    if (this.posthog.isEnabled()) {
       const distinctId = user.email || String(user.userId);
-      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVATION_FIRST_AI_DRAFT_COMPLETED);
+      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
     }
 
     return {
@@ -671,21 +669,18 @@ export class ArticlesService {
       archive.article = article;
 
       // 아티클 상태 업데이트
-      // Check if user had any completed article before this one
-      const hadCompletedBefore = await this.articleRepository.findOne(
-        { user: article.user, isDeleted: false, generationStatus: 'completed' as any },
-        { fields: ['articleId'] as any },
-      );
-
       article.generationStatus = 'completed';
 
       await this.em.persistAndFlush([archive, article]);
 
       this.logger.log(`🎉 Background generation completed for articleId=${articleId}`);
 
-      if (!hadCompletedBefore && this.posthog.isEnabled()) {
+      // Removed first-AI activation event
+
+      // Activity event for retention
+      if (this.posthog.isEnabled()) {
         const distinctId = article.user.email || String(article.user.userId);
-        this.posthog.capture(distinctId, EVENT_NAMES.ACTIVATION_FIRST_AI_DRAFT_COMPLETED);
+        this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
       }
 
     } catch (error) {
@@ -911,20 +906,18 @@ export class ArticlesService {
       archive.article = article;
 
       // 아티클 상태 업데이트
-      // Check if user had any completed article before this one
-      const hadCompletedBefore = await this.articleRepository.findOne(
-        { user: article.user, isDeleted: false, generationStatus: 'completed' as any },
-        { fields: ['articleId'] as any },
-      );
       article.generationStatus = 'completed';
 
       await this.em.persistAndFlush([archive, article]);
 
       this.logger.log(`🎉 V3 Background generation completed for articleId=${articleId}`);
 
-      if (!hadCompletedBefore && this.posthog.isEnabled()) {
+      // Removed first-AI activation event
+
+      // Activity event for retention
+      if (this.posthog.isEnabled()) {
         const distinctId = article.user.email || String(article.user.userId);
-        this.posthog.capture(distinctId, EVENT_NAMES.ACTIVATION_FIRST_AI_DRAFT_COMPLETED);
+        this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
       }
 
     } catch (error) {

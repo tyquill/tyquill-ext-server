@@ -48,11 +48,7 @@ export class ScrapsService {
       throw new Error('User not found');
     }
 
-    // Lightweight existence check BEFORE creating, to detect first scrap
-    const existing = await this.scrapRepository.findOne(
-      { user: { userId }, isDeleted: false },
-      { fields: ['scrapId'] as any },
-    );
+    // Removed first-scrap existence check (no longer needed for activation event)
 
     const article = articleId
       ? await this.articleRepository.findOne({ articleId, isDeleted: false })
@@ -77,11 +73,12 @@ export class ScrapsService {
     await this.em.persistAndFlush(scrap);
     scrap.content = scrap.content.substring(0, 100);
 
-    // Fire activation event on first scrap
-    if (!existing && this.posthog.isEnabled()) {
+    // Removed first-scrap activation event (funnel uses generic activity events)
+
+    // Always emit activity event for retention
+    if (this.posthog.isEnabled()) {
       const distinctId = user.email || String(user.userId);
-      // Send bare activation event without any properties
-      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVATION_FIRST_SCRAP);
+      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_SCRAP_CREATED);
     }
     return scrap;
   }

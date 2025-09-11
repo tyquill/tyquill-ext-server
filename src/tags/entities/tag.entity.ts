@@ -26,8 +26,6 @@ export class Tag {
     @ManyToOne(() => User, { fieldName: 'user_id' })
     user: User;
 
-    @ManyToOne(() => Scrap, { fieldName: 'scrap_id', nullable: true })
+    @ManyToOne(() => Scrap, { fieldName: 'scrap_id', nullable: false })
     scrap?: Scrap;
-
-    // UploadedFile relation removed; uploads are represented as scraps with file metadata
 }

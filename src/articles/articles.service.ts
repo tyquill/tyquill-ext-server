@@ -845,16 +845,32 @@ export class ArticlesService {
       
       if (generateDto.uploadWithUsagePrompt && generateDto.uploadWithUsagePrompt.length > 0) {
         // Treat uploads as scraps with file metadata; uploadedFileId corresponds to scrapId
-        const scrapIds = generateDto.uploadWithUsagePrompt.map(upload => upload.uploadedFileId);
-        const uploadScraps = await this.scrapRepository.find({ 
+        const uploads = generateDto.uploadWithUsagePrompt;
+        const scrapIds = uploads.map(u => u.uploadedFileId);
+
+        // Build usagePrompt lookup for O(1)
+        const usagePromptById = new Map<number, string>();
+        for (const u of uploads) usagePromptById.set(u.uploadedFileId, u.usagePrompt);
+
+        // Fetch only non-deleted scraps for the user
+        const uploadScraps = await this.scrapRepository.find({
           scrapId: { $in: scrapIds },
           user: article.user,
+          isDeleted: false,
         });
-        pdfUploadsWithPrompts = uploadScraps.map(scrap => ({
-          url: scrap.filePath || scrap.url,
-          usagePrompt: generateDto.uploadWithUsagePrompt?.find(upload => upload.uploadedFileId === scrap.scrapId)?.usagePrompt || '',
-          aiContent: scrap.aiContent || '',
-        }));
+
+        // Map to payload; skip entries without a resolvable URL
+        pdfUploadsWithPrompts = uploadScraps
+          .map(scrap => {
+            const url = scrap.filePath || scrap.url;
+            if (!url) return null;
+            return {
+              url,
+              usagePrompt: usagePromptById.get(scrap.scrapId) || '',
+              aiContent: scrap.aiContent || '',
+            };
+          })
+          .filter((x): x is { url: string; usagePrompt: string; aiContent: string } => x !== null);
       }
 
       // 문체 예시 준비

@@ -20,6 +20,22 @@ export class Scrap {
     @Property({ name: 'html_content', type: 'text' })
     htmlContent: string;
 
+    // Optional fields for uploaded files
+    @Property({ name: 'file_name', type: 'varchar', length: 255, nullable: true })
+    fileName?: string;
+
+    @Property({ name: 'file_path', type: 'text', nullable: true })
+    filePath?: string;
+
+    @Property({ name: 'mime_type', type: 'varchar', length: 255, nullable: true })
+    mimeType?: string;
+
+    @Property({ name: 'file_size', type: 'bigint', nullable: true })
+    fileSize?: number;
+
+    @Property({ name: 'ai_content', type: 'text', nullable: true })
+    aiContent?: string;
+
     @Property({ name: 'is_deleted', type: 'boolean', default: false })
     isDeleted: boolean = false;
 

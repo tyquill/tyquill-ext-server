@@ -73,14 +73,16 @@ export class ScrapsService {
     await this.em.persistAndFlush(scrap);
     scrap.content = scrap.content.substring(0, 100);
 
-    // Removed first-scrap activation event (funnel uses generic activity events)
-
     // Always emit activity event for retention
+    this.trackCreateScrapEvent(user);
+    return scrap;
+  }
+
+  private trackCreateScrapEvent(user) {
     if (this.posthog.isEnabled()) {
       const distinctId = user.email || String(user.userId);
       this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_SCRAP_CREATED);
     }
-    return scrap;
   }
 
   async findAll(userId?: number): Promise<Scrap[]> {

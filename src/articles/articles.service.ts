@@ -201,13 +201,8 @@ export class ArticlesService {
     archive.article = article;
     await this.em.persistAndFlush(archive);
 
-    // Removed first-AI activation event (using generic activity events in funnel)
-
     // Always emit activity event for retention
-    if (this.posthog.isEnabled()) {
-      const distinctId = user.email || String(user.userId);
-      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
-    }
+    this.trackAiGenerateArticleDraftEvent(user);
 
     return {
       id: article.articleId,
@@ -216,6 +211,13 @@ export class ArticlesService {
       createdAt: article.createdAt,
       userId: user.userId,
     } as GenerateArticleResponse;
+  }
+
+  private trackAiGenerateArticleDraftEvent(user) {
+    if (this.posthog.isEnabled()) {
+      const distinctId = user.email || String(user.userId);
+      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
+    }
   }
 
   /**
@@ -675,13 +677,7 @@ export class ArticlesService {
 
       this.logger.log(`🎉 Background generation completed for articleId=${articleId}`);
 
-      // Removed first-AI activation event
-
-      // Activity event for retention
-      if (this.posthog.isEnabled()) {
-        const distinctId = article.user.email || String(article.user.userId);
-        this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
-      }
+      this.trackAiGenerateArticleDraftEvent(article.user);
 
     } catch (error) {
       this.logger.error(`❌ Background generation failed for articleId=${articleId}:`, error);
@@ -912,13 +908,7 @@ export class ArticlesService {
 
       this.logger.log(`🎉 V3 Background generation completed for articleId=${articleId}`);
 
-      // Removed first-AI activation event
-
-      // Activity event for retention
-      if (this.posthog.isEnabled()) {
-        const distinctId = article.user.email || String(article.user.userId);
-        this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
-      }
+      this.trackAiGenerateArticleDraftEvent(article.user);
 
     } catch (error) {
       this.logger.error(`❌ V3 Background generation failed for articleId=${articleId}:`, error);

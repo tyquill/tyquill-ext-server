@@ -3,7 +3,7 @@ import { JobStatusService } from '../services/job-status.service';
 import { JobStatus } from '../entities/job-status.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/postgresql';
-import { UploadedFile } from '../../uploaded-files/entities/uploaded-file.entity';
+import { Scrap } from '../../scraps/entities/scrap.entity';
 import { IsIn, IsInt, IsString, IsUUID, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Request } from 'express';
@@ -34,8 +34,8 @@ class FileAnalysisCallbackDto {
 export class AiCallbacksController {
   constructor(
     private readonly jobStatusService: JobStatusService,
-    @InjectRepository(UploadedFile)
-    private readonly uploadedFileRepo: EntityRepository<UploadedFile>,
+    @InjectRepository(Scrap)
+    private readonly scrapRepo: EntityRepository<Scrap>,
   ) {}
 
   private verifyAgentKey(req: Request) {
@@ -66,12 +66,12 @@ export class AiCallbacksController {
     const { jobUuid, uploadedFileId, status, markdown, error } = body;
 
     if (status === JobStatus.COMPLETED) {
-      await this.uploadedFileRepo.getEntityManager().transactional(async (em) => {
+      await this.scrapRepo.getEntityManager().transactional(async (em) => {
         if (markdown && markdown.length > 0) {
-          const uploaded = await em.findOne(UploadedFile, { uploadedFileId });
-          if (uploaded) {
-            uploaded.aiContent = markdown;
-            uploaded.updatedAt = new Date();
+          const scrap = await em.findOne(Scrap, { scrapId: uploadedFileId });
+          if (scrap) {
+            scrap.aiContent = markdown;
+            scrap.updatedAt = new Date();
             await em.flush();
           }
         }
@@ -83,7 +83,7 @@ export class AiCallbacksController {
     }
 
     if (status === JobStatus.FAILED) {
-      await this.uploadedFileRepo.getEntityManager().transactional(async (em) => {
+      await this.scrapRepo.getEntityManager().transactional(async (em) => {
         await this.jobStatusService.updateJobStatus(jobUuid, JobStatus.FAILED, {
             errorMessage: error || 'Unknown error',
           });

@@ -86,7 +86,9 @@ export class ScrapsService {
   }
 
   async findAll(userId?: number): Promise<Scrap[]> {
-    const query = userId ? { user: { userId }, isDeleted: false } : {};
+    const query: any = userId
+      ? { user: { userId }, isDeleted: false, filePath: null }
+      : { isDeleted: false, mimeType: null };
 
     return await this.scrapRepository.find(query, {
       populate: ['tags'],

@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Scrap } from '../scraps/entities/scrap.entity';
-import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
 import { Tag } from '../tags/entities/tag.entity';
 import { User } from '../users/entities/user.entity';
 import { ScrapsService } from '../scraps/scraps.service';
@@ -33,8 +32,7 @@ export class LibraryItemsService {
     private readonly em: EntityManager,
     @InjectRepository(Scrap)
     private readonly scrapRepository: EntityRepository<Scrap>,
-    @InjectRepository(UploadedFile)
-    private readonly uploadedFileRepository: EntityRepository<UploadedFile>,
+    // Uploaded files are represented as scraps with file metadata
     @InjectRepository(Tag)
     private readonly tagRepository: EntityRepository<Tag>,
     @InjectRepository(User)
@@ -55,11 +53,11 @@ export class LibraryItemsService {
     }
 
     if (!type || type === 'UPLOAD') {
-      const uploads = await this.uploadedFileRepository.find(
-        { user: { userId } },
+      const uploads = await this.scrapRepository.find(
+        { user: { userId }, filePath: { $ne: null }, isDeleted: false },
         { populate: ['tags'], orderBy: { createdAt: 'DESC' } },
       );
-      items.push(...uploads.map(this.mapUploadToDto));
+      items.push(...uploads.map(this.mapUploadScrapToDto));
     }
 
     // 최신순 정렬 (createdAt 기준)
@@ -95,8 +93,8 @@ export class LibraryItemsService {
     tags: s.tags?.getItems()?.map(t => t.name),
   });
 
-  private mapUploadToDto = (u: UploadedFile): LibraryItemDto => ({
-    id: u.uploadedFileId,
+  private mapUploadScrapToDto = (u: Scrap): LibraryItemDto => ({
+    id: u.scrapId,
     type: 'UPLOAD',
     title: u.title,
     description: u.description,
@@ -123,7 +121,7 @@ export class LibraryItemsService {
     if (itemType === 'SCRAP') {
       criteria.scrap = { scrapId: itemId };
     } else {
-      criteria.uploadedFile = { uploadedFileId: itemId };
+      criteria.scrap = { scrapId: itemId };
     }
 
     return em.findOne(Tag, criteria);
@@ -156,11 +154,11 @@ export class LibraryItemsService {
       }
       tag.scrap = scrap;
     } else {
-      const uploadedFile = await em.findOne(UploadedFile, { uploadedFileId: itemId, user: { userId } });
-      if (!uploadedFile) {
-        throw new NotFoundException('Uploaded file not found');
+      const uploadScrap = await em.findOne(Scrap, { scrapId: itemId, user: { userId } });
+      if (!uploadScrap) {
+        throw new NotFoundException('Uploaded file (as scrap) not found');
       }
-      tag.uploadedFile = uploadedFile;
+      tag.scrap = uploadScrap;
     }
 
     await em.persistAndFlush(tag);
@@ -175,8 +173,8 @@ export class LibraryItemsService {
         throw new NotFoundException('Scrap not found or access denied');
       }
     } else {
-      const uploadedFile = await this.uploadedFileRepository.findOne({ uploadedFileId: itemId, user: { userId } });
-      if (!uploadedFile) {
+      const uploadedScrap = await this.scrapRepository.findOne({ scrapId: itemId, user: { userId } });
+      if (!uploadedScrap) {
         throw new NotFoundException('Uploaded file not found or access denied');
       }
     }
@@ -192,7 +190,7 @@ export class LibraryItemsService {
       tag = await this.tagRepository.findOne({
         tagId,
         user: { userId },
-        uploadedFile: { uploadedFileId: itemId },
+        scrap: { scrapId: itemId },
       });
     }
 
@@ -217,10 +215,10 @@ export class LibraryItemsService {
     } else {
       return this.tagRepository.find({
         user: { userId },
-        uploadedFile: { uploadedFileId: itemId },
+        scrap: { scrapId: itemId },
       },
       { 
-        populate: ['user', 'uploadedFile'], 
+        populate: ['user', 'scrap'], 
         orderBy: { createdAt: 'DESC' } 
       },
     );

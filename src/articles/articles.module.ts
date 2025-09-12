@@ -8,11 +8,12 @@ import { ArticleArchive } from '../article-archive/entities/article-archive.enti
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
+import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
 import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [
-    MikroOrmModule.forFeature([Article, ArticleArchive, Scrap, User, WritingStyleExample]),
+    MikroOrmModule.forFeature([Article, ArticleArchive, Scrap, User, WritingStyleExample, UploadedFile]),
     AgentsModule,
     AnalyticsModule,
   ],

@@ -3,7 +3,7 @@ import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundE
 import { UpdateUploadedFileDto } from '../api/uploaded-files/dto/update-uploaded-file.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { Scrap } from '../scraps/entities/scrap.entity';
+import { UploadedFile } from './entities/uploaded-file.entity';
 import { User } from '../users/entities/user.entity';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
@@ -23,8 +23,8 @@ export class UploadedFilesService {
   
   constructor(
     private readonly em: EntityManager,
-    @InjectRepository(Scrap)
-    private readonly scrapRepository: EntityRepository<Scrap>,
+    @InjectRepository(UploadedFile)
+    private readonly uploadedFileRepository: EntityRepository<UploadedFile>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private readonly fileAnalysisProducerService: FileAnalysisProducerService,
@@ -53,22 +53,22 @@ export class UploadedFilesService {
 
   // metadata-only create() was removed in favor of server-proxy upload flow
 
-  async findAll(userId?: number): Promise<Scrap[]> {
+  async findAll(userId?: number): Promise<UploadedFile[]> {
     const where = userId ? { user: { userId } } : {};
-    return this.scrapRepository.find(where, {
+    return this.uploadedFileRepository.find(where, {
       populate: ['user', 'tags'],
       orderBy: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(id: number, userId: number): Promise<Scrap> {
-    const uploadedFile = await this.scrapRepository.findOne(
-      { scrapId: id },
+  async findOne(id: number, userId: number): Promise<UploadedFile> {
+    const uploadedFile = await this.uploadedFileRepository.findOne(
+      { uploadedFileId: id },
       { populate: ['user', 'tags'] },
     );
 
     if (!uploadedFile) {
-      throw new NotFoundException(`Uploaded item #${id} not found`);
+      throw new NotFoundException(`UploadedFile #${id} not found`);
     }
 
     if (uploadedFile.user.userId !== userId) {
@@ -82,7 +82,7 @@ export class UploadedFilesService {
     id: number,
     updateUploadedFileDto: UpdateUploadedFileDto,
     userId: number,
-  ): Promise<Scrap> {
+  ): Promise<UploadedFile> {
     const uploadedFile = await this.findOne(id, userId);
 
     if (updateUploadedFileDto.title !== undefined) {
@@ -134,7 +134,7 @@ export class UploadedFilesService {
     title: string,
     description: string,
     userId: number,
-  ): Promise<Scrap> {
+  ): Promise<UploadedFile> {
     try {
       const user = await this.userRepository.findOne({ userId });
       if (!user) {
@@ -164,7 +164,7 @@ export class UploadedFilesService {
       const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${fileKey}`;
 
       // 데이터베이스에 파일 정보 저장 (공통 로직 사용)
-      const uploadedFile = await this.persistScrapUpload({
+      const uploadedFile = await this.persistUploadedFile({
         user,
         title,
         description,
@@ -193,7 +193,7 @@ export class UploadedFilesService {
     }
   }
 
-  private async persistScrapUpload(params: {
+  private async persistUploadedFile(params: {
     user: User;
     title: string;
     description: string;
@@ -201,41 +201,37 @@ export class UploadedFilesService {
     filePath: string;
     mimeType: string;
     fileSize: number;
-  }): Promise<Scrap> {
+  }): Promise<UploadedFile> {
     // Idempotency by (user, filePath)
-    const existing = await this.scrapRepository.findOne({ filePath: params.filePath, user: { userId: params.user.userId } });
+    const existing = await this.uploadedFileRepository.findOne({ filePath: params.filePath, user: { userId: params.user.userId } });
     if (existing) return existing;
 
-    const scrap = new Scrap();
-    scrap.title = params.title;
-    scrap.description = params.description || '';
-    scrap.fileName = params.fileName;
-    scrap.filePath = params.filePath;
-    scrap.mimeType = params.mimeType;
-    scrap.fileSize = params.fileSize;
-    scrap.user = params.user;
-    // For uploads, set url to file path and blank content/html
-    scrap.url = params.filePath;
-    scrap.content = '';
-    scrap.htmlContent = '';
+    const uploadedFile = new UploadedFile();
+    uploadedFile.title = params.title;
+    uploadedFile.description = params.description || '';
+    uploadedFile.fileName = params.fileName;
+    uploadedFile.filePath = params.filePath;
+    uploadedFile.mimeType = params.mimeType;
+    uploadedFile.fileSize = params.fileSize;
+    uploadedFile.user = params.user;
 
-    await this.em.persistAndFlush(scrap);
-    return scrap;
+    await this.em.persistAndFlush(uploadedFile);
+    return uploadedFile;
   }
 
   private shouldAnalyzeFile(mimeType: string): boolean {
     return this.ANALYZABLE_MIME_TYPES.has(mimeType as any);
   }
 
-  private async queueFileAnalysis(uploadedFile: Scrap, fileUrl: string): Promise<string | null> {
+  private async queueFileAnalysis(uploadedFile: UploadedFile, fileUrl: string): Promise<string | null> {
     try {
       this.logger.log(`📤 Queuing AI analysis for file: ${uploadedFile.fileName}`);
 
       const analysisMessage: FileAnalysisMessage = {
-        uploadedFileId: uploadedFile.scrapId,
+        uploadedFileId: uploadedFile.uploadedFileId,
         fileUrl: fileUrl,
-        fileName: uploadedFile.fileName!,
-        mimeType: uploadedFile.mimeType!,
+        fileName: uploadedFile.fileName,
+        mimeType: uploadedFile.mimeType,
         userId: uploadedFile.user.userId,
         timestamp: new Date().toISOString(),
       };
@@ -269,7 +265,7 @@ export class UploadedFilesService {
       this.logger.error(`❌ Failed to retry analysis for file ${id}:`, error);
     }
     
-    const jobUuid = await this.queueFileAnalysis(uploaded, uploaded.filePath!);
+    const jobUuid = await this.queueFileAnalysis(uploaded, uploaded.filePath);
     return { jobUuid, status: jobUuid ? 'queued' : 'error' };
   }
 }

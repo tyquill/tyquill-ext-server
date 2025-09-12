@@ -22,6 +22,7 @@ import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
+import { UploadedFile } from '../uploaded-files/entities/uploaded-file.entity';
 import { PosthogService } from '../analytics/posthog.service';
 import { EVENT_NAMES } from '../analytics/events';
 
@@ -42,7 +43,8 @@ export class ArticlesService {
     private readonly newsletterAgentService: NewsletterAgentService,
     @InjectRepository(WritingStyleExample)
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
-    // Uploaded files are represented as scraps with file metadata
+    @InjectRepository(UploadedFile)
+    private readonly uploadedFileRepository: EntityRepository<UploadedFile>,
     private readonly posthog: PosthogService,
   ) {}
 
@@ -844,33 +846,18 @@ export class ArticlesService {
       let pdfUploadsWithPrompts: Array<{ url: string; usagePrompt: string; aiContent: string }> = [];
       
       if (generateDto.uploadWithUsagePrompt && generateDto.uploadWithUsagePrompt.length > 0) {
-        // Treat uploads as scraps with file metadata; uploadedFileId corresponds to scrapId
-        const uploads = generateDto.uploadWithUsagePrompt;
-        const scrapIds = uploads.map(u => u.uploadedFileId);
-
-        // Build usagePrompt lookup for O(1)
-        const usagePromptById = new Map<number, string>();
-        for (const u of uploads) usagePromptById.set(u.uploadedFileId, u.usagePrompt);
-
-        // Fetch only non-deleted scraps for the user
-        const uploadScraps = await this.scrapRepository.find({
-          scrapId: { $in: scrapIds },
+        // TODO: LibraryItem 엔티티에서 실제 PDF 데이터를 가져와야 함
+        // 현재는 ID와 프롬프트만 저장
+        const uploadedFileIds = generateDto.uploadWithUsagePrompt.map(upload => upload.uploadedFileId);
+        const uploadedFiles = await this.uploadedFileRepository.find({ 
+          uploadedFileId: { $in: uploadedFileIds },
           user: article.user,
-          isDeleted: false,
         });
-
-        // Map to payload; skip entries without a resolvable URL
-        pdfUploadsWithPrompts = uploadScraps
-          .map(scrap => {
-            const url = scrap.filePath || scrap.url;
-            if (!url) return null;
-            return {
-              url,
-              usagePrompt: usagePromptById.get(scrap.scrapId) || '',
-              aiContent: scrap.aiContent || '',
-            };
-          })
-          .filter((x): x is { url: string; usagePrompt: string; aiContent: string } => x !== null);
+        pdfUploadsWithPrompts = uploadedFiles.map(file => ({
+          url: file.filePath,
+          usagePrompt: generateDto.uploadWithUsagePrompt?.find(upload => upload.uploadedFileId === file.uploadedFileId)?.usagePrompt || '',
+          aiContent: file.aiContent || '',
+        }));
       }
 
       // 문체 예시 준비

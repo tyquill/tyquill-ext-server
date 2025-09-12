@@ -111,7 +111,7 @@ export class ScrapsService {
     sortBy?: 'created_at' | 'updated_at' | 'title',
     sortOrder?: 'ASC' | 'DESC',
   ): Promise<Scrap[]> {
-    const query = { user: { userId }, isDeleted: false };
+    const query = { user: { userId }, isDeleted: false, mimeType: null };
     let orderBy: any = { createdAt: 'DESC' };
 
     switch (sortBy) {

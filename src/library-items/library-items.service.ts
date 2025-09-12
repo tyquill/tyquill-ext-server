@@ -54,7 +54,7 @@ export class LibraryItemsService {
 
     if (!type || type === 'UPLOAD') {
       const uploads = await this.scrapRepository.find(
-        { user: { userId }, filePath: { $ne: null }, isDeleted: false },
+        { user: { userId }, filePath: { $ne: null }, isDeleted: false, mimeType: { $ne: null } },
         { populate: ['tags'], orderBy: { createdAt: 'DESC' } },
       );
       items.push(...uploads.map(this.mapUploadScrapToDto));

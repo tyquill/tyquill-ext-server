@@ -8,13 +8,12 @@ import { ArticleArchive } from '../article-archive/entities/article-archive.enti
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
-import { AnalyticsModule } from '../analytics/analytics.module';
+// Analytics tracking moved to client; module no longer required here.
 
 @Module({
   imports: [
     MikroOrmModule.forFeature([Article, ArticleArchive, Scrap, User, WritingStyleExample]),
     AgentsModule,
-    AnalyticsModule,
   ],
   controllers: [ArticlesController],
   providers: [ArticlesService],

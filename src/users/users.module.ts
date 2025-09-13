@@ -3,10 +3,10 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 import { UserOAuth } from './entities/user-oauth.entity';
-import { AnalyticsModule } from '../analytics/analytics.module';
+// Analytics tracking moved to client; module no longer required here.
 
 @Module({
-  imports: [MikroOrmModule.forFeature([User, UserOAuth]), AnalyticsModule],
+  imports: [MikroOrmModule.forFeature([User, UserOAuth])],
   providers: [UsersService],
   exports: [UsersService],
 })

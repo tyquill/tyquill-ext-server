@@ -22,8 +22,7 @@ import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
-import { PosthogService } from '../analytics/posthog.service';
-import { EVENT_NAMES } from '../analytics/events';
+// Analytics tracking migrated to extension client (PostHog).
 
 @Injectable()
 export class ArticlesService {
@@ -43,7 +42,6 @@ export class ArticlesService {
     @InjectRepository(WritingStyleExample)
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
     // Uploaded files are represented as scraps with file metadata
-    private readonly posthog: PosthogService,
   ) {}
 
   /**
@@ -199,8 +197,7 @@ export class ArticlesService {
     archive.article = article;
     await this.em.persistAndFlush(archive);
 
-    // Always emit activity event for retention
-    this.trackAiGenerateArticleDraftEvent(user);
+    // Event tracking moved to client
 
     return {
       id: article.articleId,
@@ -211,12 +208,7 @@ export class ArticlesService {
     } as GenerateArticleResponse;
   }
 
-  private trackAiGenerateArticleDraftEvent(user) {
-    if (this.posthog.isEnabled()) {
-      const distinctId = user.email || String(user.userId);
-      this.posthog.capture(distinctId, EVENT_NAMES.ACTIVITY_AI_DRAFT_COMPLETED);
-    }
-  }
+  // Event tracking moved to client
 
   /**
    * 모든 아티클 조회
@@ -675,7 +667,7 @@ export class ArticlesService {
 
       this.logger.log(`🎉 Background generation completed for articleId=${articleId}`);
 
-      this.trackAiGenerateArticleDraftEvent(article.user);
+      // Event tracking moved to client
 
     } catch (error) {
       this.logger.error(`❌ Background generation failed for articleId=${articleId}:`, error);
@@ -921,7 +913,7 @@ export class ArticlesService {
 
       this.logger.log(`🎉 V3 Background generation completed for articleId=${articleId}`);
 
-      this.trackAiGenerateArticleDraftEvent(article.user);
+      // Event tracking moved to client
 
     } catch (error) {
       this.logger.error(`❌ V3 Background generation failed for articleId=${articleId}:`, error);

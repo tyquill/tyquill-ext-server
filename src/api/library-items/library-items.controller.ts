@@ -15,7 +15,11 @@ import {
   ParseEnumPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { LibraryItemsService, LibraryItemDto, LibraryItemType } from '../../library-items/library-items.service';
+import {
+  LibraryItemsService,
+  LibraryItemDto,
+  LibraryItemType,
+} from '../../library-items/library-items.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateScrapDto } from '../scraps/dto/create-scrap.dto';
 
@@ -32,7 +36,8 @@ export class LibraryItemsController {
   @Get()
   async list(
     @Request() req: any,
-    @Query('type', new ParseEnumPipe(LibraryItemTypeEnum)) type?: LibraryItemType,
+    @Query('type', new ParseEnumPipe(LibraryItemTypeEnum))
+    type?: LibraryItemType,
   ): Promise<LibraryItemDto[]> {
     const userId = parseInt(req.user.id);
     return this.libraryItemsService.list(userId, type);
@@ -40,25 +45,27 @@ export class LibraryItemsController {
 
   @Version('1')
   @Post('scrap')
-  async createScrap(
-    @Request() req: any,
-    @Body() body: CreateScrapDto,
-  ) {
+  async createScrap(@Request() req: any, @Body() body: CreateScrapDto) {
     const userId = parseInt(req.user.id);
     return this.libraryItemsService.createScrap(body, userId);
   }
 
   @Version('1')
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file', {
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit (adjust as needed)
-    fileFilter: (req, file, cb) => {
-      if (file.mimetype !== 'application/pdf') {
-        return cb(new BadRequestException('Only PDF files are supported'), false);
-      }
-      cb(null, true);
-    },
-  }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit (adjust as needed)
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype !== 'application/pdf') {
+          return cb(
+            new BadRequestException('Only PDF files are supported'),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: { title?: string; description?: string },
@@ -75,12 +82,18 @@ export class LibraryItemsController {
   @Post(':itemId/tags')
   async addTag(
     @Param('itemId') itemId: string,
-    @Query('type', new ParseEnumPipe(LibraryItemTypeEnum)) type: LibraryItemType,
+    @Query('type', new ParseEnumPipe(LibraryItemTypeEnum))
+    type: LibraryItemType,
     @Body() body: { name: string },
     @Request() req: any,
   ) {
     const userId = parseInt(req.user.id);
-    return this.libraryItemsService.addTag(parseInt(itemId), type, body.name, userId);
+    return this.libraryItemsService.addTag(
+      parseInt(itemId),
+      type,
+      body.name,
+      userId,
+    );
   }
 
   @Version('1')
@@ -88,15 +101,21 @@ export class LibraryItemsController {
   async removeTag(
     @Param('itemId') itemId: string,
     @Param('tagId') tagId: string,
-    @Query('type', new ParseEnumPipe(LibraryItemTypeEnum)) type: LibraryItemType,
+    @Query('type', new ParseEnumPipe(LibraryItemTypeEnum))
+    type: LibraryItemType,
     @Request() req: any,
   ) {
     const userId = parseInt(req.user.id);
-    await this.libraryItemsService.removeTag(parseInt(itemId), type, parseInt(tagId), userId);
-    return { 
+    await this.libraryItemsService.removeTag(
+      parseInt(itemId),
+      type,
+      parseInt(tagId),
+      userId,
+    );
+    return {
       success: true,
       message: 'Tag removed from item successfully',
-      deletedTagId: parseInt(tagId)
+      deletedTagId: parseInt(tagId),
     };
   }
 
@@ -104,11 +123,11 @@ export class LibraryItemsController {
   @Get(':itemId/tags')
   async getTags(
     @Param('itemId') itemId: string,
-    @Query('type', new ParseEnumPipe(LibraryItemTypeEnum)) type: LibraryItemType,
+    @Query('type', new ParseEnumPipe(LibraryItemTypeEnum))
+    type: LibraryItemType,
     @Request() req: any,
   ) {
     const userId = parseInt(req.user.id);
     return this.libraryItemsService.getTags(parseInt(itemId), type, userId);
   }
-
 }

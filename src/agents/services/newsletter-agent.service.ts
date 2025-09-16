@@ -47,7 +47,9 @@ export class NewsletterAgentService {
 
   constructor(private readonly configService: ConfigService) {
     this.agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL')!;
-    this.logger.log(`🤖 NewsletterAgentService initialized with agent URL: ${this.agentApiUrl}`);
+    this.logger.log(
+      `🤖 NewsletterAgentService initialized with agent URL: ${this.agentApiUrl}`,
+    );
   }
 
   async generateNewsletter(input: NewsletterInput): Promise<NewsletterOutput> {
@@ -55,24 +57,33 @@ export class NewsletterAgentService {
       this.logger.log('🚀 Calling newsletter generation API');
       this.logger.log(`📝 Topic: ${input.topic}`);
       this.logger.log(`💡 Key insight: ${input.keyInsight || 'None'}`);
-      this.logger.log(`📊 Scraps count: ${input.scrapsWithComments?.length || 0}`);
-      this.logger.log(`📄 PDF files count: ${input.pdfUrlsWithPrompts?.length || 0}`);
+      this.logger.log(
+        `📊 Scraps count: ${input.scrapsWithComments?.length || 0}`,
+      );
+      this.logger.log(
+        `📄 PDF files count: ${input.pdfUrlsWithPrompts?.length || 0}`,
+      );
 
-      const response = await fetch(`${this.agentApiUrl}/api/v1/newsletter/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `${this.agentApiUrl}/api/v1/newsletter/generate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(input),
         },
-        body: JSON.stringify(input),
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`API call failed: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(
+          `API call failed: ${response.status} ${response.statusText} - ${errorText}`,
+        );
       }
 
       const result = await response.json();
-      
+
       this.logger.log('🎉 Newsletter generation completed successfully');
       return result;
     } catch (error) {
@@ -85,21 +96,26 @@ export class NewsletterAgentService {
     try {
       this.logger.log('🔍 Analyzing page structure');
 
-      const response = await fetch(`${this.agentApiUrl}/api/v1/newsletter/analyze-structure`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `${this.agentApiUrl}/api/v1/newsletter/analyze-structure`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content }),
         },
-        body: JSON.stringify({ content }),
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`API call failed: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(
+          `API call failed: ${response.status} ${response.statusText} - ${errorText}`,
+        );
       }
 
-      const result = await response.json() as PageStructureAnalysis;
-      
+      const result = (await response.json()) as PageStructureAnalysis;
+
       this.logger.log('✅ Page structure analysis completed');
       return result;
     } catch (error) {

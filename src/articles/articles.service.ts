@@ -10,9 +10,7 @@ import {
   GenerateArticleV2Response,
   ArticleStatusV2Response,
 } from '../api/articles/dto/generate-article-v2.dto';
-import {
-  GenerateArticleV3Dto,
-} from '../api/articles/dto/generate-article-v3.dto';
+import { GenerateArticleV3Dto } from '../api/articles/dto/generate-article-v3.dto';
 import { UpdateArticleDto } from '../api/articles/dto/update-article.dto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
@@ -49,7 +47,8 @@ export class ArticlesService {
    */
   async analyzePageStructure(content: string): Promise<any> {
     console.log('analyzePageStructure');
-    const result = await this.newsletterAgentService.analyzePageStructure(content);
+    const result =
+      await this.newsletterAgentService.analyzePageStructure(content);
 
     try {
       // LLM의 결과물이 항상 완벽한 JSON이 아닐 수 있으므로 파싱 시도
@@ -148,18 +147,21 @@ export class ArticlesService {
 
     let writingStyleExampleContents: string[] = [];
     if (generateDto.writingStyleId) {
-      const writingStyleExamples = await this.writingStyleExampleRepository.find(
-        {writingStyle: {id: generateDto.writingStyleId, user: user}},
-        {populate: ['writingStyle']},
+      const writingStyleExamples =
+        await this.writingStyleExampleRepository.find(
+          { writingStyle: { id: generateDto.writingStyleId, user: user } },
+          { populate: ['writingStyle'] },
+        );
+      writingStyleExampleContents = writingStyleExamples.map(
+        (example) => example.content,
       );
-      writingStyleExampleContents = writingStyleExamples.map((example) => example.content);
       if (!writingStyleExamples) {
         throw new NotFoundException('쓰기 스타일을 찾을 수 없습니다.');
       }
     }
 
     // Convert scrapsWithComments to the format expected by FastAPI
-    const formattedScrapsWithComments = scrapsWithComments.map(item => ({
+    const formattedScrapsWithComments = scrapsWithComments.map((item) => ({
       scrap: {
         id: item.scrap.scrapId,
         title: item.scrap.title,
@@ -171,14 +173,15 @@ export class ArticlesService {
     }));
 
     // AI 뉴스레터 생성
-    const newsletterResult = await this.newsletterAgentService.generateNewsletter({
-      topic: generateDto.topic,
-      keyInsight: generateDto.keyInsight,
-      scrapsWithComments: formattedScrapsWithComments,
-      generationParams: generateDto.generationParams,
-      articleStructureTemplate: generateDto.articleStructureTemplate,
-      writingStyleExampleContents,
-    });
+    const newsletterResult =
+      await this.newsletterAgentService.generateNewsletter({
+        topic: generateDto.topic,
+        keyInsight: generateDto.keyInsight,
+        scrapsWithComments: formattedScrapsWithComments,
+        generationParams: generateDto.generationParams,
+        articleStructureTemplate: generateDto.articleStructureTemplate,
+        writingStyleExampleContents,
+      });
 
     // 아티클 저장
     const article = new Article();
@@ -487,7 +490,9 @@ export class ArticlesService {
     userId: number,
     generateDto: GenerateArticleV2Dto,
   ): Promise<GenerateArticleV2Response> {
-    this.logger.log(`🚀 Starting V2 async article generation for user ${userId}`);
+    this.logger.log(
+      `🚀 Starting V2 async article generation for user ${userId}`,
+    );
 
     // 사용자 검증
     const user = await this.userRepository.findOne({ userId: userId });
@@ -510,7 +515,9 @@ export class ArticlesService {
       await this.performBackgroundGeneration(article.articleId, generateDto);
     });
 
-    this.logger.log(`✅ V2 article generation queued: articleId=${article.articleId}`);
+    this.logger.log(
+      `✅ V2 article generation queued: articleId=${article.articleId}`,
+    );
 
     return {
       articleId: article.articleId,
@@ -523,10 +530,12 @@ export class ArticlesService {
   /**
    * V2 API: 아티클 상태 확인
    */
-  async getArticleStatusV2(articleId: number): Promise<ArticleStatusV2Response> {
+  async getArticleStatusV2(
+    articleId: number,
+  ): Promise<ArticleStatusV2Response> {
     const article = await this.articleRepository.findOne(
       { articleId, isDeleted: false },
-      { populate: ['user', 'archives'] }
+      { populate: ['user', 'archives'] },
     );
 
     if (!article) {
@@ -585,26 +594,36 @@ export class ArticlesService {
     generateDto: GenerateArticleV2Dto,
   ): Promise<void> {
     try {
-      this.logger.log(`🔄 Background generation started for articleId=${articleId}`);
+      this.logger.log(
+        `🔄 Background generation started for articleId=${articleId}`,
+      );
 
       // 아티클 다시 조회
       const article = await this.articleRepository.findOne(
         { articleId },
-        { populate: ['user'] }
+        { populate: ['user'] },
       );
-      
+
       if (!article) {
-        this.logger.error(`❌ Article not found during background generation: ${articleId}`);
+        this.logger.error(
+          `❌ Article not found during background generation: ${articleId}`,
+        );
         return;
       }
 
       // 스크랩 데이터 준비 (기존 로직과 동일)
-      let scrapsWithComments: Array<{ scrap: Scrap; userComment?: string }> = [];
+      let scrapsWithComments: Array<{ scrap: Scrap; userComment?: string }> =
+        [];
 
-      if (generateDto.scrapWithOptionalComment && generateDto.scrapWithOptionalComment.length > 0) {
+      if (
+        generateDto.scrapWithOptionalComment &&
+        generateDto.scrapWithOptionalComment.length > 0
+      ) {
         const scraps = await this.scrapRepository.find({
           scrapId: {
-            $in: generateDto.scrapWithOptionalComment.map(comment => comment.scrapId),
+            $in: generateDto.scrapWithOptionalComment.map(
+              (comment) => comment.scrapId,
+            ),
           },
           user: article.user,
           isDeleted: false,
@@ -624,15 +643,23 @@ export class ArticlesService {
       // 문체 예시 준비
       let writingStyleExampleContents: string[] = [];
       if (generateDto.writingStyleId) {
-        const writingStyleExamples = await this.writingStyleExampleRepository.find(
-          { writingStyle: { id: generateDto.writingStyleId, user: article.user } },
-          { populate: ['writingStyle'] },
+        const writingStyleExamples =
+          await this.writingStyleExampleRepository.find(
+            {
+              writingStyle: {
+                id: generateDto.writingStyleId,
+                user: article.user,
+              },
+            },
+            { populate: ['writingStyle'] },
+          );
+        writingStyleExampleContents = writingStyleExamples.map(
+          (example) => example.content,
         );
-        writingStyleExampleContents = writingStyleExamples.map((example) => example.content);
       }
 
       // Convert scrapsWithComments to the format expected by FastAPI
-      const formattedScrapsWithComments = scrapsWithComments.map(item => ({
+      const formattedScrapsWithComments = scrapsWithComments.map((item) => ({
         scrap: {
           id: item.scrap.scrapId,
           title: item.scrap.title,
@@ -644,14 +671,15 @@ export class ArticlesService {
       }));
 
       // AI 뉴스레터 생성
-      const newsletterResult = await this.newsletterAgentService.generateNewsletter({
-        topic: generateDto.topic,
-        keyInsight: generateDto.keyInsight,
-        scrapsWithComments: formattedScrapsWithComments,
-        generationParams: generateDto.generationParams,
-        articleStructureTemplate: generateDto.articleStructureTemplate,
-        writingStyleExampleContents,
-      });
+      const newsletterResult =
+        await this.newsletterAgentService.generateNewsletter({
+          topic: generateDto.topic,
+          keyInsight: generateDto.keyInsight,
+          scrapsWithComments: formattedScrapsWithComments,
+          generationParams: generateDto.generationParams,
+          articleStructureTemplate: generateDto.articleStructureTemplate,
+          writingStyleExampleContents,
+        });
 
       // AI 생성 결과를 아카이브에 저장
       const archive = new ArticleArchive();
@@ -665,12 +693,16 @@ export class ArticlesService {
 
       await this.em.persistAndFlush([archive, article]);
 
-      this.logger.log(`🎉 Background generation completed for articleId=${articleId}`);
+      this.logger.log(
+        `🎉 Background generation completed for articleId=${articleId}`,
+      );
 
       // Event tracking moved to client
-
     } catch (error) {
-      this.logger.error(`❌ Background generation failed for articleId=${articleId}:`, error);
+      this.logger.error(
+        `❌ Background generation failed for articleId=${articleId}:`,
+        error,
+      );
 
       try {
         // 실패 상태로 업데이트
@@ -680,7 +712,10 @@ export class ArticlesService {
           await this.em.persistAndFlush(article);
         }
       } catch (updateError) {
-        this.logger.error(`❌ Failed to update error status for articleId=${articleId}:`, updateError);
+        this.logger.error(
+          `❌ Failed to update error status for articleId=${articleId}:`,
+          updateError,
+        );
       }
     }
   }
@@ -694,7 +729,9 @@ export class ArticlesService {
     userId: number,
     generateDto: GenerateArticleV3Dto,
   ): Promise<GenerateArticleV2Response> {
-    this.logger.log(`🚀 Starting V3 async article generation for user ${userId}`);
+    this.logger.log(
+      `🚀 Starting V3 async article generation for user ${userId}`,
+    );
 
     // 사용자 검증
     const user = await this.userRepository.findOne({ userId: userId });
@@ -717,7 +754,9 @@ export class ArticlesService {
       await this.performBackgroundGenerationV3(article.articleId, generateDto);
     });
 
-    this.logger.log(`✅ V3 article generation queued: articleId=${article.articleId}`);
+    this.logger.log(
+      `✅ V3 article generation queued: articleId=${article.articleId}`,
+    );
 
     return {
       articleId: article.articleId,
@@ -730,10 +769,12 @@ export class ArticlesService {
   /**
    * V2 API: 아티클 상태 확인 (PDF 진행률 포함)
    */
-  async getArticleStatusV3(articleId: number): Promise<ArticleStatusV2Response> {
+  async getArticleStatusV3(
+    articleId: number,
+  ): Promise<ArticleStatusV2Response> {
     const article = await this.articleRepository.findOne(
       { articleId, isDeleted: false },
-      { populate: ['user', 'archives'] }
+      { populate: ['user', 'archives'] },
     );
 
     if (!article) {
@@ -796,26 +837,36 @@ export class ArticlesService {
     generateDto: GenerateArticleV3Dto,
   ): Promise<void> {
     try {
-      this.logger.log(`🔄 V3 Background generation started for articleId=${articleId}`);
+      this.logger.log(
+        `🔄 V3 Background generation started for articleId=${articleId}`,
+      );
 
       // 아티클 다시 조회
       const article = await this.articleRepository.findOne(
         { articleId },
-        { populate: ['user'] }
+        { populate: ['user'] },
       );
-      
+
       if (!article) {
-        this.logger.error(`❌ Article not found during background generation: ${articleId}`);
+        this.logger.error(
+          `❌ Article not found during background generation: ${articleId}`,
+        );
         return;
       }
 
       // 스크랩 데이터 준비 (V2와 동일)
-      let scrapsWithComments: Array<{ scrap: Scrap; userComment?: string }> = [];
+      let scrapsWithComments: Array<{ scrap: Scrap; userComment?: string }> =
+        [];
 
-      if (generateDto.scrapWithOptionalComment && generateDto.scrapWithOptionalComment.length > 0) {
+      if (
+        generateDto.scrapWithOptionalComment &&
+        generateDto.scrapWithOptionalComment.length > 0
+      ) {
         const scraps = await this.scrapRepository.find({
           scrapId: {
-            $in: generateDto.scrapWithOptionalComment.map(comment => comment.scrapId),
+            $in: generateDto.scrapWithOptionalComment.map(
+              (comment) => comment.scrapId,
+            ),
           },
           user: article.user,
           isDeleted: false,
@@ -833,16 +884,24 @@ export class ArticlesService {
       }
 
       // PDF 업로드 데이터 준비
-      let pdfUploadsWithPrompts: Array<{ url: string; usagePrompt: string; aiContent: string }> = [];
-      
-      if (generateDto.uploadWithUsagePrompt && generateDto.uploadWithUsagePrompt.length > 0) {
+      let pdfUploadsWithPrompts: Array<{
+        url: string;
+        usagePrompt: string;
+        aiContent: string;
+      }> = [];
+
+      if (
+        generateDto.uploadWithUsagePrompt &&
+        generateDto.uploadWithUsagePrompt.length > 0
+      ) {
         // Treat uploads as scraps with file metadata; uploadedFileId corresponds to scrapId
         const uploads = generateDto.uploadWithUsagePrompt;
-        const scrapIds = uploads.map(u => u.uploadedFileId);
+        const scrapIds = uploads.map((u) => u.uploadedFileId);
 
         // Build usagePrompt lookup for O(1)
         const usagePromptById = new Map<number, string>();
-        for (const u of uploads) usagePromptById.set(u.uploadedFileId, u.usagePrompt);
+        for (const u of uploads)
+          usagePromptById.set(u.uploadedFileId, u.usagePrompt);
 
         // Fetch only non-deleted scraps for the user
         const uploadScraps = await this.scrapRepository.find({
@@ -853,7 +912,7 @@ export class ArticlesService {
 
         // Map to payload; skip entries without a resolvable URL
         pdfUploadsWithPrompts = uploadScraps
-          .map(scrap => {
+          .map((scrap) => {
             const url = scrap.filePath || scrap.url;
             if (!url) return null;
             return {
@@ -862,21 +921,32 @@ export class ArticlesService {
               aiContent: scrap.aiContent || '',
             };
           })
-          .filter((x): x is { url: string; usagePrompt: string; aiContent: string } => x !== null);
+          .filter(
+            (x): x is { url: string; usagePrompt: string; aiContent: string } =>
+              x !== null,
+          );
       }
 
       // 문체 예시 준비
       let writingStyleExampleContents: string[] = [];
       if (generateDto.writingStyleId) {
-        const writingStyleExamples = await this.writingStyleExampleRepository.find(
-          { writingStyle: { id: generateDto.writingStyleId, user: article.user } },
-          { populate: ['writingStyle'] },
+        const writingStyleExamples =
+          await this.writingStyleExampleRepository.find(
+            {
+              writingStyle: {
+                id: generateDto.writingStyleId,
+                user: article.user,
+              },
+            },
+            { populate: ['writingStyle'] },
+          );
+        writingStyleExampleContents = writingStyleExamples.map(
+          (example) => example.content,
         );
-        writingStyleExampleContents = writingStyleExamples.map((example) => example.content);
       }
 
       // Convert scrapsWithComments to the format expected by FastAPI
-      const formattedScrapsWithComments = scrapsWithComments.map(item => ({
+      const formattedScrapsWithComments = scrapsWithComments.map((item) => ({
         scrap: {
           id: item.scrap.scrapId,
           title: item.scrap.title,
@@ -888,16 +958,17 @@ export class ArticlesService {
       }));
 
       // V3: AI 뉴스레터 생성 (PDF 정보 포함)
-      const newsletterResult = await this.newsletterAgentService.generateNewsletter({
-        topic: generateDto.topic,
-        keyInsight: generateDto.keyInsight,
-        scrapsWithComments: formattedScrapsWithComments,
-        generationParams: generateDto.generationParams,
-        articleStructureTemplate: generateDto.articleStructureTemplate,
-        writingStyleExampleContents,
-        // V3에서 추가: PDF 업로드 정보
-        pdfUrlsWithPrompts: pdfUploadsWithPrompts, // 이 부분은 newsletterAgentService에서 지원해야 함
-      });
+      const newsletterResult =
+        await this.newsletterAgentService.generateNewsletter({
+          topic: generateDto.topic,
+          keyInsight: generateDto.keyInsight,
+          scrapsWithComments: formattedScrapsWithComments,
+          generationParams: generateDto.generationParams,
+          articleStructureTemplate: generateDto.articleStructureTemplate,
+          writingStyleExampleContents,
+          // V3에서 추가: PDF 업로드 정보
+          pdfUrlsWithPrompts: pdfUploadsWithPrompts, // 이 부분은 newsletterAgentService에서 지원해야 함
+        });
 
       // AI 생성 결과를 아카이브에 저장
       const archive = new ArticleArchive();
@@ -911,12 +982,16 @@ export class ArticlesService {
 
       await this.em.persistAndFlush([archive, article]);
 
-      this.logger.log(`🎉 V3 Background generation completed for articleId=${articleId}`);
+      this.logger.log(
+        `🎉 V3 Background generation completed for articleId=${articleId}`,
+      );
 
       // Event tracking moved to client
-
     } catch (error) {
-      this.logger.error(`❌ V3 Background generation failed for articleId=${articleId}:`, error);
+      this.logger.error(
+        `❌ V3 Background generation failed for articleId=${articleId}:`,
+        error,
+      );
 
       try {
         // 실패 상태로 업데이트
@@ -926,7 +1001,10 @@ export class ArticlesService {
           await this.em.persistAndFlush(article);
         }
       } catch (updateError) {
-        this.logger.error(`❌ Failed to update error status for articleId=${articleId}:`, updateError);
+        this.logger.error(
+          `❌ Failed to update error status for articleId=${articleId}:`,
+          updateError,
+        );
       }
     }
   }

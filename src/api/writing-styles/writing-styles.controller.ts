@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { WritingStylesService } from '../../writing-styles/writing-styles.service';
 import { CreateWritingStyleDto } from './dto/create-writing-style.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -12,7 +22,7 @@ export class WritingStylesController {
   @Post()
   create(
     @Body() createWritingStyleDto: CreateWritingStyleDto,
-    @Req() req: any
+    @Req() req: any,
   ) {
     const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
     return this.writingStylesService.create(createWritingStyleDto, userId);
@@ -32,7 +42,7 @@ export class WritingStylesController {
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출 
+    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
     return this.writingStylesService.remove(+id, userId);
   }
 }

@@ -1,62 +1,69 @@
-import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
+import {
+  Collection,
+  Entity,
+  ManyToOne,
+  OneToMany,
+  PrimaryKey,
+  Property,
+} from '@mikro-orm/core';
 import { Tag } from '../../tags/entities/tag.entity';
 import { User } from '../../users/entities/user.entity';
 import { Article } from '../../articles/entities/article.entity';
 
 @Entity({ tableName: 'scraps' })
 export class Scrap {
-    @PrimaryKey({ name: 'scrap_id' })
-    scrapId: number;
+  @PrimaryKey({ name: 'scrap_id' })
+  scrapId: number;
 
-    @Property({ name: 'url', type: 'varchar', length: 2000 })
-    url: string;
+  @Property({ name: 'url', type: 'varchar', length: 2000 })
+  url: string;
 
-    @Property({ name: 'title', type: 'text' })
-    title: string;
+  @Property({ name: 'title', type: 'text' })
+  title: string;
 
-    @Property({ name: 'content', type: 'text' })
-    content: string;
+  @Property({ name: 'content', type: 'text' })
+  content: string;
 
-    @Property({ name: 'html_content', type: 'text' })
-    htmlContent: string;
+  @Property({ name: 'html_content', type: 'text' })
+  htmlContent: string;
 
-    // Optional fields for uploaded files
-    @Property({ name: 'file_name', type: 'varchar', length: 255, nullable: true })
-    fileName?: string;
+  // Optional fields for uploaded files
+  @Property({ name: 'file_name', type: 'varchar', length: 255, nullable: true })
+  fileName?: string;
 
-    @Property({ name: 'file_path', type: 'text', nullable: true })
-    filePath?: string;
+  @Property({ name: 'file_path', type: 'text', nullable: true })
+  filePath?: string;
 
-    @Property({ name: 'mime_type', type: 'varchar', length: 255, nullable: true })
-    mimeType?: string;
+  @Property({ name: 'mime_type', type: 'varchar', length: 255, nullable: true })
+  mimeType?: string;
 
-    @Property({ name: 'file_size', type: 'bigint', nullable: true })
-    fileSize?: number;
+  @Property({ name: 'file_size', type: 'bigint', nullable: true })
+  fileSize?: number;
 
-    @Property({ name: 'ai_content', type: 'text', nullable: true })
-    aiContent?: string;
+  @Property({ name: 'ai_content', type: 'text', nullable: true })
+  aiContent?: string;
 
-    @Property({ name: 'is_deleted', type: 'boolean', default: false })
-    isDeleted: boolean = false;
+  @Property({ name: 'is_deleted', type: 'boolean', default: false })
+  isDeleted: boolean = false;
 
-    @Property({ name: 'description', type: 'text', nullable: true })
-    description?: string;
+  @Property({ name: 'description', type: 'text', nullable: true })
+  description?: string;
 
-    @Property({ name: 'user_comment', type: 'text', nullable: true })
-    userComment?: string;
+  @Property({ name: 'user_comment', type: 'text', nullable: true })
+  userComment?: string;
 
-    @Property({ name: 'created_at' })
-    createdAt: Date = new Date();
+  @Property({ name: 'created_at' })
+  createdAt: Date = new Date();
 
-    @Property({ name: 'updated_at', onUpdate: () => new Date() })
-    updatedAt: Date = new Date();
+  @Property({ name: 'updated_at', onUpdate: () => new Date() })
+  updatedAt: Date = new Date();
 
-    @ManyToOne(() => User, { fieldName: 'user_id' })
-    user: User;
+  @ManyToOne(() => User, { fieldName: 'user_id' })
+  user: User;
 
-    @ManyToOne(() => Article, { fieldName: 'article_id', nullable: true })
-    article?: Article;
+  @ManyToOne(() => Article, { fieldName: 'article_id', nullable: true })
+  article?: Article;
 
-    @OneToMany(() => Tag, tag => tag.scrap)
-    tags: Collection<Tag> = new Collection<Tag>(this);
+  @OneToMany(() => Tag, (tag) => tag.scrap)
+  tags: Collection<Tag> = new Collection<Tag>(this);
 }

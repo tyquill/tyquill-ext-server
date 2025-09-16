@@ -38,14 +38,14 @@ export class UsersService {
   async findOne(id: number): Promise<User | null> {
     return await this.userRepository.findOne(
       { userId: id },
-      { populate: ['oauthAccounts'] }
+      { populate: ['oauthAccounts'] },
     );
   }
 
   async findByEmail(email: string): Promise<User | null> {
     return await this.userRepository.findOne(
       { email },
-      { populate: ['oauthAccounts'] }
+      { populate: ['oauthAccounts'] },
     );
   }
 
@@ -59,10 +59,13 @@ export class UsersService {
   /**
    * OAuth ID로 사용자 조회
    */
-  async findByOAuthId(provider: OAuthProvider, oauthId: string): Promise<User | null> {
+  async findByOAuthId(
+    provider: OAuthProvider,
+    oauthId: string,
+  ): Promise<User | null> {
     const userOAuth = await this.userOAuthRepository.findOne(
       { oauthProvider: provider, oauthId },
-      { populate: ['user', 'user.oauthAccounts'] }
+      { populate: ['user', 'user.oauthAccounts'] },
     );
     return userOAuth?.user || null;
   }
@@ -72,16 +75,16 @@ export class UsersService {
    */
   async createOrUpdateOAuthUser(data: CreateOAuthUserData): Promise<User> {
     // 1. 기존 OAuth 계정 확인
-    let existingOAuth = await this.userOAuthRepository.findOne(
+    const existingOAuth = await this.userOAuthRepository.findOne(
       { oauthProvider: data.oauthProvider, oauthId: data.oauthId },
-      { populate: ['user'] }
+      { populate: ['user'] },
     );
 
     if (existingOAuth) {
       // 기존 OAuth 계정이 있으면 프로필 데이터 업데이트
       existingOAuth.profileData = data.profileData;
       existingOAuth.updatedAt = new Date();
-      
+
       // 사용자 정보도 업데이트 (이메일이나 이름이 변경되었을 수 있음)
       const user = existingOAuth.user;
       if (user.email !== data.email || user.name !== data.name) {
@@ -89,21 +92,21 @@ export class UsersService {
         user.name = data.name;
         user.updatedAt = new Date();
       }
-      
+
       await this.em.persistAndFlush([existingOAuth, user]);
       return user;
     }
 
     // 2. 이메일로 기존 사용자 확인
     let user = await this.findByEmail(data.email);
-    
+
     if (!user) {
       // 새 사용자 생성
       user = new User();
       user.email = data.email;
       user.name = data.name;
       await this.em.persistAndFlush(user);
-      
+
       // Event tracking moved to client
     }
 
@@ -116,18 +119,18 @@ export class UsersService {
     });
 
     await this.em.persistAndFlush(userOAuth);
-    
+
     // 4. 사용자 정보 다시 로드 (OAuth 계정 포함)
-    return await this.findOne(user.userId) as User;
+    return (await this.findOne(user.userId)) as User;
   }
 
   /**
    * OAuth 토큰 업데이트
    */
   async updateOAuthTokens(
-    provider: OAuthProvider, 
-    oauthId: string, 
-    tokenData: UpdateOAuthTokenData
+    provider: OAuthProvider,
+    oauthId: string,
+    tokenData: UpdateOAuthTokenData,
   ): Promise<UserOAuth | null> {
     const userOAuth = await this.userOAuthRepository.findOne({
       oauthProvider: provider,
@@ -147,10 +150,10 @@ export class UsersService {
     if (tokenData.tokenExpiresAt) {
       userOAuth.tokenExpiresAt = tokenData.tokenExpiresAt;
     }
-    
+
     userOAuth.updatedAt = new Date();
     await this.em.persistAndFlush(userOAuth);
-    
+
     return userOAuth;
   }
 
@@ -168,7 +171,10 @@ export class UsersService {
   /**
    * OAuth 계정 제거
    */
-  async removeOAuthAccount(provider: OAuthProvider, oauthId: string): Promise<boolean> {
+  async removeOAuthAccount(
+    provider: OAuthProvider,
+    oauthId: string,
+  ): Promise<boolean> {
     const userOAuth = await this.userOAuthRepository.findOne({
       oauthProvider: provider,
       oauthId,
@@ -189,7 +195,7 @@ export class UsersService {
     // UUID는 OAuth ID로 저장되므로 OAuth 테이블에서 조회
     const userOAuth = await this.userOAuthRepository.findOne(
       { oauthId: uuid },
-      { populate: ['user', 'user.oauthAccounts'] }
+      { populate: ['user', 'user.oauthAccounts'] },
     );
     return userOAuth?.user || null;
   }
@@ -197,7 +203,10 @@ export class UsersService {
   /**
    * 사용자 정보 업데이트
    */
-  async updateUser(userId: number, updateData: Partial<{ email: string; name: string }>): Promise<User | null> {
+  async updateUser(
+    userId: number,
+    updateData: Partial<{ email: string; name: string }>,
+  ): Promise<User | null> {
     const user = await this.findOne(userId);
     if (!user) {
       return null;
@@ -209,10 +218,10 @@ export class UsersService {
     if (updateData.name) {
       user.name = updateData.name;
     }
-    
+
     user.updatedAt = new Date();
     await this.em.persistAndFlush(user);
-    
+
     return user;
   }
-} 
+}

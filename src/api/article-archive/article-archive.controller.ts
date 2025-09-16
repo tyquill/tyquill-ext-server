@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ArticleArchiveService } from '../../article-archive/article-archive.service';
 import { CreateArticleArchiveDto } from './dto/create-article-archive.dto';
 import { UpdateArticleArchiveDto } from './dto/update-article-archive.dto';
@@ -25,7 +34,10 @@ export class ArticleArchiveController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateArticleArchiveDto: UpdateArticleArchiveDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateArticleArchiveDto: UpdateArticleArchiveDto,
+  ) {
     return this.articleArchiveService.update(+id, updateArticleArchiveDto);
   }
 

@@ -13,8 +13,15 @@ import {
 } from '@nestjs/common';
 import { ArticlesService } from '../../articles/articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
-import { GenerateArticleDto, GenerateArticleResponse } from './dto/generate-article.dto';
-import { GenerateArticleV2Dto, GenerateArticleV2Response, ArticleStatusV2Response } from './dto/generate-article-v2.dto';
+import {
+  GenerateArticleDto,
+  GenerateArticleResponse,
+} from './dto/generate-article.dto';
+import {
+  GenerateArticleV2Dto,
+  GenerateArticleV2Response,
+  ArticleStatusV2Response,
+} from './dto/generate-article-v2.dto';
 import { GenerateArticleV3Dto } from './dto/generate-article-v3.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -51,12 +58,21 @@ export class ArticlesController {
    * POST /api/v1/articles/generate
    */
   @ApiOperation({ summary: 'AI를 사용하여 고품질 뉴스레터를 생성합니다' })
-  @ApiResponse({ status: 201, description: '뉴스레터가 성공적으로 생성되었습니다.' })
+  @ApiResponse({
+    status: 201,
+    description: '뉴스레터가 성공적으로 생성되었습니다.',
+  })
   @ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
-  @ApiResponse({ status: 404, description: '사용자나 스크랩을 찾을 수 없습니다.' })
+  @ApiResponse({
+    status: 404,
+    description: '사용자나 스크랩을 찾을 수 없습니다.',
+  })
   @Version('1')
   @Post('generate')
-  async generateArticle(@Request() req: any, @Body() generateArticleDto: GenerateArticleDto): Promise<GenerateArticleResponse> {
+  async generateArticle(
+    @Request() req: any,
+    @Body() generateArticleDto: GenerateArticleDto,
+  ): Promise<GenerateArticleResponse> {
     const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
     return this.articlesService.generateArticle(userId, generateArticleDto);
   }
@@ -67,7 +83,11 @@ export class ArticlesController {
    */
   @Version('1')
   @Get()
-  findAll(@Request() req: any, @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title', @Query('sortOrder') sortOrder?: 'ASC' | 'DESC') {
+  findAll(
+    @Request() req: any,
+    @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title',
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+  ) {
     const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
     return this.articlesService.findByUser(userId);
   }
@@ -82,7 +102,6 @@ export class ArticlesController {
     return this.articlesService.findOne(+id);
   }
 
-
   /**
    * 아티클 검색
    * GET /api/v1/articles/search?q=검색어
@@ -93,7 +112,6 @@ export class ArticlesController {
     const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
     return this.articlesService.search(query, userId);
   }
-
 
   /**
    * 아티클 업데이트
@@ -142,20 +160,27 @@ export class ArticlesController {
    * V2: AI를 사용하여 뉴스레터를 비동기로 생성합니다
    * POST /api/v2/articles/generate
    */
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'V2: AI를 사용하여 뉴스레터를 비동기로 생성합니다',
-    description: '즉시 202 응답을 반환하고 백그라운드에서 생성을 진행합니다. 상태는 별도 API로 확인할 수 있습니다.'
+    description:
+      '즉시 202 응답을 반환하고 백그라운드에서 생성을 진행합니다. 상태는 별도 API로 확인할 수 있습니다.',
   })
-  @ApiResponse({ 
-    status: 202, 
+  @ApiResponse({
+    status: 202,
     description: '뉴스레터 생성이 시작되었습니다.',
-    type: GenerateArticleV2Response
+    type: GenerateArticleV2Response,
   })
   @ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
-  @ApiResponse({ status: 404, description: '사용자나 스크랩을 찾을 수 없습니다.' })
+  @ApiResponse({
+    status: 404,
+    description: '사용자나 스크랩을 찾을 수 없습니다.',
+  })
   @Version('2')
   @Post('generate')
-  async generateArticleV2(@Request() req: any, @Body() generateArticleDto: GenerateArticleV2Dto): Promise<GenerateArticleV2Response> {
+  async generateArticleV2(
+    @Request() req: any,
+    @Body() generateArticleDto: GenerateArticleV2Dto,
+  ): Promise<GenerateArticleV2Response> {
     const userId = parseInt(req.user.id);
     return this.articlesService.generateArticleV2(userId, generateArticleDto);
   }
@@ -164,19 +189,22 @@ export class ArticlesController {
    * V2: 아티클 생성 상태 확인
    * GET /api/v2/articles/:id/status
    */
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'V2: 아티클 생성 상태를 확인합니다',
-    description: '비동기 생성 중인 아티클의 상태(processing/completed/failed)와 결과를 확인합니다.'
+    description:
+      '비동기 생성 중인 아티클의 상태(processing/completed/failed)와 결과를 확인합니다.',
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: '아티클 상태 정보',
-    type: ArticleStatusV2Response
+    type: ArticleStatusV2Response,
   })
   @ApiResponse({ status: 404, description: '아티클을 찾을 수 없습니다.' })
   @Version('2')
   @Get(':id/status')
-  async getArticleStatusV2(@Param('id') id: string): Promise<ArticleStatusV2Response> {
+  async getArticleStatusV2(
+    @Param('id') id: string,
+  ): Promise<ArticleStatusV2Response> {
     return this.articlesService.getArticleStatusV2(+id);
   }
 
@@ -184,9 +212,9 @@ export class ArticlesController {
    * V2: 현재 사용자의 아티클 조회 (상태 정보 포함)
    * GET /api/v2/articles
    */
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'V2: 현재 사용자의 아티클 목록을 조회합니다',
-    description: '생성 상태 정보가 포함된 아티클 목록을 반환합니다.'
+    description: '생성 상태 정보가 포함된 아티클 목록을 반환합니다.',
   })
   @Version('2')
   @Get()
@@ -201,16 +229,27 @@ export class ArticlesController {
    * V3: AI를 사용하여 뉴스레터를 비동기로 생성합니다 (PDF 지원)
    * POST /api/v3/articles/generate
    */
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'V3: AI를 사용하여 뉴스레터를 비동기로 생성합니다 (PDF 지원)',
-    description: '스크랩과 PDF 업로드를 모두 지원하며, 각각에 대한 사용 프롬프트를 받아 처리합니다.'
+    description:
+      '스크랩과 PDF 업로드를 모두 지원하며, 각각에 대한 사용 프롬프트를 받아 처리합니다.',
   })
-  @ApiResponse({ status: 202, description: '뉴스레터 생성이 시작되었습니다.', type: GenerateArticleV2Response })
+  @ApiResponse({
+    status: 202,
+    description: '뉴스레터 생성이 시작되었습니다.',
+    type: GenerateArticleV2Response,
+  })
   @ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
-  @ApiResponse({ status: 404, description: '사용자나 리소스를 찾을 수 없습니다.' })
+  @ApiResponse({
+    status: 404,
+    description: '사용자나 리소스를 찾을 수 없습니다.',
+  })
   @Version('3')
   @Post('generate')
-  async generateArticleV3(@Request() req: any, @Body() generateArticleDto: GenerateArticleV3Dto): Promise<GenerateArticleV2Response> {
+  async generateArticleV3(
+    @Request() req: any,
+    @Body() generateArticleDto: GenerateArticleV3Dto,
+  ): Promise<GenerateArticleV2Response> {
     const userId = parseInt(req.user.id);
     return this.articlesService.generateArticleV3(userId, generateArticleDto);
   }
@@ -219,15 +258,21 @@ export class ArticlesController {
    * V3: 아티클 생성 상태 확인
    * GET /api/v3/articles/:id/status
    */
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'V3: 아티클 생성 상태를 확인합니다',
-    description: 'PDF 처리 진행률을 포함한 상세 상태 정보를 제공합니다.'
+    description: 'PDF 처리 진행률을 포함한 상세 상태 정보를 제공합니다.',
   })
-  @ApiResponse({ status: 200, description: '아티클 상태 정보', type: ArticleStatusV2Response })
+  @ApiResponse({
+    status: 200,
+    description: '아티클 상태 정보',
+    type: ArticleStatusV2Response,
+  })
   @ApiResponse({ status: 404, description: '아티클을 찾을 수 없습니다.' })
   @Version('3')
   @Get(':id/status')
-  async getArticleStatusV3(@Param('id') id: string): Promise<ArticleStatusV2Response> {
+  async getArticleStatusV3(
+    @Param('id') id: string,
+  ): Promise<ArticleStatusV2Response> {
     return this.articlesService.getArticleStatusV3(+id);
   }
 
@@ -235,9 +280,9 @@ export class ArticlesController {
    * V3: 현재 사용자의 아티클 조회 (PDF 정보 포함)
    * GET /api/v3/articles
    */
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'V3: 현재 사용자의 아티클 목록을 조회합니다',
-    description: 'PDF 참고 자료 정보가 포함된 아티클 목록을 반환합니다.'
+    description: 'PDF 참고 자료 정보가 포함된 아티클 목록을 반환합니다.',
   })
   @Version('3')
   @Get()

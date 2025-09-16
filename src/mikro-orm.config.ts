@@ -22,13 +22,26 @@ export default defineConfig({
   user: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
   // 명시적으로 엔티티 지정
-  entities: [Article, ArticleArchive, Scrap, Tag, User, UserOAuth, WritingStyle, WritingStyleExample, Job],
+  entities: [
+    Article,
+    ArticleArchive,
+    Scrap,
+    Tag,
+    User,
+    UserOAuth,
+    WritingStyle,
+    WritingStyleExample,
+    Job,
+  ],
   schema: 'public',
   debug: true,
   allowGlobalContext: true,
   driverOptions: {
     connection: {
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl:
+        process.env.NODE_ENV === 'production'
+          ? { rejectUnauthorized: false }
+          : false,
     },
   },
 });

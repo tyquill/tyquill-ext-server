@@ -20,17 +20,12 @@ export class WritingStyle {
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user: User;
 
-  @OneToMany(
-    () => WritingStyleExample,
-    (example) => example.writingStyle, 
-    {
-      eager: true,
-      orphanRemoval: true,
-    }
-  )
+  @OneToMany(() => WritingStyleExample, (example) => example.writingStyle, {
+    eager: true,
+    orphanRemoval: true,
+  })
   examples = new Collection<WritingStyleExample>(this);
 
   @Property({ name: 'created_at' })
   createdAt: Date = new Date();
 }
-

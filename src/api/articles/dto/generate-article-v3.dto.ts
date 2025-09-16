@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -18,7 +24,10 @@ export class UploadWithUsagePromptDto {
   @IsNumber()
   uploadedFileId: number;
 
-  @ApiProperty({ description: '사용 프롬프트 (어떻게 활용할지)', maxLength: 75 })
+  @ApiProperty({
+    description: '사용 프롬프트 (어떻게 활용할지)',
+    maxLength: 75,
+  })
   @IsString()
   usagePrompt: string;
 }
@@ -39,7 +48,9 @@ export class GenerateArticleV3Dto {
   @Type(() => ScrapWithCommentDto)
   scrapWithOptionalComment?: ScrapWithCommentDto[];
 
-  @ApiPropertyOptional({ description: '업로드된 PDF 파일과 사용 프롬프트 목록' })
+  @ApiPropertyOptional({
+    description: '업로드된 PDF 파일과 사용 프롬프트 목록',
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

@@ -82,7 +82,7 @@ export class ScrapsService {
 
     return await this.scrapRepository.find(query, {
       populate: ['tags'],
-      filters: { isDeleted: false }
+      filters: { isDeleted: false },
     });
   }
 
@@ -91,8 +91,8 @@ export class ScrapsService {
       { scrapId, isDeleted: false },
       {
         populate: ['tags'],
-        filters: { isDeleted: false }
-      }
+        filters: { isDeleted: false },
+      },
     );
   }
 
@@ -119,14 +119,13 @@ export class ScrapsService {
     const scraps = await this.scrapRepository.find(query, {
       populate: ['tags'],
       orderBy: orderBy,
-      filters: { isDeleted: false }
+      filters: { isDeleted: false },
     });
 
     return scraps.map((scrap) => ({
       ...scrap,
       content: scrap.content.substring(0, 100),
     }));
-  
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {
@@ -140,7 +139,10 @@ export class ScrapsService {
     scrapId: number,
     updateScrapDto: UpdateScrapDto,
   ): Promise<Scrap | null> {
-    const scrap = await this.scrapRepository.findOne({ scrapId, isDeleted: false });
+    const scrap = await this.scrapRepository.findOne({
+      scrapId,
+      isDeleted: false,
+    });
     if (!scrap) {
       return null;
     }
@@ -163,10 +165,13 @@ export class ScrapsService {
   }
 
   async remove(scrapId: number): Promise<void> {
-    const scrap = await this.scrapRepository.findOne({ scrapId }, {
-      populate: ['tags'],
-      filters: { isDeleted: false }
-    });
+    const scrap = await this.scrapRepository.findOne(
+      { scrapId },
+      {
+        populate: ['tags'],
+        filters: { isDeleted: false },
+      },
+    );
 
     if (scrap) {
       if (scrap.tags.length > 0) {
@@ -238,7 +243,10 @@ export class ScrapsService {
 
     // 기사 필터
     if (searchOptions.articleId) {
-      qb.andWhere({ article: { articleId: searchOptions.articleId }, isDeleted: false });
+      qb.andWhere({
+        article: { articleId: searchOptions.articleId },
+        isDeleted: false,
+      });
     }
 
     // 태그 기반 필터링
@@ -253,10 +261,16 @@ export class ScrapsService {
 
     // 날짜 범위 필터
     if (searchOptions.dateFrom) {
-      qb.andWhere({ createdAt: { $gte: searchOptions.dateFrom }, isDeleted: false });
+      qb.andWhere({
+        createdAt: { $gte: searchOptions.dateFrom },
+        isDeleted: false,
+      });
     }
     if (searchOptions.dateTo) {
-      qb.andWhere({ createdAt: { $lte: searchOptions.dateTo }, isDeleted: false });
+      qb.andWhere({
+        createdAt: { $lte: searchOptions.dateTo },
+        isDeleted: false,
+      });
     }
 
     // 정렬

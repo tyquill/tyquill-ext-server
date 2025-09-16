@@ -15,8 +15,6 @@ export class UpdateScrapDto extends PartialType(CreateScrapDto) {
   @IsString()
   title?: string;
 
-
-
   @ApiProperty()
   @IsOptional()
   @IsString()

@@ -1,4 +1,19 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  Version,
+  Query,
+  ParseIntPipe,
+  HttpException,
+  HttpStatus,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { TagsService } from '../../tags/tags.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';

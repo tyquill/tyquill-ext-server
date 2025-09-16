@@ -1,4 +1,11 @@
-import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property } from '@mikro-orm/core';
+import {
+  Collection,
+  Entity,
+  ManyToOne,
+  OneToMany,
+  PrimaryKey,
+  Property,
+} from '@mikro-orm/core';
 import { CreateArticleDto } from '../../api/articles/dto/create-article.dto';
 import { ArticleArchive } from '../../article-archive/entities/article-archive.entity';
 import { User } from '../../users/entities/user.entity';
@@ -9,7 +16,6 @@ export class Article {
   @PrimaryKey({ fieldName: 'article_id' })
   articleId!: number;
 
-
   @Property({ fieldName: 'topic', type: 'varchar', length: 500 })
   topic!: string;
 
@@ -19,7 +25,12 @@ export class Article {
   @Property({ fieldName: 'generation_params', type: 'text', nullable: true })
   generationParams?: string;
 
-  @Property({ fieldName: 'generation_status', type: 'varchar', length: 20, default: 'completed' })
+  @Property({
+    fieldName: 'generation_status',
+    type: 'varchar',
+    length: 20,
+    default: 'completed',
+  })
   generationStatus: 'processing' | 'completed' | 'failed' = 'completed';
 
   @Property({ name: 'is_deleted', type: 'boolean', default: false })
@@ -34,10 +45,10 @@ export class Article {
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user!: User;
 
-  @OneToMany(() => ArticleArchive, archive => archive.article)
+  @OneToMany(() => ArticleArchive, (archive) => archive.article)
   archives = new Collection<ArticleArchive>(this);
 
-  @OneToMany(() => Scrap, scrap => scrap.article)
+  @OneToMany(() => Scrap, (scrap) => scrap.article)
   scraps = new Collection<Scrap>(this);
 
   /**
@@ -58,7 +69,7 @@ export class Article {
     const latestArchive = this.archives
       .getItems()
       .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))[0];
-    
+
     return latestArchive?.title;
   }
 
@@ -69,7 +80,7 @@ export class Article {
     const latestArchive = this.archives
       .getItems()
       .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))[0];
-    
+
     return latestArchive?.content;
   }
 

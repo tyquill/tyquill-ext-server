@@ -1,6 +1,6 @@
 /**
  * OAuth 콜백 컨트롤러
- * 
+ *
  * @description Chrome Extension에서 OAuth 콜백을 처리하는 컨트롤러
  * Google OAuth 인증 후 Extension으로 결과를 전달합니다.
  */
@@ -20,46 +20,46 @@ export class CallbackController {
   @Get('callback')
   @ApiOperation({
     summary: 'OAuth 콜백 처리',
-    description: 'Google OAuth 인증 후 Chrome Extension으로 결과를 전달합니다.'
+    description: 'Google OAuth 인증 후 Chrome Extension으로 결과를 전달합니다.',
   })
   @ApiQuery({
     name: 'code',
     description: '인증 코드',
     required: false,
-    type: String
+    type: String,
   })
   @ApiQuery({
     name: 'error',
     description: '인증 에러',
     required: false,
-    type: String
+    type: String,
   })
   @ApiQuery({
     name: 'state',
     description: '상태 값',
     required: false,
-    type: String
+    type: String,
   })
   @ApiResponse({
     status: 200,
     description: '콜백 페이지 반환',
     schema: {
       type: 'string',
-      example: 'HTML 페이지'
-    }
+      example: 'HTML 페이지',
+    },
   })
   async handleCallback(
     @Query('code') code?: string,
     @Query('error') error?: string,
     @Query('error_description') errorDescription?: string,
     @Query('state') state?: string,
-    @Res() res?: Response
+    @Res() res?: Response,
   ) {
     this.logger.log('OAuth callback received', {
       hasCode: !!code,
       error: error || 'none',
       state: state || 'none',
-      code: code ? code.substring(0, 10) + '...' : 'none' // 보안을 위해 일부만 로그
+      code: code ? code.substring(0, 10) + '...' : 'none', // 보안을 위해 일부만 로그
     });
 
     // Chrome Extension에서 감지할 수 있도록 HTML 페이지 반환
@@ -134,22 +134,28 @@ export class CallbackController {
 </head>
 <body>
     <div class="container">
-        ${error ? `
+        ${
+          error
+            ? `
             <div class="status">❌ 인증 실패</div>
             <div class="message">인증 과정에서 오류가 발생했습니다.</div>
             <div class="error">
                 오류: ${error}
                 ${errorDescription ? `<br>상세: ${errorDescription}` : ''}
             </div>
-        ` : code ? `
+        `
+            : code
+              ? `
             <div class="status">✅ 인증 완료</div>
             <div class="message">성공적으로 인증되었습니다.<br>잠시 후 자동으로 창이 닫힙니다.</div>
             <div class="success">Tyquill Extension으로 돌아가는 중...</div>
-        ` : `
+        `
+              : `
             <div class="spinner"></div>
             <div class="status">🔄 인증 처리 중</div>
             <div class="message">잠시만 기다려주세요...</div>
-        `}
+        `
+        }
     </div>
 
     <script>

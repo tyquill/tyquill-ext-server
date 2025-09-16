@@ -1,22 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-
 @Injectable()
 export class FileAnalysisAgentService {
   private readonly logger = new Logger(FileAnalysisAgentService.name);
   private readonly agentApiUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.logger.log(`🤖 FileAnalysisAgentService initialized with agent URL: ${this.agentApiUrl}`);
+    this.logger.log(
+      `🤖 FileAnalysisAgentService initialized with agent URL: ${this.agentApiUrl}`,
+    );
 
     const url = this.configService.get<string>('TYQUILL_AGENT_API_URL')!;
     if (!url) {
-      this.logger.error('Missing required configuration: TYQUILL_AGENT_API_URL');
+      this.logger.error(
+        'Missing required configuration: TYQUILL_AGENT_API_URL',
+      );
       throw new Error('TYQUILL_AGENT_API_URL is not set');
     }
     this.agentApiUrl = url;
-    this.logger.log(`🤖 FileAnalysisAgentService initialized with agent URL: ${this.agentApiUrl}`);
+    this.logger.log(
+      `🤖 FileAnalysisAgentService initialized with agent URL: ${this.agentApiUrl}`,
+    );
   }
 
   async analyzeFile(fileUrl: string): Promise<string> {
@@ -33,11 +38,13 @@ export class FileAnalysisAgentService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`API call failed: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(
+          `API call failed: ${response.status} ${response.statusText} - ${errorText}`,
+        );
       }
 
       const result = await response.json();
-      
+
       this.logger.log('✅ File analysis completed successfully');
       return result;
     } catch (error) {

@@ -14,6 +14,7 @@ import { WritingStylesModule } from './writing-styles/writing-styles.module';
 import { UploadedFilesModule } from './uploaded-files/uploaded-files.module';
 import { LibraryItemsModule } from './library-items/library-items.module';
 import { QueueModule } from './queue/queue.module';
+import { AdminModule } from './api/admin/admin.module';
 
 @Module({
   imports: [
@@ -31,15 +32,17 @@ import { QueueModule } from './queue/queue.module';
     UploadedFilesModule,
     LibraryItemsModule,
     QueueModule, // SQS 큐 모듈 추가
+    AdminModule, // 관리자 모듈 추가
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
-
   private readonly logger = new Logger(AppModule.name);
 
   constructor() {
-    this.logger.log('🚀 Application module initialized with OAuth authentication and SQS queues');
+    this.logger.log(
+      '🚀 Application module initialized with OAuth authentication and SQS queues',
+    );
   }
 }

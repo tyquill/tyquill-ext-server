@@ -18,4 +18,3 @@ export class WritingStyleExample {
   @Property({ name: 'created_at' })
   createdAt: Date = new Date();
 }
-

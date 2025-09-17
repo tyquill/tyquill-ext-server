@@ -26,10 +26,17 @@ export class ArticleArchiveService {
   /**
    * 특정 아티클의 새로운 버전을 생성합니다
    */
-  async createVersion(articleId: number, title: string, content: string): Promise<ArticleArchive> {
-    const article = await this.articleRepository.findOne({ articleId }, {
-      filters: { isDeleted: false }
-    });
+  async createVersion(
+    articleId: number,
+    title: string,
+    content: string,
+  ): Promise<ArticleArchive> {
+    const article = await this.articleRepository.findOne(
+      { articleId },
+      {
+        filters: { isDeleted: false },
+      },
+    );
     if (!article) {
       throw new NotFoundException('아티클을 찾을 수 없습니다');
     }
@@ -37,10 +44,12 @@ export class ArticleArchiveService {
     // 현재 최대 버전 번호 조회
     const maxVersionArchive = await this.articleArchiveRepository.findOne(
       { article },
-      { orderBy: { versionNumber: 'DESC' }, filters: { isDeleted: false } }
+      { orderBy: { versionNumber: 'DESC' }, filters: { isDeleted: false } },
     );
 
-    const newVersionNumber = maxVersionArchive ? (maxVersionArchive.versionNumber || 0) + 1 : 1;
+    const newVersionNumber = maxVersionArchive
+      ? (maxVersionArchive.versionNumber || 0) + 1
+      : 1;
 
     const archive = new ArticleArchive();
     archive.title = title;
@@ -63,14 +72,17 @@ export class ArticleArchiveService {
 
     return await this.articleArchiveRepository.find(
       { article },
-      { orderBy: { versionNumber: 'DESC' }, filters: { isDeleted: false } }
+      { orderBy: { versionNumber: 'DESC' }, filters: { isDeleted: false } },
     );
   }
 
   /**
    * 특정 버전의 아카이브를 조회합니다
    */
-  async findSpecificVersion(articleId: number, versionNumber: number): Promise<ArticleArchive | null> {
+  async findSpecificVersion(
+    articleId: number,
+    versionNumber: number,
+  ): Promise<ArticleArchive | null> {
     const article = await this.articleRepository.findOne({ articleId });
     if (!article) {
       throw new NotFoundException('아티클을 찾을 수 없습니다');
@@ -79,7 +91,7 @@ export class ArticleArchiveService {
     return await this.articleArchiveRepository.findOne({
       article,
       versionNumber,
-      isDeleted: false
+      isDeleted: false,
     });
   }
 
@@ -94,14 +106,18 @@ export class ArticleArchiveService {
 
     return await this.articleArchiveRepository.findOne(
       { article },
-      { orderBy: { versionNumber: 'DESC' }, filters: { isDeleted: false } }
+      { orderBy: { versionNumber: 'DESC' }, filters: { isDeleted: false } },
     );
   }
 
   /**
    * 버전 간 비교를 위한 데이터를 반환합니다
    */
-  async compareVersions(articleId: number, version1: number, version2: number): Promise<{
+  async compareVersions(
+    articleId: number,
+    version1: number,
+    version2: number,
+  ): Promise<{
     version1: ArticleArchive | null;
     version2: ArticleArchive | null;
   }> {
@@ -119,7 +135,7 @@ export class ArticleArchiveService {
   async findAll() {
     const articleArchives = await this.articleArchiveRepository.findAll({
       populate: ['article'],
-      filters: { isDeleted: false }
+      filters: { isDeleted: false },
     });
     return articleArchives;
   }
@@ -127,7 +143,7 @@ export class ArticleArchiveService {
   async findOne(id: number) {
     const articleArchive = await this.articleArchiveRepository.findOne(
       { articleArchiveId: id },
-      { populate: ['article'], filters: { isDeleted: false } }
+      { populate: ['article'], filters: { isDeleted: false } },
     );
     if (!articleArchive) {
       return null;
@@ -136,7 +152,10 @@ export class ArticleArchiveService {
   }
 
   async update(id: number, updateArticleArchiveDto: UpdateArticleArchiveDto) {
-    const articleArchive = await this.articleArchiveRepository.findOne({ articleArchiveId: id, isDeleted: false });
+    const articleArchive = await this.articleArchiveRepository.findOne({
+      articleArchiveId: id,
+      isDeleted: false,
+    });
     if (!articleArchive) {
       return null;
     }
@@ -146,7 +165,10 @@ export class ArticleArchiveService {
   }
 
   async remove(id: number) {
-    const articleArchive = await this.articleArchiveRepository.findOne({ articleArchiveId: id, isDeleted: false });
+    const articleArchive = await this.articleArchiveRepository.findOne({
+      articleArchiveId: id,
+      isDeleted: false,
+    });
     if (articleArchive) {
       articleArchive.isDeleted = true;
       await this.em.persistAndFlush(articleArchive);

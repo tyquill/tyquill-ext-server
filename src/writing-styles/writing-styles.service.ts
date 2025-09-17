@@ -24,7 +24,10 @@ export class WritingStylesService {
     this.turndownService = new TurndownService();
   }
 
-  async create(createWritingStyleDto: CreateWritingStyleDto, userId: number): Promise<WritingStyle> {
+  async create(
+    createWritingStyleDto: CreateWritingStyleDto,
+    userId: number,
+  ): Promise<WritingStyle> {
     const { name, examples: scrapedExamples } = createWritingStyleDto;
 
     const writingStyle = new WritingStyle();
@@ -44,7 +47,7 @@ export class WritingStylesService {
 
       return this.exampleRepository.create(example);
     });
-    
+
     if (examples.length === 0) {
       throw new Error('예시가 제공되지 않았습니다.');
     }

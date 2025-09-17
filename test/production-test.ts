@@ -34,7 +34,9 @@ async function runProductionTest() {
     // 3. 복잡한 콘텐츠 생성 테스트
     console.log('🧠 복잡한 콘텐츠 생성 테스트 시작...');
     const complexScrap = await setupComplexScrap(forkedEm, testUser);
-    await testComplexAiGeneration(articlesService, testUser.userId, [complexScrap]);
+    await testComplexAiGeneration(articlesService, testUser.userId, [
+      complexScrap,
+    ]);
     console.log('✅ 복잡한 콘텐츠 생성 테스트 완료\n');
 
     // 4. 성능 테스트
@@ -48,7 +50,6 @@ async function runProductionTest() {
     console.log('✅ 품질 검증 테스트 완료\n');
 
     console.log('🎉 모든 테스트가 성공적으로 완료되었습니다!');
-
   } catch (error) {
     console.error('❌ 테스트 실행 중 오류 발생:', error);
     process.exit(1);
@@ -68,12 +69,15 @@ async function setupTestUser(em: EntityManager): Promise<User> {
   user.email = 'production-test@example.com';
   user.name = 'Production Test User';
   await em.persistAndFlush(user);
-  
+
   console.log(`   👤 사용자 생성 완료: ${user.name} (ID: ${user.userId})`);
   return user;
 }
 
-async function setupTestScraps(em: EntityManager, user: User): Promise<Scrap[]> {
+async function setupTestScraps(
+  em: EntityManager,
+  user: User,
+): Promise<Scrap[]> {
   const scraps: Scrap[] = [];
 
   // 기술 뉴스 스크랩
@@ -96,7 +100,8 @@ async function setupTestScraps(em: EntityManager, user: User): Promise<Scrap[]> 
     이러한 트렌드는 앞으로도 계속될 것으로 예상됩니다.
   `;
   techScrap.htmlContent = '<div>AI 기술 혁신 관련 HTML 콘텐츠</div>';
-  techScrap.userComment = 'AI 기술의 실제 비즈니스 적용 사례와 ROI에 대한 구체적인 분석이 필요합니다.';
+  techScrap.userComment =
+    'AI 기술의 실제 비즈니스 적용 사례와 ROI에 대한 구체적인 분석이 필요합니다.';
   techScrap.user = user;
   scraps.push(techScrap);
 
@@ -124,17 +129,21 @@ async function setupTestScraps(em: EntityManager, user: User): Promise<Scrap[]> 
        - 탄소 중립 데이터센터 구축
   `;
   marketScrap.htmlContent = '<div>시장 전망 관련 HTML 콘텐츠</div>';
-  marketScrap.userComment = '시장 데이터와 함께 우리 회사의 전략적 포지셔닝 방안을 제시해주세요.';
+  marketScrap.userComment =
+    '시장 데이터와 함께 우리 회사의 전략적 포지셔닝 방안을 제시해주세요.';
   marketScrap.user = user;
   scraps.push(marketScrap);
 
   await em.persistAndFlush(scraps);
-  
+
   console.log(`   📄 스크랩 ${scraps.length}개 생성 완료`);
   return scraps;
 }
 
-async function setupComplexScrap(em: EntityManager, user: User): Promise<Scrap> {
+async function setupComplexScrap(
+  em: EntityManager,
+  user: User,
+): Promise<Scrap> {
   const complexScrap = new Scrap();
   complexScrap.url = 'https://example.com/complex-analysis';
   complexScrap.title = '엔터프라이즈 AI 도입 전략과 실행 방안';
@@ -219,57 +228,60 @@ async function setupComplexScrap(em: EntityManager, user: User): Promise<Scrap> 
     AI 기술과 전통 산업의 융합을 통한 새로운 가치 창출에 
     집중해야 할 것입니다.
   `;
-  complexScrap.htmlContent = '<div>복잡한 엔터프라이즈 AI 분석 HTML 콘텐츠</div>';
-  complexScrap.userComment = '우리 회사 상황에 맞는 구체적인 실행 계획과 예산 계획을 포함해서 작성해주세요.';
+  complexScrap.htmlContent =
+    '<div>복잡한 엔터프라이즈 AI 분석 HTML 콘텐츠</div>';
+  complexScrap.userComment =
+    '우리 회사 상황에 맞는 구체적인 실행 계획과 예산 계획을 포함해서 작성해주세요.';
   complexScrap.user = user;
-  
+
   await em.persistAndFlush(complexScrap);
   console.log(`   📊 복잡한 스크랩 생성 완료`);
   return complexScrap;
 }
 
 async function testBasicAiGeneration(
-  articlesService: ArticlesService, 
-  userId: number, 
-  scraps: Scrap[]
+  articlesService: ArticlesService,
+  userId: number,
+  scraps: Scrap[],
 ): Promise<void> {
   const generateDto: GenerateArticleDto = {
     topic: 'AI 기술 동향과 비즈니스 적용 전략',
     keyInsight: 'AI 기술의 급속한 발전이 다양한 산업에 미치는 영향과 기회',
-    scrapIds: scraps.map(scrap => scrap.scrapId),
+    scrapIds: scraps.map((scrap) => scrap.scrapId),
     scrapComments: [
       {
         scrapId: scraps[0].scrapId,
-        userComment: '기술적 세부사항보다는 비즈니스 임팩트에 집중해서 설명해주세요.'
+        userComment:
+          '기술적 세부사항보다는 비즈니스 임팩트에 집중해서 설명해주세요.',
       },
       {
         scrapId: scraps[1].scrapId,
-        userComment: '시장 데이터를 활용한 전략적 인사이트를 제공해주세요.'
-      }
+        userComment: '시장 데이터를 활용한 전략적 인사이트를 제공해주세요.',
+      },
     ],
-    generationParams: '경영진 보고용으로 활용할 수 있도록 핵심 포인트를 명확히 하고, 실행 가능한 액션 아이템을 포함해주세요.'
+    generationParams:
+      '경영진 보고용으로 활용할 수 있도록 핵심 포인트를 명확히 하고, 실행 가능한 액션 아이템을 포함해주세요.',
   };
 
   const startTime = Date.now();
-  
+
   try {
     const result = await articlesService.generateArticle(userId, generateDto);
     const endTime = Date.now();
     const executionTime = endTime - startTime;
-    
+
     console.log(`   ⏱️  실행 시간: ${executionTime}ms`);
     console.log(`   📝 아티클 ID: ${result.id}`);
     console.log(`   📋 주제: ${generateDto.topic}`);
     console.log(`   💡 핵심 인사이트: ${generateDto.keyInsight}`);
     console.log(`   🔗 연결된 스크랩: ${scraps.length}개`);
-    
+
     // 생성된 콘텐츠 확인
     console.log(`   📄 생성된 제목: "${result.title}"`);
     console.log(`   📊 콘텐츠 길이: ${result.content.length}자`);
     console.log(`   📅 생성 시간: ${result.createdAt}`);
     console.log(`   📖 내용 미리보기:`);
     console.log(`      ${result.content.substring(0, 200)}...`);
-    
   } catch (error) {
     console.error('   ❌ 기본 AI 생성 테스트 실패:', error.message);
     throw error;
@@ -277,47 +289,50 @@ async function testBasicAiGeneration(
 }
 
 async function testComplexAiGeneration(
-  articlesService: ArticlesService, 
-  userId: number, 
-  scraps: Scrap[]
+  articlesService: ArticlesService,
+  userId: number,
+  scraps: Scrap[],
 ): Promise<void> {
   const generateDto: GenerateArticleDto = {
     topic: '엔터프라이즈 AI 도입 전략 및 실행 방안',
     keyInsight: '성공적인 엔터프라이즈 AI 도입을 위한 체계적 접근 방법론',
-    scrapIds: scraps.map(scrap => scrap.scrapId),
+    scrapIds: scraps.map((scrap) => scrap.scrapId),
     scrapComments: [
       {
         scrapId: scraps[0].scrapId,
-        userComment: '실제 도입 사례와 구체적인 ROI 데이터를 포함해서 작성해주세요.'
-      }
+        userComment:
+          '실제 도입 사례와 구체적인 ROI 데이터를 포함해서 작성해주세요.',
+      },
     ],
-    generationParams: '기술 리더와 비즈니스 의사결정자 모두가 활용할 수 있도록 기술적 깊이와 비즈니스 관점을 균형있게 다뤄주세요. 실행 로드맵과 예산 가이드라인을 포함해주세요.'
+    generationParams:
+      '기술 리더와 비즈니스 의사결정자 모두가 활용할 수 있도록 기술적 깊이와 비즈니스 관점을 균형있게 다뤄주세요. 실행 로드맵과 예산 가이드라인을 포함해주세요.',
   };
 
   const startTime = Date.now();
-  
+
   try {
     const result = await articlesService.generateArticle(userId, generateDto);
     const endTime = Date.now();
     const executionTime = endTime - startTime;
-    
+
     console.log(`   ⏱️  실행 시간: ${executionTime}ms`);
     console.log(`   📝 아티클 ID: ${result.id}`);
-    
+
     console.log(`   📄 생성된 제목: "${result.title}"`);
     console.log(`   📊 콘텐츠 길이: ${result.content.length}자`);
-    
+
     // 복잡한 콘텐츠 품질 검증
     const content = result.content.toLowerCase();
-    const hasKeywords = [
-      'ai', '인공지능', '도입', '전략', '실행', 'roi'
-    ].some(keyword => content.includes(keyword));
-    
+    const hasKeywords = ['ai', '인공지능', '도입', '전략', '실행', 'roi'].some(
+      (keyword) => content.includes(keyword),
+    );
+
     console.log(`   🔍 키워드 포함 여부: ${hasKeywords ? '✅' : '❌'}`);
-    console.log(`   📈 구조화 품질: ${result.content.split('\n').length > 10 ? '✅' : '❌'}`);
+    console.log(
+      `   📈 구조화 품질: ${result.content.split('\n').length > 10 ? '✅' : '❌'}`,
+    );
     console.log(`   📖 내용 미리보기:`);
     console.log(`      ${result.content.substring(0, 300)}...`);
-    
   } catch (error) {
     console.error('   ❌ 복잡한 AI 생성 테스트 실패:', error.message);
     throw error;
@@ -325,37 +340,45 @@ async function testComplexAiGeneration(
 }
 
 async function testPerformance(
-  articlesService: ArticlesService, 
-  userId: number, 
-  scraps: Scrap[]
+  articlesService: ArticlesService,
+  userId: number,
+  scraps: Scrap[],
 ): Promise<void> {
   const tests = [
     { name: '짧은 콘텐츠', params: '간결하고 핵심적인 내용으로 작성해주세요.' },
-    { name: '중간 콘텐츠', params: '상세한 분석과 예시를 포함해서 작성해주세요.' },
-    { name: '긴 콘텐츠', params: '포괄적인 분석, 다양한 사례, 실행 계획, 예산 분석을 모두 포함한 완전한 보고서로 작성해주세요.' }
+    {
+      name: '중간 콘텐츠',
+      params: '상세한 분석과 예시를 포함해서 작성해주세요.',
+    },
+    {
+      name: '긴 콘텐츠',
+      params:
+        '포괄적인 분석, 다양한 사례, 실행 계획, 예산 분석을 모두 포함한 완전한 보고서로 작성해주세요.',
+    },
   ];
 
   for (const test of tests) {
     console.log(`   🎯 ${test.name} 테스트 시작...`);
-    
+
     const generateDto: GenerateArticleDto = {
       topic: `AI 기술 분석 - ${test.name}`,
       keyInsight: 'AI 기술의 비즈니스 적용 방안',
-      scrapIds: scraps.map(scrap => scrap.scrapId),
-      generationParams: test.params
+      scrapIds: scraps.map((scrap) => scrap.scrapId),
+      generationParams: test.params,
     };
 
     const startTime = Date.now();
-    
+
     try {
       const result = await articlesService.generateArticle(userId, generateDto);
       const endTime = Date.now();
       const executionTime = endTime - startTime;
-      
+
       console.log(`      ⏱️  실행 시간: ${executionTime}ms`);
       console.log(`      📊 생성된 길이: ${result.content.length}자`);
-      console.log(`      📈 초당 생성량: ${Math.round(result.content.length / (executionTime / 1000))}자/초`);
-      
+      console.log(
+        `      📈 초당 생성량: ${Math.round(result.content.length / (executionTime / 1000))}자/초`,
+      );
     } catch (error) {
       console.error(`      ❌ ${test.name} 테스트 실패:`, error.message);
     }
@@ -363,40 +386,45 @@ async function testPerformance(
 }
 
 async function testQualityValidation(
-  articlesService: ArticlesService, 
-  userId: number, 
-  scraps: Scrap[]
+  articlesService: ArticlesService,
+  userId: number,
+  scraps: Scrap[],
 ): Promise<void> {
   const topics = [
     '블록체인 기술의 미래와 적용 방안',
     '클라우드 컴퓨팅 전략 및 마이그레이션',
-    '사이버보안 강화 방안과 제로 트러스트'
+    '사이버보안 강화 방안과 제로 트러스트',
   ];
 
   for (const topic of topics) {
     console.log(`   🔍 주제별 품질 검증: ${topic}`);
-    
+
     const generateDto: GenerateArticleDto = {
       topic: topic,
       keyInsight: '최신 기술 동향과 실무 적용 방안',
-      scrapIds: scraps.map(scrap => scrap.scrapId),
-      generationParams: '전문성과 실용성을 모두 갖춘 콘텐츠로 작성해주세요.'
+      scrapIds: scraps.map((scrap) => scrap.scrapId),
+      generationParams: '전문성과 실용성을 모두 갖춘 콘텐츠로 작성해주세요.',
     };
 
     try {
       const result = await articlesService.generateArticle(userId, generateDto);
-      
+
       // 품질 지표 계산
-      const titleRelevance = result.title.toLowerCase().includes(topic.split(' ')[0].toLowerCase());
+      const titleRelevance = result.title
+        .toLowerCase()
+        .includes(topic.split(' ')[0].toLowerCase());
       const contentLength = result.content.length;
       const structureQuality = result.content.split('\n').length > 5;
-      const topicRelevance = result.content.toLowerCase().includes(topic.split(' ')[0].toLowerCase());
-      
+      const topicRelevance = result.content
+        .toLowerCase()
+        .includes(topic.split(' ')[0].toLowerCase());
+
       console.log(`      📋 제목 관련성: ${titleRelevance ? '✅' : '❌'}`);
-      console.log(`      📏 콘텐츠 길이: ${contentLength > 300 ? '✅' : '❌'} (${contentLength}자)`);
+      console.log(
+        `      📏 콘텐츠 길이: ${contentLength > 300 ? '✅' : '❌'} (${contentLength}자)`,
+      );
       console.log(`      🏗️  구조적 품질: ${structureQuality ? '✅' : '❌'}`);
       console.log(`      🎯 주제 관련성: ${topicRelevance ? '✅' : '❌'}`);
-      
     } catch (error) {
       console.error(`      ❌ 품질 검증 실패:`, error.message);
     }
@@ -408,4 +436,4 @@ if (require.main === module) {
   runProductionTest().catch(console.error);
 }
 
-export { runProductionTest }; 
+export { runProductionTest };

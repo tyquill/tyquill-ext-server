@@ -1,6 +1,6 @@
 /**
  * JWT 인증 전략
- * 
+ *
  * @description JWT 토큰을 검증하는 Passport 전략입니다.
  * Linear issue CHI-40 요구사항에 따라 구현되었습니다.
  */
@@ -8,6 +8,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { UserRole } from '../../users/entities/user.entity';
 // Removed Supabase config import
 
 /**
@@ -17,7 +18,7 @@ export interface JwtPayload {
   sub: string; // 사용자 ID (UUID)
   email: string;
   aud: string; // 대상 (audience)
-  role: string; // 사용자 역할
+  role?: string; // 사용자 역할
   iat: number; // 발급 시간
   exp: number; // 만료 시간
   iss: string; // 발급자
@@ -44,7 +45,7 @@ export interface JwtPayload {
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  role: string;
+  role: UserRole;
   metadata: {
     fullName?: string;
     avatarUrl?: string;
@@ -56,7 +57,7 @@ export interface AuthenticatedUser {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     const jwtSecret = process.env.JWT_SECRET || 'your-fallback-secret-key';
-    
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -77,7 +78,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     try {
       // 기본 페이로드 검증
       if (!payload.sub || !payload.email) {
-        throw new UnauthorizedException('Invalid JWT payload: missing required fields');
+        throw new UnauthorizedException(
+          'Invalid JWT payload: missing required fields',
+        );
       }
 
       // 토큰 만료 검증 (추가 보안)
@@ -93,13 +96,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // }
 
       // 사용자 정보 구성
+      const normalizedRole = this.normalizeRole(payload.role);
+
       const user: AuthenticatedUser = {
         id: payload.sub,
         email: payload.email,
-        role: payload.role || 'authenticated', // 기본값 설정
+        role: normalizedRole,
         metadata: {
-          fullName: payload.user_metadata?.full_name || payload.user_metadata?.name,
-          avatarUrl: payload.user_metadata?.avatar_url || payload.user_metadata?.picture,
+          fullName:
+            payload.user_metadata?.full_name || payload.user_metadata?.name,
+          avatarUrl:
+            payload.user_metadata?.avatar_url || payload.user_metadata?.picture,
           provider: payload.app_metadata?.provider,
         },
       };
@@ -109,10 +116,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      
+
       console.error('JWT validation error:', error);
       throw new UnauthorizedException('JWT token validation failed');
     }
+  }
+
+  /**
+   * JWT 페이로드에서 역할 문자열을 enum으로 변환합니다.
+   */
+  private normalizeRole(roleFromToken?: string): UserRole {
+    if (!roleFromToken) {
+      return UserRole.USER;
+    }
+
+    const normalized = roleFromToken.toUpperCase();
+
+    if (normalized === UserRole.ADMIN) {
+      return UserRole.ADMIN;
+    }
+
+    return UserRole.USER;
   }
 }
 
@@ -128,7 +152,7 @@ export function extractUserIdFromToken(token: string): string | null {
     }
 
     const payload = JSON.parse(
-      Buffer.from(parts[1], 'base64').toString('utf-8')
+      Buffer.from(parts[1], 'base64').toString('utf-8'),
     );
 
     return payload.sub || null;
@@ -149,7 +173,7 @@ export function isTokenExpired(token: string): boolean {
     }
 
     const payload = JSON.parse(
-      Buffer.from(parts[1], 'base64').toString('utf-8')
+      Buffer.from(parts[1], 'base64').toString('utf-8'),
     );
 
     const currentTime = Math.floor(Date.now() / 1000);
@@ -158,4 +182,4 @@ export function isTokenExpired(token: string): boolean {
     console.error('Error checking token expiration:', error);
     return true;
   }
-} 
+}

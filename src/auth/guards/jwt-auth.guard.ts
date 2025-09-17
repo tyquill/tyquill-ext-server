@@ -1,6 +1,6 @@
 /**
  * JWT 인증 가드
- * 
+ *
  * @description API 엔드포인트에서 JWT 토큰을 검증하는 가드입니다.
  * Linear issue CHI-40 요구사항에 따라 모든 API 요청에 Authorization Bearer 헤더를 검증합니다.
  */
@@ -35,7 +35,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     // Bearer 형식 확인
     if (!authHeader.startsWith('Bearer ')) {
       this.logger.warn('Invalid Authorization header format');
-      throw new UnauthorizedException('Authorization header must be in Bearer format');
+      throw new UnauthorizedException(
+        'Authorization header must be in Bearer format',
+      );
     }
 
     // 토큰 추출
@@ -59,7 +61,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
    */
   handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
-    
+
     if (err || !user) {
       this.logger.error('JWT authentication failed', {
         error: err?.message,
@@ -99,7 +101,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
 /**
  * 선택적 JWT 인증 가드
- * 
+ *
  * @description 토큰이 있으면 검증하고, 없으면 통과시키는 가드입니다.
  * 공개 API와 인증된 API를 동시에 지원할 때 사용됩니다.
  */
@@ -152,4 +154,4 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
 
     return user;
   }
-} 
+}

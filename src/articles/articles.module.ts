@@ -12,7 +12,13 @@ import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-e
 
 @Module({
   imports: [
-    MikroOrmModule.forFeature([Article, ArticleArchive, Scrap, User, WritingStyleExample]),
+    MikroOrmModule.forFeature([
+      Article,
+      ArticleArchive,
+      Scrap,
+      User,
+      WritingStyleExample,
+    ]),
     AgentsModule,
   ],
   controllers: [ArticlesController],

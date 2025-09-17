@@ -17,7 +17,9 @@ import { Scrap } from '../scraps/entities/scrap.entity';
     SqsModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
-        const queueUrl = configService.get<string>('AWS_SQS_FILE_ANALYSIS_QUEUE_URL')!;
+        const queueUrl = configService.get<string>(
+          'AWS_SQS_FILE_ANALYSIS_QUEUE_URL',
+        )!;
         if (!queueUrl) {
           throw new Error('AWS_SQS_FILE_ANALYSIS_QUEUE_URL is not set');
         }
@@ -35,10 +37,7 @@ import { Scrap } from '../scraps/entities/scrap.entity';
     }),
   ],
   controllers: [JobStatusController, AiCallbacksController],
-  providers: [
-    FileAnalysisProducerService,
-    JobStatusService,
-  ],
+  providers: [FileAnalysisProducerService, JobStatusService],
   exports: [FileAnalysisProducerService, JobStatusService],
 })
 export class QueueModule {}

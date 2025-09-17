@@ -1,4 +1,10 @@
-import { IsNumber, IsUrl, IsString, IsMimeType, IsDateString } from "class-validator";
+import {
+  IsNumber,
+  IsUrl,
+  IsString,
+  IsMimeType,
+  IsDateString,
+} from 'class-validator';
 
 export interface FileAnalysisMessage {
   uploadedFileId: number;
@@ -26,7 +32,7 @@ export class FileAnalysisRequestDto {
 
   @IsString()
   fileName: string;
-  
+
   @IsMimeType()
   mimeType: string;
 

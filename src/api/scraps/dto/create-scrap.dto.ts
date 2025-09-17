@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsUrl, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsUrl,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateScrapDto {
   @ApiProperty()

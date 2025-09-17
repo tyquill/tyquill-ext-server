@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsNumber,
+} from 'class-validator';
 
 export class ScrapWithOptionalComment {
   @ApiProperty()
@@ -41,7 +47,7 @@ export class GenerateArticleDto {
   @IsNumber()
   @IsOptional()
   writingStyleId?: number;
-} 
+}
 
 export interface TemplateSectionDto {
   title: string;

@@ -1,4 +1,14 @@
-import { Controller, Get, Param, Post, Query, UseGuards, Request, Version, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+  Request,
+  Version,
+  BadRequestException,
+} from '@nestjs/common';
 import { JobStatusService } from '../services/job-status.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Job } from '../entities/job-status.entity';
@@ -44,7 +54,9 @@ export class JobStatusController {
 
   @Version('1')
   @Post('retry/:jobUuid')
-  async retryJob(@Param('jobUuid') jobUuid: string): Promise<{ success: boolean }> {
+  async retryJob(
+    @Param('jobUuid') jobUuid: string,
+  ): Promise<{ success: boolean }> {
     const success = await this.jobStatusService.retryJob(jobUuid);
     return { success };
   }

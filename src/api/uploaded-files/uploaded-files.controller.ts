@@ -38,22 +38,24 @@ export class UploadedFilesController {
   @Version('1')
   @Post('upload')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: (req, file, cb) => cb(null, os.tmpdir()),
-      filename: (req, file, cb) => {
-        const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-        cb(null, `${Date.now()}-${safe}`);
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (req, file, cb) => cb(null, os.tmpdir()),
+        filename: (req, file, cb) => {
+          const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+          cb(null, `${Date.now()}-${safe}`);
+        },
+      }),
+      limits: { fileSize: 30 * 1024 * 1024 }, // 30MB limit (adjust as needed)
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype !== 'application/pdf') {
+          return cb(null, false);
+        }
+        cb(null, true);
       },
     }),
-    limits: { fileSize: 30 * 1024 * 1024 }, // 30MB limit (adjust as needed)
-    fileFilter: (req, file, cb) => {
-      if (file.mimetype !== 'application/pdf') {
-        return cb(null, false);
-      }
-      cb(null, true);
-    },
-  }))
+  )
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: { title?: string; description?: string },
@@ -90,8 +92,16 @@ export class UploadedFilesController {
   @Version('1')
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Req() req: any, @Param('id') id: string, @Body() updateUploadedFileDto: UpdateUploadedFileDto) {
-    return this.uploadedFilesService.update(+id, updateUploadedFileDto, req.user.id);
+  update(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() updateUploadedFileDto: UpdateUploadedFileDto,
+  ) {
+    return this.uploadedFilesService.update(
+      +id,
+      updateUploadedFileDto,
+      req.user.id,
+    );
   }
 
   @Version('1')
@@ -115,8 +125,8 @@ export class UploadedFilesController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.ACCEPTED)
   async retryAnalysis(
-    @Req() req: any, 
-    @Param('id', ParseIntPipe) id: number
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
   ): Promise<RetryAnalysisResponseDto> {
     return await this.uploadedFilesService.retryAnalysis(id, req.user.id);
   }

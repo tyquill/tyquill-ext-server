@@ -1,5 +1,24 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Version, Query, ParseIntPipe, HttpException, HttpStatus, UseGuards, Request } from '@nestjs/common';
-import { ScrapsService, SearchOptions, PaginationOptions } from '../../scraps/scraps.service';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  Version,
+  Query,
+  ParseIntPipe,
+  HttpException,
+  HttpStatus,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ScrapsService,
+  SearchOptions,
+  PaginationOptions,
+} from '../../scraps/scraps.service';
 import { TagsService } from '../../tags/tags.service';
 import { CreateScrapDto } from './dto/create-scrap.dto';
 import { UpdateScrapDto } from './dto/update-scrap.dto';
@@ -27,7 +46,7 @@ export class ScrapsController {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
       const { articleId, ...scrapData } = createScrapDto;
-      
+
       return await this.scrapsService.create(scrapData, userId, articleId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
@@ -85,12 +104,12 @@ export class ScrapsController {
   ) {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
-      
+
       const searchOptions: SearchOptions = {
         query,
         userId, // JWT에서 추출한 사용자 ID 사용
         articleId,
-        tags: tags ? tags.split(',').map(tag => tag.trim()) : undefined,
+        tags: tags ? tags.split(',').map((tag) => tag.trim()) : undefined,
         dateFrom: dateFrom ? new Date(dateFrom) : undefined,
         dateTo: dateTo ? new Date(dateTo) : undefined,
         sortBy: sortBy || 'created_at',
@@ -102,7 +121,10 @@ export class ScrapsController {
         limit: limit || 20,
       };
 
-      return await this.scrapsService.advancedSearch(searchOptions, paginationOptions);
+      return await this.scrapsService.advancedSearch(
+        searchOptions,
+        paginationOptions,
+      );
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
     }
@@ -120,13 +142,20 @@ export class ScrapsController {
   ) {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
-      
+
       if (!tags || tags.trim().length === 0) {
-        throw new HttpException('Tags parameter is required', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Tags parameter is required',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
-      const tagNames = tags.split(',').map(tag => tag.trim());
-      return await this.scrapsService.findByTags(tagNames, userId, matchAll || false);
+      const tagNames = tags.split(',').map((tag) => tag.trim());
+      return await this.scrapsService.findByTags(
+        tagNames,
+        userId,
+        matchAll || false,
+      );
     } catch (error: any) {
       if (error instanceof HttpException) {
         throw error;
@@ -186,7 +215,6 @@ export class ScrapsController {
     }
   }
 
-
   /**
    * GET /api/v1/scraps/article/:articleId - 특정 기사의 스크랩 목록
    */
@@ -214,7 +242,7 @@ export class ScrapsController {
   ) {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
-      
+
       // 스크랩 존재 확인
       await this.validateScrapExists(scrapId);
 
@@ -267,7 +295,7 @@ export class ScrapsController {
   ) {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
-      
+
       // 스크랩 존재 확인
       const scrap = await this.scrapsService.findOne(scrapId);
       if (!scrap) {

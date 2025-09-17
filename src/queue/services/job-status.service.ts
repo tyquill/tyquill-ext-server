@@ -26,40 +26,50 @@ export class JobStatusService {
     job.status = JobStatus.PENDING;
 
     await this.em.persistAndFlush(job);
-    
+
     this.logger.log(`📝 Created job: ${job.jobUuid} (${job.jobType})`);
     return job;
   }
 
-  async updateJobStatus(jobUuid: string, status: JobStatus, data?: {
-    result?: any;
-    errorMessage?: string;
-    sqsMessageId?: string;
-    retryCount?: number;
-  }): Promise<Job | null> {
+  async updateJobStatus(
+    jobUuid: string,
+    status: JobStatus,
+    data?: {
+      result?: any;
+      errorMessage?: string;
+      sqsMessageId?: string;
+      retryCount?: number;
+    },
+  ): Promise<Job | null> {
     const job = await this.em.findOne(Job, { jobUuid });
-    
+
     if (!job) {
       this.logger.warn(`⚠️ Job not found: ${jobUuid}`);
       return null;
     }
 
     const currentStatus = job.status;
-    
+
     // Check if the transition is valid
     if (!this.isValidTransition(currentStatus, status)) {
-      this.logger.warn(`⚠️ Invalid status transition for job ${jobUuid}: ${currentStatus} -> ${status}. No changes applied.`);
+      this.logger.warn(
+        `⚠️ Invalid status transition for job ${jobUuid}: ${currentStatus} -> ${status}. No changes applied.`,
+      );
       return job;
     }
 
     // Handle idempotent case (same status)
     if (currentStatus === status) {
-      this.logger.debug(`🔄 Idempotent status update for job ${jobUuid}: ${status} (no change)`);
+      this.logger.debug(
+        `🔄 Idempotent status update for job ${jobUuid}: ${status} (no change)`,
+      );
       // Still apply data updates for idempotent case (e.g., updating result or error message)
       if (data) {
         if (data.result !== undefined) job.result = data.result;
-        if (data.errorMessage !== undefined) job.errorMessage = data.errorMessage;
-        if (data.sqsMessageId !== undefined) job.sqsMessageId = data.sqsMessageId;
+        if (data.errorMessage !== undefined)
+          job.errorMessage = data.errorMessage;
+        if (data.sqsMessageId !== undefined)
+          job.sqsMessageId = data.sqsMessageId;
         if (data.retryCount !== undefined) job.retryCount = data.retryCount;
       }
       await this.em.flush();
@@ -68,7 +78,7 @@ export class JobStatusService {
 
     // Apply status change and related updates
     job.status = status;
-    
+
     if (data) {
       if (data.result !== undefined) job.result = data.result;
       if (data.errorMessage !== undefined) job.errorMessage = data.errorMessage;
@@ -77,16 +87,25 @@ export class JobStatusService {
     }
 
     // Update timestamps only for specific transitions
-    if ((currentStatus === JobStatus.PENDING || currentStatus === JobStatus.RETRYING) && status === JobStatus.PROCESSING) {
+    if (
+      (currentStatus === JobStatus.PENDING ||
+        currentStatus === JobStatus.RETRYING) &&
+      status === JobStatus.PROCESSING
+    ) {
       job.startedAt = new Date();
     }
-    if (currentStatus === JobStatus.PROCESSING && (status === JobStatus.COMPLETED || status === JobStatus.FAILED)) {
+    if (
+      currentStatus === JobStatus.PROCESSING &&
+      (status === JobStatus.COMPLETED || status === JobStatus.FAILED)
+    ) {
       job.completedAt = new Date();
     }
 
     await this.em.flush();
-    
-    this.logger.log(`📊 Updated job ${jobUuid} status: ${currentStatus} -> ${status}`);
+
+    this.logger.log(
+      `📊 Updated job ${jobUuid} status: ${currentStatus} -> ${status}`,
+    );
     return job;
   }
 
@@ -95,24 +114,34 @@ export class JobStatusService {
   }
 
   async getJobsByUser(userId: number, limit: number = 50): Promise<Job[]> {
-    return this.em.find(Job, { userId }, {
-      orderBy: { createdAt: 'DESC' },
-      limit,
-    });
+    return this.em.find(
+      Job,
+      { userId },
+      {
+        orderBy: { createdAt: 'DESC' },
+        limit,
+      },
+    );
   }
 
   async getFailedJobs(limit: number = 100): Promise<Job[]> {
-    return this.em.find(Job, { status: JobStatus.FAILED }, {
-      orderBy: { createdAt: 'DESC' },
-      limit,
-    });
+    return this.em.find(
+      Job,
+      { status: JobStatus.FAILED },
+      {
+        orderBy: { createdAt: 'DESC' },
+        limit,
+      },
+    );
   }
 
   async retryJob(jobUuid: string): Promise<boolean> {
     const job = await this.em.findOne(Job, { jobUuid });
-    
+
     if (!job || job.status !== JobStatus.FAILED) {
-      this.logger.warn(`⚠️ Cannot retry job: ${jobUuid} (not found or not failed)`);
+      this.logger.warn(
+        `⚠️ Cannot retry job: ${jobUuid} (not found or not failed)`,
+      );
       return false;
     }
 
@@ -126,7 +155,7 @@ export class JobStatusService {
     job.errorMessage = undefined;
 
     await this.em.flush();
-    
+
     this.logger.log(`🔄 Retrying job: ${jobUuid} (attempt ${job.retryCount})`);
     return true;
   }
@@ -134,7 +163,7 @@ export class JobStatusService {
   /**
    * Validates if a status transition is allowed based on the current and next status.
    * Implements state machine rules for job status transitions.
-   * 
+   *
    * @param current - Current job status
    * @param next - Requested next status
    * @returns true if transition is valid, false otherwise

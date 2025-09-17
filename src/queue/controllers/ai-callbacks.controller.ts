@@ -1,4 +1,15 @@
-import { Body, Controller, HttpCode, HttpException, HttpStatus, Post, Req, Version, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpException,
+  HttpStatus,
+  Post,
+  Req,
+  Version,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { JobStatusService } from '../services/job-status.service';
 import { JobStatus } from '../entities/job-status.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
@@ -39,9 +50,10 @@ export class AiCallbacksController {
   ) {}
 
   private verifyAgentKey(req: Request) {
-    const provided = (req.headers['x-agent-key'] || req.headers['x-tyq-signature']) as string | undefined;
+    const provided = (req.headers['x-agent-key'] ||
+      req.headers['x-tyq-signature']) as string | undefined;
     const expected = process.env.AI_CALLBACK_SECRET;
-    
+
     if (!expected || !provided || provided !== expected) {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
@@ -58,8 +70,8 @@ export class AiCallbacksController {
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async handleFileAnalysisCallback(
-    @Req() req: Request, 
-    @Body() body: FileAnalysisCallbackDto
+    @Req() req: Request,
+    @Body() body: FileAnalysisCallbackDto,
   ): Promise<{ ok: true }> {
     this.verifyAgentKey(req);
 
@@ -75,9 +87,13 @@ export class AiCallbacksController {
             await em.flush();
           }
         }
-        await this.jobStatusService.updateJobStatus(jobUuid, JobStatus.COMPLETED, {
-          result: { uploadedFileId, hasContent: !!markdown },
-        });
+        await this.jobStatusService.updateJobStatus(
+          jobUuid,
+          JobStatus.COMPLETED,
+          {
+            result: { uploadedFileId, hasContent: !!markdown },
+          },
+        );
       });
       return { ok: true };
     }
@@ -85,8 +101,8 @@ export class AiCallbacksController {
     if (status === JobStatus.FAILED) {
       await this.scrapRepo.getEntityManager().transactional(async (em) => {
         await this.jobStatusService.updateJobStatus(jobUuid, JobStatus.FAILED, {
-            errorMessage: error || 'Unknown error',
-          });
+          errorMessage: error || 'Unknown error',
+        });
       });
       return { ok: true };
     }

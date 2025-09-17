@@ -1,11 +1,17 @@
 /**
  * UserOAuth 엔티티
- * 
+ *
  * @description OAuth 인증 정보를 저장하는 엔티티입니다.
  * 한 사용자가 여러 OAuth 제공자(Google, GitHub 등)로 로그인할 수 있도록 지원합니다.
  */
 
-import { Entity, ManyToOne, PrimaryKey, Property, Unique } from '@mikro-orm/core';
+import {
+  Entity,
+  ManyToOne,
+  PrimaryKey,
+  Property,
+  Unique,
+} from '@mikro-orm/core';
 import { User } from './user.entity';
 
 /**
@@ -24,53 +30,53 @@ export class UserOAuth {
   @PrimaryKey({ name: 'user_oauth_id' })
   userOauthId: number;
 
-  @Property({ 
-    name: 'oauth_provider', 
+  @Property({
+    name: 'oauth_provider',
     length: 50,
-    comment: 'OAuth 제공자 (Google/GitHub/etc)'
+    comment: 'OAuth 제공자 (Google/GitHub/etc)',
   })
   oauthProvider: OAuthProvider;
 
-  @Property({ 
-    name: 'oauth_id', 
+  @Property({
+    name: 'oauth_id',
     length: 255,
-    comment: 'OAuth 고유 ID (sub 필드 값)'
+    comment: 'OAuth 고유 ID (sub 필드 값)',
   })
   oauthId: string;
 
-  @Property({ 
+  @Property({
     name: 'access_token',
     length: 1000,
     nullable: true,
-    comment: 'OAuth Access Token (필요시)'
+    comment: 'OAuth Access Token (필요시)',
   })
   accessToken?: string;
 
-  @Property({ 
+  @Property({
     name: 'refresh_token',
     length: 1000,
     nullable: true,
-    comment: 'OAuth Refresh Token (필요시)'
+    comment: 'OAuth Refresh Token (필요시)',
   })
   refreshToken?: string;
 
-  @Property({ 
+  @Property({
     name: 'token_expires_at',
     nullable: true,
-    comment: '토큰 만료 시간'
+    comment: '토큰 만료 시간',
   })
   tokenExpiresAt?: Date;
 
-  @Property({ 
+  @Property({
     name: 'created_at',
-    comment: '생성일시'
+    comment: '생성일시',
   })
   createdAt: Date = new Date();
 
-  @Property({ 
-    name: 'updated_at', 
+  @Property({
+    name: 'updated_at',
     onUpdate: () => new Date(),
-    comment: '수정일시'
+    comment: '수정일시',
   })
   updatedAt: Date = new Date();
 
@@ -80,11 +86,11 @@ export class UserOAuth {
   /**
    * OAuth 제공자별 프로필 정보 (JSON)
    */
-  @Property({ 
+  @Property({
     name: 'profile_data',
     type: 'json',
     nullable: true,
-    comment: 'OAuth 제공자에서 받은 프로필 정보'
+    comment: 'OAuth 제공자에서 받은 프로필 정보',
   })
   profileData?: {
     email?: string;
@@ -131,4 +137,4 @@ export class UserOAuth {
   getAvatarFromProfile(): string | null {
     return this.profileData?.picture || null;
   }
-} 
+}

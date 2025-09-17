@@ -8,6 +8,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { UserRole } from '../../users/entities/user.entity';
 // Removed Supabase config import
 
 /**
@@ -17,7 +18,7 @@ export interface JwtPayload {
   sub: string; // 사용자 ID (UUID)
   email: string;
   aud: string; // 대상 (audience)
-  role: string; // 사용자 역할
+  role?: string; // 사용자 역할
   iat: number; // 발급 시간
   exp: number; // 만료 시간
   iss: string; // 발급자
@@ -44,7 +45,7 @@ export interface JwtPayload {
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  role: string;
+  role: UserRole;
   metadata: {
     fullName?: string;
     avatarUrl?: string;
@@ -95,10 +96,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // }
 
       // 사용자 정보 구성
+      const normalizedRole = this.normalizeRole(payload.role);
+
       const user: AuthenticatedUser = {
         id: payload.sub,
         email: payload.email,
-        role: payload.role || 'authenticated', // 기본값 설정
+        role: normalizedRole,
         metadata: {
           fullName:
             payload.user_metadata?.full_name || payload.user_metadata?.name,
@@ -117,6 +120,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       console.error('JWT validation error:', error);
       throw new UnauthorizedException('JWT token validation failed');
     }
+  }
+
+  /**
+   * JWT 페이로드에서 역할 문자열을 enum으로 변환합니다.
+   */
+  private normalizeRole(roleFromToken?: string): UserRole {
+    if (!roleFromToken) {
+      return UserRole.USER;
+    }
+
+    const normalized = roleFromToken.toUpperCase();
+
+    if (normalized === UserRole.ADMIN) {
+      return UserRole.ADMIN;
+    }
+
+    return UserRole.USER;
   }
 }
 

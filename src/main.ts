@@ -69,6 +69,7 @@ async function bootstrap() {
       process.env.NODE_ENV === 'production'
         ? [
             process.env.FRONTEND_URL,
+            process.env.ADMIN_URL,
             `chrome-extension://${process.env.CHROME_EXTENSION_ID}`,
             `chrome-extension://${process.env.CHROME_EXTENSION_ID_2}`,
           ].filter(Boolean)

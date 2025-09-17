@@ -9,6 +9,11 @@ import { Scrap } from '../../scraps/entities/scrap.entity';
 import { Tag } from '../../tags/entities/tag.entity';
 import { UserOAuth } from './user-oauth.entity';
 
+export enum UserRole {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+}
+
 @Entity({ tableName: 'users' })
 export class User {
   @PrimaryKey({ name: 'user_id' })
@@ -25,6 +30,14 @@ export class User {
 
   @Property({ name: 'updated_at', onUpdate: () => new Date() })
   updatedAt: Date = new Date();
+
+  @Property({
+    name: 'role',
+    type: 'varchar',
+    length: 20,
+    default: UserRole.USER,
+  })
+  role: UserRole = UserRole.USER;
 
   @OneToMany(() => Scrap, (scrap) => scrap.user)
   scraps: Collection<Scrap> = new Collection<Scrap>(this);

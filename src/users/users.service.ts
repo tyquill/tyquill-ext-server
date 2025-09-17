@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { UserOAuth, OAuthProvider } from './entities/user-oauth.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
 // Analytics tracking migrated to extension client (PostHog). Server no longer emits events.
@@ -105,6 +105,7 @@ export class UsersService {
       user = new User();
       user.email = data.email;
       user.name = data.name;
+      user.role = UserRole.USER;
       await this.em.persistAndFlush(user);
 
       // Event tracking moved to client
@@ -118,7 +119,7 @@ export class UsersService {
       profileData: data.profileData,
     });
 
-    await this.em.persistAndFlush(userOAuth);
+    await this.em.persistAndFlush([userOAuth, user]);
 
     // 4. 사용자 정보 다시 로드 (OAuth 계정 포함)
     return (await this.findOne(user.userId)) as User;

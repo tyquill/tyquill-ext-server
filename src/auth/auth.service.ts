@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
 import { UsersService } from '../users/users.service';
 import { OAuthProvider } from '../users/entities/user-oauth.entity';
+import { UserRole } from '../users/entities/user.entity';
 
 /**
  * Google OAuth 인증 요청 DTO
@@ -41,6 +42,7 @@ export interface AuthResponse {
     fullName?: string;
     avatarUrl?: string;
     provider: string;
+    role: UserRole;
   };
   expiresAt: number;
 }
@@ -120,42 +122,13 @@ export class AuthService {
         profileData: userInfo,
       });
 
-      // JWT 토큰 생성
-      const payload = {
-        sub: user.userId,
-        email: user.email,
-        name: user.name,
-        provider: 'google',
-        role: 'authenticated',
-      };
-
-      const accessToken = await this.jwtService.signAsync(payload, {
-        expiresIn: '1h',
-      });
-      const refreshToken = await this.jwtService.signAsync(payload, {
-        expiresIn: '7d',
-      });
-
-      const authResponse: AuthResponse = {
-        accessToken,
-        refreshToken,
-        user: {
-          id: user.userId.toString(),
-          email: user.email,
-          fullName: user.name,
-          avatarUrl: userInfo.picture,
-          provider: 'google',
-        },
-        expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1시간 후
-      };
-
       this.logger.log('Chrome Extension OAuth authentication successful', {
         userId: user.userId,
         email: user.email,
         extensionId: tokenDto.extensionId,
       });
 
-      return authResponse;
+      return await this.buildAuthResponse(user, 'google');
     } catch (error) {
       this.logger.error('Chrome Extension OAuth authentication error:', error);
 
@@ -273,41 +246,12 @@ export class AuthService {
         profileData: userInfo,
       });
 
-      // 4. JWT 토큰 생성
-      const payload = {
-        sub: user.userId,
-        email: user.email,
-        name: user.name,
-        provider: 'google',
-        role: 'authenticated',
-      };
-
-      const accessToken = await this.jwtService.signAsync(payload, {
-        expiresIn: '1h',
-      });
-      const refreshToken = await this.jwtService.signAsync(payload, {
-        expiresIn: '7d',
-      });
-
-      const authResponse: AuthResponse = {
-        accessToken,
-        refreshToken,
-        user: {
-          id: user.userId.toString(),
-          email: user.email,
-          fullName: user.name,
-          avatarUrl: userInfo.picture,
-          provider: 'google',
-        },
-        expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1시간 후
-      };
-
       this.logger.log('Google OAuth authentication successful', {
         userId: user.userId,
         email: user.email,
       });
 
-      return authResponse;
+      return await this.buildAuthResponse(user, 'google');
     } catch (error) {
       this.logger.error('Google OAuth authentication error:', error);
 
@@ -335,40 +279,12 @@ export class AuthService {
       }
 
       // 새로운 토큰 생성
-      const newPayload = {
-        sub: user.userId,
-        email: user.email,
-        name: user.name,
-        provider: 'google',
-        role: 'authenticated',
-      };
-
-      const accessToken = await this.jwtService.signAsync(newPayload, {
-        expiresIn: '1h',
-      });
-      const newRefreshToken = await this.jwtService.signAsync(newPayload, {
-        expiresIn: '7d',
-      });
-
-      const authResponse: AuthResponse = {
-        accessToken,
-        refreshToken: newRefreshToken,
-        user: {
-          id: user.userId.toString(),
-          email: user.email,
-          fullName: user.name,
-          avatarUrl: user.oauthAccounts?.[0]?.profileData?.picture,
-          provider: 'google',
-        },
-        expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1시간 후
-      };
-
       this.logger.log('Token refresh successful', {
         userId: user.userId,
         email: user.email,
       });
 
-      return authResponse;
+      return await this.buildAuthResponse(user, 'google');
     } catch (error) {
       this.logger.error('Token refresh error:', error);
 
@@ -450,5 +366,44 @@ export class AuthService {
       this.logger.error('User validation error:', error);
       throw new UnauthorizedException('User validation failed');
     }
+  }
+
+  private async buildAuthResponse(
+    user: Awaited<ReturnType<typeof this.usersService.findOne>>,
+    provider: string,
+  ): Promise<AuthResponse> {
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const payload = {
+      sub: user.userId,
+      email: user.email,
+      name: user.name,
+      provider,
+      role: user.role || UserRole.USER,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '1h',
+    });
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '7d',
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.userId.toString(),
+        email: user.email,
+        fullName: user.name,
+        avatarUrl:
+          user.oauthAccounts?.[0]?.profileData?.picture || undefined,
+        provider,
+        role: user.role || UserRole.USER,
+      },
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    };
   }
 }

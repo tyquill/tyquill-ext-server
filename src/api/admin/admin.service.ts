@@ -71,21 +71,21 @@ export class AdminService {
       userId: user.userId,
       email: user.email,
       name: user.name,
-      createdAt: user.createdAt,
+      createdAt: user.createdAt.toISOString(),
       scrapCount: user.scraps.length,
       articleCount: articles.length,
       scraps: user.scraps.getItems().map((scrap) => ({
         scrapId: scrap.scrapId,
         title: scrap.title,
         url: scrap.url,
-        createdAt: scrap.createdAt,
+        createdAt: scrap.createdAt.toISOString(),
       })),
       articles: articles.map((article) => ({
         articleId: article.articleId,
         topic: article.topic,
         keyInsight: article.keyInsight,
         generationStatus: article.generationStatus,
-        createdAt: article.createdAt,
+        createdAt: article.createdAt.toISOString(),
       })),
     };
   }
@@ -132,7 +132,7 @@ export class AdminService {
         ? JSON.parse(row.generationParams)
         : null,
       generationStatus: row.generationStatus,
-      createdAt: row.createdAt,
+      createdAt: new Date(row.createdAt).toISOString(),
     }));
   }
 
@@ -216,24 +216,25 @@ export class AdminService {
         ? JSON.parse(article.generationParams)
         : null,
       generationStatus: article.generationStatus,
-      createdAt: article.createdAt,
-      updatedAt: article.updatedAt,
+      createdAt: article.createdAt.toISOString(),
+      updatedAt: article.updatedAt.toISOString(),
       scraps: article.scraps.getItems().map((scrap) => ({
         scrapId: scrap.scrapId,
         title: scrap.title,
         url: scrap.url,
         content: scrap.content,
-        createdAt: scrap.createdAt,
+        createdAt: scrap.createdAt.toISOString(),
       })),
       archives: article.archives
         .getItems()
         .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))
         .map((archive) => ({
           articleArchiveId: archive.articleArchiveId,
-          versionNumber: archive.versionNumber,
+          versionNumber:
+            archive.versionNumber === undefined ? null : archive.versionNumber,
           title: archive.title,
           content: archive.content,
-          createdAt: archive.createdAt,
+          createdAt: archive.createdAt.toISOString(),
         })),
     };
   }

@@ -11,6 +11,20 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { ScrapFolder } from './scrap-folder.entity';
 
+/**
+ * Maximum allowed depth for folder hierarchy traversal.
+ * Used to prevent infinite loops when calculating folder depth or building paths.
+ * This limits how many parent folders can be traversed before breaking the loop.
+ */
+export const MAX_FOLDER_HIERARCHY_DEPTH = 10;
+
+/**
+ * Maximum number of path segments allowed when building folder paths.
+ * Used to prevent infinite loops when constructing full path strings.
+ * This limits how many folder names can be included in a path.
+ */
+export const MAX_FOLDER_PATH_SEGMENTS = 10;
+
 @Entity({ tableName: 'folders' })
 @Index({ properties: ['user', 'parentFolder'] })
 @Index({ properties: ['user', 'isDeleted'] })
@@ -81,7 +95,7 @@ export class Folder {
       depth++;
       current = current.parentFolder;
       // Prevent infinite loops in case of circular references
-      if (depth > 10) break;
+      if (depth > MAX_FOLDER_HIERARCHY_DEPTH) break;
     }
     return depth;
   }
@@ -94,7 +108,7 @@ export class Folder {
       path.unshift(current.name);
       current = current.parentFolder;
       // Prevent infinite loops
-      if (path.length > 10) break;
+      if (path.length > MAX_FOLDER_PATH_SEGMENTS) break;
     }
     return path.join('/');
   }

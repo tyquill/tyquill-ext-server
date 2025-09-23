@@ -122,10 +122,14 @@ export class ScrapsService {
       filters: { isDeleted: false },
     });
 
-    return scraps.map((scrap) => ({
-      ...scrap,
-      content: scrap.content.substring(0, 100),
-    }));
+    // Return scraps with truncated content
+    scraps.forEach(scrap => {
+      if (scrap.content && scrap.content.length > 100) {
+        scrap.content = scrap.content.substring(0, 100);
+      }
+    });
+
+    return scraps;
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {

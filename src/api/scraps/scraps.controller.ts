@@ -170,7 +170,9 @@ export class ScrapsController {
    */
   @Version('1')
   @Get(':scrapId')
-  async findOne(@Param('scrapId', ParseIntPipe) scrapId: number): Promise<ScrapResponseDto> {
+  async findOne(
+    @Param('scrapId', ParseIntPipe) scrapId: number,
+  ): Promise<ScrapResponseDto> {
     try {
       const scrap = await this.scrapsService.findOne(scrapId);
       if (!scrap) {

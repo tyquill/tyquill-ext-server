@@ -398,8 +398,7 @@ export class AuthService {
         id: user.userId.toString(),
         email: user.email,
         fullName: user.name,
-        avatarUrl:
-          user.oauthAccounts?.[0]?.profileData?.picture || undefined,
+        avatarUrl: user.oauthAccounts?.[0]?.profileData?.picture || undefined,
         provider,
         role: user.role || UserRole.USER,
       },

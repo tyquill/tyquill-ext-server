@@ -7,15 +7,9 @@ import { ScrapFolder } from './entities/scrap-folder.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 
 @Module({
-  imports: [
-    MikroOrmModule.forFeature([Folder, ScrapFolder, Scrap]),
-  ],
+  imports: [MikroOrmModule.forFeature([Folder, ScrapFolder, Scrap])],
   controllers: [FoldersController],
-  providers: [
-    FolderService,
-  ],
-  exports: [
-    FolderService,
-  ],
+  providers: [FolderService],
+  exports: [FolderService],
 })
 export class FoldersModule {}

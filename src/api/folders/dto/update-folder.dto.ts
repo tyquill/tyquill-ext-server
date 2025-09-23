@@ -9,14 +9,14 @@ import {
   Min,
   Max,
   IsInt,
-  IsPositive
+  IsPositive,
 } from 'class-validator';
 
 export class UpdateFolderDto {
   @ApiProperty({
     description: 'Folder name',
     required: false,
-    example: 'Updated Project Documents'
+    example: 'Updated Project Documents',
   })
   @IsOptional()
   @IsString()
@@ -26,7 +26,7 @@ export class UpdateFolderDto {
   @ApiProperty({
     description: 'Folder description',
     required: false,
-    example: 'Updated description for the folder'
+    example: 'Updated description for the folder',
   })
   @IsOptional()
   @IsString()
@@ -36,7 +36,7 @@ export class UpdateFolderDto {
   @ApiProperty({
     description: 'Hex color code for folder',
     required: false,
-    example: '#3366FF'
+    example: '#3366FF',
   })
   @IsOptional()
   @IsHexColor()
@@ -45,7 +45,7 @@ export class UpdateFolderDto {
   @ApiProperty({
     description: 'Icon identifier for folder',
     required: false,
-    example: 'project'
+    example: 'project',
   })
   @IsOptional()
   @IsString()
@@ -55,7 +55,7 @@ export class UpdateFolderDto {
   @ApiProperty({
     description: 'Sort order for folder',
     required: false,
-    example: 20
+    example: 20,
   })
   @IsOptional()
   @IsNumber()
@@ -66,7 +66,7 @@ export class UpdateFolderDto {
   @ApiProperty({
     description: 'Parent folder ID (null to move to root)',
     required: false,
-    example: 2
+    example: 2,
   })
   @IsOptional()
   @IsInt()
@@ -76,7 +76,7 @@ export class UpdateFolderDto {
   @ApiProperty({
     description: 'Whether folder is deleted (for soft delete/restore)',
     required: false,
-    example: false
+    example: false,
   })
   @IsOptional()
   @IsBoolean()

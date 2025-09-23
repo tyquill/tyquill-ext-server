@@ -67,11 +67,11 @@ export class Folder {
 
   // Computed properties for easier access
   get scrapCount(): number {
-    return this.scrapFolders.filter(sf => !sf.isDeleted).length;
+    return this.scrapFolders.filter((sf) => !sf.isDeleted).length;
   }
 
   get hasChildren(): boolean {
-    return this.childFolders.filter(cf => !cf.isDeleted).length > 0;
+    return this.childFolders.filter((cf) => !cf.isDeleted).length > 0;
   }
 
   get level(): number {

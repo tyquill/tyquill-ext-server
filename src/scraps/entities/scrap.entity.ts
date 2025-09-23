@@ -80,22 +80,22 @@ export class Scrap {
 
     // Check if any scrapFolder has unloaded folder relation
     const hasUnloadedRelations = activeScrapFolders.some(
-      sf => !wrap(sf.folder).isInitialized()
+      (sf) => !wrap(sf.folder).isInitialized(),
     );
 
     if (hasUnloadedRelations) {
       throw new Error(
         'Cannot access folders: scrapFolders.folder relation not populated. ' +
-        'Use populate: ["scrapFolders.folder"] when loading scraps.'
+          'Use populate: ["scrapFolders.folder"] when loading scraps.',
       );
     }
 
-    return activeScrapFolders.map(sf => sf.folder);
+    return activeScrapFolders.map((sf) => sf.folder);
   }
 
   // Computed property to get active ScrapFolder relationships (with metadata)
   get activeScrapFolders(): ScrapFolder[] {
-    return this.scrapFolders.getItems().filter(sf => !sf.isDeleted);
+    return this.scrapFolders.getItems().filter((sf) => !sf.isDeleted);
   }
 
   /**
@@ -116,17 +116,17 @@ export class Scrap {
 
     // Check if any scrapFolder has unloaded folder relation
     const hasUnloadedRelations = activeScrapFolders.some(
-      sf => !wrap(sf.folder).isInitialized()
+      (sf) => !wrap(sf.folder).isInitialized(),
     );
 
     if (hasUnloadedRelations) {
       throw new Error(
         'Cannot check folder membership: scrapFolders.folder relation not populated. ' +
-        'Use populate: ["scrapFolders.folder"] when loading scraps.'
+          'Use populate: ["scrapFolders.folder"] when loading scraps.',
       );
     }
 
-    return activeScrapFolders.some(sf => sf.folder.folderId === folderId);
+    return activeScrapFolders.some((sf) => sf.folder.folderId === folderId);
   }
 
   /**
@@ -146,16 +146,16 @@ export class Scrap {
 
     // Check if any scrapFolder has unloaded folder relation
     const hasUnloadedRelations = activeScrapFolders.some(
-      sf => !wrap(sf.folder).isInitialized()
+      (sf) => !wrap(sf.folder).isInitialized(),
     );
 
     if (hasUnloadedRelations) {
       throw new Error(
         'Cannot get folder names: scrapFolders.folder relation not populated. ' +
-        'Use populate: ["scrapFolders.folder"] when loading scraps.'
+          'Use populate: ["scrapFolders.folder"] when loading scraps.',
       );
     }
 
-    return activeScrapFolders.map(sf => sf.folder.name);
+    return activeScrapFolders.map((sf) => sf.folder.name);
   }
 }

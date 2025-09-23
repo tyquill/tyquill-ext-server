@@ -10,21 +10,21 @@ export class FolderResponseDto {
   @ApiProperty({
     description: 'Folder description',
     required: false,
-    example: 'Documents related to the current project'
+    example: 'Documents related to the current project',
   })
   description?: string;
 
   @ApiProperty({
     description: 'Hex color code',
     required: false,
-    example: '#FF5733'
+    example: '#FF5733',
   })
   color?: string;
 
   @ApiProperty({
     description: 'Icon identifier',
     required: false,
-    example: 'folder'
+    example: 'folder',
   })
   icon?: string;
 
@@ -34,26 +34,35 @@ export class FolderResponseDto {
   @ApiProperty({ description: 'Whether folder is deleted', example: false })
   isDeleted: boolean;
 
-  @ApiProperty({ description: 'Whether folder is system-generated', example: false })
+  @ApiProperty({
+    description: 'Whether folder is system-generated',
+    example: false,
+  })
   isSystem: boolean;
 
-  @ApiProperty({ description: 'Creation date', example: '2023-01-01T00:00:00Z' })
+  @ApiProperty({
+    description: 'Creation date',
+    example: '2023-01-01T00:00:00Z',
+  })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Last update date', example: '2023-01-01T00:00:00Z' })
+  @ApiProperty({
+    description: 'Last update date',
+    example: '2023-01-01T00:00:00Z',
+  })
   updatedAt: Date;
 
   @ApiProperty({
     description: 'Deletion date',
     required: false,
-    example: '2023-01-01T00:00:00Z'
+    example: '2023-01-01T00:00:00Z',
   })
   deletedAt?: Date;
 
   @ApiProperty({
     description: 'Parent folder ID',
     required: false,
-    example: 1
+    example: 1,
   })
   parentFolderId?: number;
 
@@ -65,7 +74,7 @@ export class FolderTreeNodeDto extends FolderResponseDto {
   @ApiProperty({
     description: 'Child folders',
     type: [FolderTreeNodeDto],
-    example: []
+    example: [],
   })
   children: FolderTreeNodeDto[];
 
@@ -75,7 +84,10 @@ export class FolderTreeNodeDto extends FolderResponseDto {
   @ApiProperty({ description: 'Folder depth level', example: 0 })
   level: number;
 
-  @ApiProperty({ description: 'Full path string', example: 'Projects/Web Development' })
+  @ApiProperty({
+    description: 'Full path string',
+    example: 'Projects/Web Development',
+  })
   fullPath: string;
 
   @ApiProperty({ description: 'Whether folder has children', example: true })
@@ -94,9 +106,9 @@ export class FolderWithScrapsDto extends FolderResponseDto {
         url: { type: 'string', example: 'https://example.com' },
         createdAt: { type: 'string', format: 'date-time' },
         isPinned: { type: 'boolean', example: false },
-        sortOrder: { type: 'number', example: 0 }
-      }
-    }
+        sortOrder: { type: 'number', example: 0 },
+      },
+    },
   })
   scraps: {
     scrapId: number;
@@ -115,7 +127,10 @@ export class FolderStatsDto {
   @ApiProperty({ description: 'Total number of folders', example: 10 })
   totalFolders: number;
 
-  @ApiProperty({ description: 'Total number of scraps across all folders', example: 50 })
+  @ApiProperty({
+    description: 'Total number of scraps across all folders',
+    example: 50,
+  })
   totalScraps: number;
 
   @ApiProperty({ description: 'Average scraps per folder', example: 5.0 })
@@ -126,7 +141,7 @@ export class FolderStatsDto {
 
   @ApiProperty({
     description: 'Most used folder',
-    required: false
+    required: false,
   })
   mostUsedFolder: {
     folderId: number;
@@ -142,9 +157,9 @@ export class FolderStatsDto {
       properties: {
         folderId: { type: 'number', example: 1 },
         name: { type: 'string', example: 'Research' },
-        lastUsed: { type: 'string', format: 'date-time' }
-      }
-    }
+        lastUsed: { type: 'string', format: 'date-time' },
+      },
+    },
   })
   recentlyUsedFolders: {
     folderId: number;
@@ -161,7 +176,10 @@ export class CreateFolderResponse {
   @ApiProperty({ description: 'Created folder', type: FolderTreeNodeDto })
   data: FolderTreeNodeDto;
 
-  @ApiProperty({ description: 'Response message', example: 'Folder created successfully' })
+  @ApiProperty({
+    description: 'Response message',
+    example: 'Folder created successfully',
+  })
   message: string;
 }
 
@@ -170,7 +188,7 @@ export class FolderListResponse {
   success: boolean;
 
   @ApiProperty({
-    description: 'Folder list with pagination info'
+    description: 'Folder list with pagination info',
   })
   data: {
     folders: FolderTreeNodeDto[];
@@ -182,7 +200,10 @@ export class FolderListResponse {
     };
   };
 
-  @ApiProperty({ description: 'Response message', example: 'Folders retrieved successfully' })
+  @ApiProperty({
+    description: 'Response message',
+    example: 'Folders retrieved successfully',
+  })
   message: string;
 }
 
@@ -193,6 +214,9 @@ export class FolderStatsResponse {
   @ApiProperty({ description: 'Folder statistics', type: FolderStatsDto })
   data: FolderStatsDto;
 
-  @ApiProperty({ description: 'Response message', example: 'Folder statistics retrieved successfully' })
+  @ApiProperty({
+    description: 'Response message',
+    example: 'Folder statistics retrieved successfully',
+  })
   message: string;
 }

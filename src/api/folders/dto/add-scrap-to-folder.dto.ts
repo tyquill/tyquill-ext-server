@@ -8,14 +8,14 @@ import {
   IsString,
   IsBoolean,
   Length,
-  Min
+  Min,
 } from 'class-validator';
 
 export class AddScrapToFolderDto {
   @ApiProperty({
     description: 'Array of scrap IDs to add to folder',
     example: [1, 2, 3],
-    type: [Number]
+    type: [Number],
   })
   @IsArray()
   @Type(() => Number)
@@ -26,7 +26,7 @@ export class AddScrapToFolderDto {
   @ApiProperty({
     description: 'Notes about why these scraps are in this folder',
     required: false,
-    example: 'Research materials for the new feature'
+    example: 'Research materials for the new feature',
   })
   @IsOptional()
   @IsString()
@@ -36,7 +36,7 @@ export class AddScrapToFolderDto {
   @ApiProperty({
     description: 'Whether to pin these scraps to the top of the folder',
     required: false,
-    example: false
+    example: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -45,7 +45,7 @@ export class AddScrapToFolderDto {
   @ApiProperty({
     description: 'Sort order for these scraps within the folder',
     required: false,
-    example: 0
+    example: 0,
   })
   @IsOptional()
   @Type(() => Number)

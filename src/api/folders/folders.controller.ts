@@ -46,7 +46,11 @@ import {
   FolderStatsDto,
 } from './dto/folder-response.dto';
 import { Folder } from '../../folders/entities/folder.entity';
-import { IFolderTreeNode, IFolderWithScraps, IFolderStats } from '../../folders/types/folder.types';
+import {
+  IFolderTreeNode,
+  IFolderWithScraps,
+  IFolderStats,
+} from '../../folders/types/folder.types';
 
 @ApiTags('folders')
 @ApiBearerAuth()
@@ -83,7 +87,9 @@ export class FoldersController {
    */
   @Version('1')
   @Get()
-  @ApiOperation({ summary: 'Get folder tree structure for the authenticated user' })
+  @ApiOperation({
+    summary: 'Get folder tree structure for the authenticated user',
+  })
   @ApiResponse({
     status: 200,
     description: 'Folder tree retrieved successfully',
@@ -109,18 +115,23 @@ export class FoldersController {
         offset: query.offset,
       };
 
-      const folders = await this.folderService.getFolderTree(userId, serviceQuery);
+      const folders = await this.folderService.getFolderTree(
+        userId,
+        serviceQuery,
+      );
 
       return {
         success: true,
         data: {
           folders: folders as FolderTreeNodeDto[],
-          pagination: query.limit ? {
-            total: folders.length,
-            limit: query.limit,
-            offset: query.offset || 0,
-            hasMore: false, // Would need total count from service
-          } : undefined,
+          pagination: query.limit
+            ? {
+                total: folders.length,
+                limit: query.limit,
+                offset: query.offset || 0,
+                hasMore: false, // Would need total count from service
+              }
+            : undefined,
         },
         message: 'Folders retrieved successfully',
       };
@@ -206,7 +217,11 @@ export class FoldersController {
         isDeleted: updateFolderDto.isDeleted,
       };
 
-      const folder = await this.folderService.updateFolder(userId, folderId, serviceDto);
+      const folder = await this.folderService.updateFolder(
+        userId,
+        folderId,
+        serviceDto,
+      );
 
       return {
         success: true,
@@ -276,7 +291,11 @@ export class FoldersController {
         parentFolderId: moveFolderDto.newParentId,
       };
 
-      const folder = await this.folderService.updateFolder(userId, folderId, serviceDto);
+      const folder = await this.folderService.updateFolder(
+        userId,
+        folderId,
+        serviceDto,
+      );
 
       return {
         success: true,
@@ -389,7 +408,10 @@ export class FoldersController {
   ): Promise<{ success: boolean; data: FolderWithScrapsDto; message: string }> {
     try {
       const userId = parseInt(req.user.id);
-      const folderWithScraps = await this.folderService.getFolderWithScraps(userId, folderId);
+      const folderWithScraps = await this.folderService.getFolderWithScraps(
+        userId,
+        folderId,
+      );
 
       return {
         success: true,
@@ -409,15 +431,15 @@ export class FoldersController {
    */
   @Version('1')
   @Get('stats')
-  @ApiOperation({ summary: 'Get folder usage statistics for the authenticated user' })
+  @ApiOperation({
+    summary: 'Get folder usage statistics for the authenticated user',
+  })
   @ApiResponse({
     status: 200,
     description: 'Folder statistics retrieved successfully',
     type: FolderStatsResponse,
   })
-  async getFolderStats(
-    @Request() req: any,
-  ): Promise<FolderStatsResponse> {
+  async getFolderStats(@Request() req: any): Promise<FolderStatsResponse> {
     try {
       const userId = parseInt(req.user.id);
       const stats = await this.folderService.getFolderStats(userId);

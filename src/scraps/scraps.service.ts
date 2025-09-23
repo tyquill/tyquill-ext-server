@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { CreateScrapDto } from '../api/scraps/dto/create-scrap.dto';
 import { UpdateScrapDto } from '../api/scraps/dto/update-scrap.dto';
-import { ScrapResponseDto, ScrapSummaryDto } from '../api/scraps/dto/scrap-response.dto';
+import {
+  ScrapResponseDto,
+  ScrapSummaryDto,
+} from '../api/scraps/dto/scrap-response.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { Scrap } from './entities/scrap.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
@@ -126,13 +129,16 @@ export class ScrapsService {
     });
 
     // Return DTOs with content preview instead of mutating entities
-    return scraps.map(scrap => this.toScrapSummaryDto(scrap));
+    return scraps.map((scrap) => this.toScrapSummaryDto(scrap));
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {
     return await this.scrapRepository.find(
       { article: { articleId }, isDeleted: false },
-      { populate: ['tags', 'scrapFolders.folder'], filters: { isDeleted: false } },
+      {
+        populate: ['tags', 'scrapFolders.folder'],
+        filters: { isDeleted: false },
+      },
     );
   }
 
@@ -392,9 +398,10 @@ export class ScrapsService {
       scrapId: scrap.scrapId,
       url: scrap.url,
       title: scrap.title,
-      contentPreview: scrap.content && scrap.content.length > 100
-        ? scrap.content.substring(0, 100) + '...'
-        : scrap.content,
+      contentPreview:
+        scrap.content && scrap.content.length > 100
+          ? scrap.content.substring(0, 100) + '...'
+          : scrap.content,
       description: scrap.description,
       userComment: scrap.userComment,
       fileName: scrap.fileName,
@@ -403,13 +410,14 @@ export class ScrapsService {
       createdAt: scrap.createdAt,
       updatedAt: scrap.updatedAt,
       articleId: scrap.article?.articleId,
-      tags: scrap.tags?.getItems().map(tag => ({
+      tags: scrap.tags?.getItems().map((tag) => ({
         tagId: tag.tagId,
         name: tag.name,
       })),
-      folders: scrap.scrapFolders?.getItems()
-        .filter(sf => !sf.isDeleted)
-        .map(sf => ({
+      folders: scrap.scrapFolders
+        ?.getItems()
+        .filter((sf) => !sf.isDeleted)
+        .map((sf) => ({
           folderId: sf.folder.folderId,
           name: sf.folder.name,
           color: sf.folder.color,
@@ -438,13 +446,14 @@ export class ScrapsService {
       createdAt: scrap.createdAt,
       updatedAt: scrap.updatedAt,
       articleId: scrap.article?.articleId,
-      tags: scrap.tags?.getItems().map(tag => ({
+      tags: scrap.tags?.getItems().map((tag) => ({
         tagId: tag.tagId,
         name: tag.name,
       })),
-      folders: scrap.scrapFolders?.getItems()
-        .filter(sf => !sf.isDeleted)
-        .map(sf => ({
+      folders: scrap.scrapFolders
+        ?.getItems()
+        .filter((sf) => !sf.isDeleted)
+        .map((sf) => ({
           folderId: sf.folder.folderId,
           name: sf.folder.name,
           color: sf.folder.color,

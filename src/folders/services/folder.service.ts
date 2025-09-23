@@ -1,6 +1,16 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityManager, EntityRepository, QueryOrder, FilterQuery } from '@mikro-orm/postgresql';
+import {
+  EntityManager,
+  EntityRepository,
+  QueryOrder,
+  FilterQuery,
+} from '@mikro-orm/postgresql';
 import { Folder } from '../entities/folder.entity';
 import { ScrapFolder } from '../entities/scrap-folder.entity';
 import { Scrap } from '../../scraps/entities/scrap.entity';
@@ -33,8 +43,18 @@ export class FolderService {
   /**
    * Create a new folder for the specified user
    */
-  async createFolder(userId: number, createFolderDto: CreateFolderDto): Promise<Folder> {
-    const { name, description, color, icon, sortOrder = 0, parentFolderId } = createFolderDto;
+  async createFolder(
+    userId: number,
+    createFolderDto: CreateFolderDto,
+  ): Promise<Folder> {
+    const {
+      name,
+      description,
+      color,
+      icon,
+      sortOrder = 0,
+      parentFolderId,
+    } = createFolderDto;
 
     // Check for name conflicts within the same parent
     await this.checkNameConflict(userId, name, parentFolderId);
@@ -61,14 +81,30 @@ export class FolderService {
   /**
    * Update an existing folder
    */
-  async updateFolder(userId: number, folderId: number, updateFolderDto: UpdateFolderDto): Promise<Folder> {
+  async updateFolder(
+    userId: number,
+    folderId: number,
+    updateFolderDto: UpdateFolderDto,
+  ): Promise<Folder> {
     const folder = await this.findUserFolder(userId, folderId);
 
-    const { name, description, color, icon, sortOrder, parentFolderId, isDeleted } = updateFolderDto;
+    const {
+      name,
+      description,
+      color,
+      icon,
+      sortOrder,
+      parentFolderId,
+      isDeleted,
+    } = updateFolderDto;
 
     // Check for name conflicts if name is being changed
     if (name && name !== folder.name) {
-      await this.checkNameConflict(userId, name, parentFolderId ?? folder.parentFolder?.folderId);
+      await this.checkNameConflict(
+        userId,
+        name,
+        parentFolderId ?? folder.parentFolder?.folderId,
+      );
     }
 
     // Validate parent folder and check for circular references
@@ -119,7 +155,7 @@ export class FolderService {
       isDeleted: false,
     });
 
-    scrapFolders.forEach(sf => sf.softDelete());
+    scrapFolders.forEach((sf) => sf.softDelete());
 
     await this.em.flush();
   }
@@ -145,7 +181,10 @@ export class FolderService {
   /**
    * Get folder tree structure for a user
    */
-  async getFolderTree(userId: number, query?: FolderQueryDto): Promise<IFolderTreeNode[]> {
+  async getFolderTree(
+    userId: number,
+    query?: FolderQueryDto,
+  ): Promise<IFolderTreeNode[]> {
     const {
       search,
       includeDeleted = false,
@@ -168,7 +207,9 @@ export class FolderService {
 
     const folders = await this.folderRepository.find(filters, {
       populate: ['parentFolder', 'childFolders', 'scrapFolders'],
-      orderBy: { [sortBy]: sortOrder === 'asc' ? QueryOrder.ASC : QueryOrder.DESC },
+      orderBy: {
+        [sortBy]: sortOrder === 'asc' ? QueryOrder.ASC : QueryOrder.DESC,
+      },
     });
 
     return this.buildFolderTree(folders);
@@ -177,11 +218,16 @@ export class FolderService {
   /**
    * Get folder with its scraps
    */
-  async getFolderWithScraps(userId: number, folderId: number): Promise<IFolderWithScraps> {
-    const folder = await this.findUserFolder(userId, folderId, ['scrapFolders.scrap']);
+  async getFolderWithScraps(
+    userId: number,
+    folderId: number,
+  ): Promise<IFolderWithScraps> {
+    const folder = await this.findUserFolder(userId, folderId, [
+      'scrapFolders.scrap',
+    ]);
 
     const scraps = folder.scrapFolders
-      .filter(sf => !sf.isDeleted && !sf.scrap.isDeleted)
+      .filter((sf) => !sf.isDeleted && !sf.scrap.isDeleted)
       .sort((a, b) => {
         // Sort by pinned first, then by sort order
         if (a.isPinned !== b.isPinned) {
@@ -189,7 +235,7 @@ export class FolderService {
         }
         return a.sortOrder - b.sortOrder;
       })
-      .map(sf => ({
+      .map((sf) => ({
         scrapId: sf.scrap.scrapId,
         title: sf.scrap.title,
         url: sf.scrap.url,
@@ -220,8 +266,17 @@ export class FolderService {
   /**
    * Move scraps to a folder
    */
-  async moveScrapsToFolder(userId: number, moveScrapsDto: MoveScrapsToFolderDto): Promise<void> {
-    const { scrapIds, folderId, notes, isPinned = false, sortOrder = 0 } = moveScrapsDto;
+  async moveScrapsToFolder(
+    userId: number,
+    moveScrapsDto: MoveScrapsToFolderDto,
+  ): Promise<void> {
+    const {
+      scrapIds,
+      folderId,
+      notes,
+      isPinned = false,
+      sortOrder = 0,
+    } = moveScrapsDto;
 
     // Validate folder exists and belongs to user
     const folder = await this.findUserFolder(userId, folderId);
@@ -234,7 +289,9 @@ export class FolderService {
     });
 
     if (scraps.length !== scrapIds.length) {
-      throw new BadRequestException('Some scraps not found or do not belong to user');
+      throw new BadRequestException(
+        'Some scraps not found or do not belong to user',
+      );
     }
 
     // Create or update scrap-folder relationships
@@ -273,7 +330,10 @@ export class FolderService {
   /**
    * Remove scraps from a folder
    */
-  async removeScrapsFromFolder(userId: number, removeScrapsDto: RemoveScrapsFromFolderDto): Promise<void> {
+  async removeScrapsFromFolder(
+    userId: number,
+    removeScrapsDto: RemoveScrapsFromFolderDto,
+  ): Promise<void> {
     const { scrapIds, folderId } = removeScrapsDto;
 
     const scrapFolders = await this.scrapFolderRepository.find({
@@ -283,7 +343,7 @@ export class FolderService {
       isDeleted: false,
     });
 
-    scrapFolders.forEach(sf => sf.softDelete());
+    scrapFolders.forEach((sf) => sf.softDelete());
     await this.em.flush();
   }
 
@@ -293,27 +353,33 @@ export class FolderService {
   async getFolderStats(userId: number): Promise<IFolderStats> {
     const folders = await this.folderRepository.find(
       { user: { userId }, isDeleted: false },
-      { populate: ['scrapFolders'] }
+      { populate: ['scrapFolders'] },
     );
 
     const totalFolders = folders.length;
-    const totalScraps = folders.reduce((sum, folder) =>
-      sum + folder.scrapFolders.filter(sf => !sf.isDeleted).length, 0
+    const totalScraps = folders.reduce(
+      (sum, folder) =>
+        sum + folder.scrapFolders.filter((sf) => !sf.isDeleted).length,
+      0,
     );
 
-    const avgScrapsPerFolder = totalFolders > 0 ? totalScraps / totalFolders : 0;
-    const deepestLevel = Math.max(...folders.map(f => f.level), 0);
+    const avgScrapsPerFolder =
+      totalFolders > 0 ? totalScraps / totalFolders : 0;
+    const deepestLevel = Math.max(...folders.map((f) => f.level), 0);
 
     // Find most used folder
-    const folderUsage = folders.map(folder => ({
+    const folderUsage = folders.map((folder) => ({
       folderId: folder.folderId,
       name: folder.name,
-      scrapCount: folder.scrapFolders.filter(sf => !sf.isDeleted).length,
+      scrapCount: folder.scrapFolders.filter((sf) => !sf.isDeleted).length,
     }));
 
-    const mostUsedFolder = folderUsage.length > 0
-      ? folderUsage.reduce((max, current) => current.scrapCount > max.scrapCount ? current : max)
-      : null;
+    const mostUsedFolder =
+      folderUsage.length > 0
+        ? folderUsage.reduce((max, current) =>
+            current.scrapCount > max.scrapCount ? current : max,
+          )
+        : null;
 
     // Get recently used folders (folders with recent scrap additions)
     const recentlyUsedFolders = await this.scrapFolderRepository.find(
@@ -322,17 +388,18 @@ export class FolderService {
         populate: ['folder'],
         orderBy: { createdAt: QueryOrder.DESC },
         limit: 5,
-      }
+      },
     );
 
     const recentlyUsed = recentlyUsedFolders
-      .map(sf => ({
+      .map((sf) => ({
         folderId: sf.folder.folderId,
         name: sf.folder.name,
         lastUsed: sf.createdAt,
       }))
-      .filter((folder, index, self) =>
-        index === self.findIndex(f => f.folderId === folder.folderId)
+      .filter(
+        (folder, index, self) =>
+          index === self.findIndex((f) => f.folderId === folder.folderId),
       );
 
     return {
@@ -340,7 +407,8 @@ export class FolderService {
       totalScraps,
       avgScrapsPerFolder: Math.round(avgScrapsPerFolder * 100) / 100,
       deepestLevel,
-      mostUsedFolder: mostUsedFolder && mostUsedFolder.scrapCount > 0 ? mostUsedFolder : null,
+      mostUsedFolder:
+        mostUsedFolder && mostUsedFolder.scrapCount > 0 ? mostUsedFolder : null,
       recentlyUsedFolders: recentlyUsed,
     };
   }
@@ -348,7 +416,11 @@ export class FolderService {
   /**
    * Find a folder that belongs to the specified user
    */
-  private async findUserFolder(userId: number, folderId: number, populate?: any): Promise<Folder> {
+  private async findUserFolder(
+    userId: number,
+    folderId: number,
+    populate?: any,
+  ): Promise<Folder> {
     const options: any = {};
     if (populate) {
       options.populate = populate;
@@ -360,7 +432,7 @@ export class FolderService {
         user: { userId },
         isDeleted: false,
       },
-      options
+      options,
     );
 
     if (!folder) {
@@ -373,7 +445,11 @@ export class FolderService {
   /**
    * Check for name conflicts within the same parent folder
    */
-  private async checkNameConflict(userId: number, name: string, parentFolderId?: number): Promise<void> {
+  private async checkNameConflict(
+    userId: number,
+    name: string,
+    parentFolderId?: number,
+  ): Promise<void> {
     const existingFolder = await this.folderRepository.findOne({
       user: { userId },
       name,
@@ -389,7 +465,10 @@ export class FolderService {
   /**
    * Check for circular references when moving folders
    */
-  private async checkCircularReference(folderId: number, newParentId: number): Promise<void> {
+  private async checkCircularReference(
+    folderId: number,
+    newParentId: number,
+  ): Promise<void> {
     let currentId: number | undefined = newParentId;
     const visited = new Set<number>();
 
@@ -402,7 +481,7 @@ export class FolderService {
 
       const parent = await this.folderRepository.findOne(
         { folderId: currentId },
-        { fields: ['parentFolder'] }
+        { fields: ['parentFolder'] },
       );
 
       currentId = parent?.parentFolder?.folderId;
@@ -417,7 +496,7 @@ export class FolderService {
     const rootFolders: IFolderTreeNode[] = [];
 
     // Create tree nodes
-    folders.forEach(folder => {
+    folders.forEach((folder) => {
       const node: IFolderTreeNode = {
         folderId: folder.folderId,
         name: folder.name,
@@ -443,7 +522,7 @@ export class FolderService {
     });
 
     // Build hierarchy
-    folderMap.forEach(node => {
+    folderMap.forEach((node) => {
       if (node.parentFolderId) {
         const parent = folderMap.get(node.parentFolderId);
         if (parent) {
@@ -457,7 +536,7 @@ export class FolderService {
     // Sort children recursively
     const sortChildren = (nodes: IFolderTreeNode[]) => {
       nodes.sort((a, b) => a.sortOrder - b.sortOrder);
-      nodes.forEach(node => sortChildren(node.children));
+      nodes.forEach((node) => sortChildren(node.children));
     };
 
     sortChildren(rootFolders);

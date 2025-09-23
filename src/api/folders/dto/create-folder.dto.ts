@@ -8,7 +8,7 @@ import {
   Min,
   Max,
   IsInt,
-  IsPositive
+  IsPositive,
 } from 'class-validator';
 
 export class CreateFolderDto {
@@ -20,7 +20,7 @@ export class CreateFolderDto {
   @ApiProperty({
     description: 'Folder description',
     required: false,
-    example: 'Documents related to the current project'
+    example: 'Documents related to the current project',
   })
   @IsOptional()
   @IsString()
@@ -30,7 +30,7 @@ export class CreateFolderDto {
   @ApiProperty({
     description: 'Hex color code for folder',
     required: false,
-    example: '#FF5733'
+    example: '#FF5733',
   })
   @IsOptional()
   @IsHexColor()
@@ -39,7 +39,7 @@ export class CreateFolderDto {
   @ApiProperty({
     description: 'Icon identifier for folder',
     required: false,
-    example: 'folder'
+    example: 'folder',
   })
   @IsOptional()
   @IsString()
@@ -49,7 +49,7 @@ export class CreateFolderDto {
   @ApiProperty({
     description: 'Sort order for folder',
     required: false,
-    example: 10
+    example: 10,
   })
   @IsOptional()
   @IsNumber()
@@ -60,7 +60,7 @@ export class CreateFolderDto {
   @ApiProperty({
     description: 'Parent folder ID',
     required: false,
-    example: 1
+    example: 1,
   })
   @IsOptional()
   @IsInt()

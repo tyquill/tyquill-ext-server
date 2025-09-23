@@ -8,14 +8,14 @@ import {
   Min,
   Max,
   IsPositive,
-  IsIn
+  IsIn,
 } from 'class-validator';
 
 export class FolderQueryDto {
   @ApiProperty({
     description: 'Search term for folder names and descriptions',
     required: false,
-    example: 'project'
+    example: 'project',
   })
   @IsOptional()
   @IsString()
@@ -25,7 +25,7 @@ export class FolderQueryDto {
   @ApiProperty({
     description: 'Include deleted folders in results',
     required: false,
-    example: false
+    example: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -34,7 +34,7 @@ export class FolderQueryDto {
   @ApiProperty({
     description: 'Include system folders in results',
     required: false,
-    example: true
+    example: true,
   })
   @IsOptional()
   @IsBoolean()
@@ -43,7 +43,7 @@ export class FolderQueryDto {
   @ApiProperty({
     description: 'Parent folder ID to filter by (omit for root folders)',
     required: false,
-    example: 1
+    example: 1,
   })
   @IsOptional()
   @IsInt()
@@ -54,7 +54,7 @@ export class FolderQueryDto {
     description: 'Field to sort by',
     required: false,
     enum: ['name', 'createdAt', 'updatedAt', 'sortOrder'],
-    example: 'sortOrder'
+    example: 'sortOrder',
   })
   @IsOptional()
   @IsString()
@@ -65,7 +65,7 @@ export class FolderQueryDto {
     description: 'Sort order direction',
     required: false,
     enum: ['asc', 'desc'],
-    example: 'asc'
+    example: 'asc',
   })
   @IsOptional()
   @IsString()
@@ -77,7 +77,7 @@ export class FolderQueryDto {
     required: false,
     minimum: 1,
     maximum: 100,
-    example: 50
+    example: 50,
   })
   @IsOptional()
   @IsInt()
@@ -89,7 +89,7 @@ export class FolderQueryDto {
     description: 'Number of results to skip',
     required: false,
     minimum: 0,
-    example: 0
+    example: 0,
   })
   @IsOptional()
   @IsInt()

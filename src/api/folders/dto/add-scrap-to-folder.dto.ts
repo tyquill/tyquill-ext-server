@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsInt,
@@ -6,7 +7,6 @@ import {
   IsOptional,
   IsString,
   IsBoolean,
-  IsNumber,
   Length,
   Min
 } from 'class-validator';
@@ -18,6 +18,7 @@ export class AddScrapToFolderDto {
     type: [Number]
   })
   @IsArray()
+  @Type(() => Number)
   @IsInt({ each: true })
   @IsPositive({ each: true })
   scrapIds: number[];
@@ -47,7 +48,8 @@ export class AddScrapToFolderDto {
     example: 0
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @Min(0)
   sortOrder?: number;
 }

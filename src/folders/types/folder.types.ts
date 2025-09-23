@@ -11,7 +11,8 @@ import {
   IsArray,
   ValidateNested,
   IsInt,
-  IsPositive
+  IsPositive,
+  ValidateIf,
 } from 'class-validator';
 
 // Base folder interface
@@ -74,14 +75,19 @@ export class CreateFolderDto {
   icon?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   @Max(999999)
+  @Type(() => Number)
   sortOrder?: number;
 
   @IsOptional()
+  @ValidateIf(
+    (o) => o.parentFolderId !== null && o.parentFolderId !== undefined,
+  )
   @IsInt()
   @IsPositive()
+  @Type(() => Number)
   parentFolderId?: number;
 }
 
@@ -107,14 +113,19 @@ export class UpdateFolderDto {
   icon?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   @Max(999999)
+  @Type(() => Number)
   sortOrder?: number;
 
   @IsOptional()
+  @ValidateIf(
+    (o) => o.parentFolderId !== null && o.parentFolderId !== undefined,
+  )
   @IsInt()
   @IsPositive()
+  @Type(() => Number)
   parentFolderId?: number;
 
   @IsOptional()
@@ -127,10 +138,12 @@ export class MoveScrapsToFolderDto {
   @IsArray()
   @IsInt({ each: true })
   @IsPositive({ each: true })
+  @Type(() => Number)
   scrapIds: number[];
 
   @IsInt()
   @IsPositive()
+  @Type(() => Number)
   folderId: number;
 
   @IsOptional()
@@ -143,8 +156,9 @@ export class MoveScrapsToFolderDto {
   isPinned?: boolean;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
+  @Type(() => Number)
   sortOrder?: number;
 }
 
@@ -153,10 +167,12 @@ export class RemoveScrapsFromFolderDto {
   @IsArray()
   @IsInt({ each: true })
   @IsPositive({ each: true })
+  @Type(() => Number)
   scrapIds: number[];
 
   @IsInt()
   @IsPositive()
+  @Type(() => Number)
   folderId: number;
 }
 
@@ -208,11 +224,13 @@ export class FolderQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
+  @Type(() => Number)
   limit?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Type(() => Number)
   offset?: number;
 }
 
@@ -239,7 +257,7 @@ export class FolderError extends Error {
   constructor(
     message: string,
     public code: string,
-    public statusCode: number = 400
+    public statusCode: number = 400,
   ) {
     super(message);
     this.name = 'FolderError';
@@ -257,7 +275,7 @@ export class CircularReferenceError extends FolderError {
     super(
       'Cannot move folder: would create circular reference',
       'CIRCULAR_REFERENCE',
-      400
+      400,
     );
   }
 }
@@ -267,7 +285,7 @@ export class FolderNameConflictError extends FolderError {
     super(
       `Folder with name "${name}" already exists in this location`,
       'NAME_CONFLICT',
-      409
+      409,
     );
   }
 }

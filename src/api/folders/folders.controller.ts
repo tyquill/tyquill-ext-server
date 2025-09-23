@@ -47,7 +47,6 @@ import {
 } from './dto/folder-response.dto';
 import { Folder } from '../../folders/entities/folder.entity';
 import { IFolderTreeNode, IFolderWithScraps, IFolderStats } from '../../folders/types/folder.types';
-import { FEATURE_FLAGS } from '../../config/feature-flags';
 
 @ApiTags('folders')
 @ApiBearerAuth()

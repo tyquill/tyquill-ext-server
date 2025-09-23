@@ -81,7 +81,7 @@ export class ScrapsService {
       : { isDeleted: false, mimeType: null };
 
     return await this.scrapRepository.find(query, {
-      populate: ['tags'],
+      populate: ['tags', 'scrapFolders.folder'],
       filters: { isDeleted: false },
     });
   }
@@ -90,7 +90,7 @@ export class ScrapsService {
     return await this.scrapRepository.findOne(
       { scrapId, isDeleted: false },
       {
-        populate: ['tags'],
+        populate: ['tags', 'scrapFolders.folder'],
         filters: { isDeleted: false },
       },
     );
@@ -117,7 +117,7 @@ export class ScrapsService {
     }
 
     const scraps = await this.scrapRepository.find(query, {
-      populate: ['tags'],
+      populate: ['tags', 'scrapFolders.folder'],
       orderBy: orderBy,
       filters: { isDeleted: false },
     });
@@ -135,7 +135,7 @@ export class ScrapsService {
   async findByArticle(articleId: number): Promise<Scrap[]> {
     return await this.scrapRepository.find(
       { article: { articleId }, isDeleted: false },
-      { populate: ['tags'], filters: { isDeleted: false } },
+      { populate: ['tags', 'scrapFolders.folder'], filters: { isDeleted: false } },
     );
   }
 
@@ -172,7 +172,7 @@ export class ScrapsService {
     const scrap = await this.scrapRepository.findOne(
       { scrapId },
       {
-        populate: ['tags'],
+        populate: ['tags', 'scrapFolders.folder'],
         filters: { isDeleted: false },
       },
     );
@@ -206,7 +206,9 @@ export class ScrapsService {
 
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
-      .leftJoinAndSelect('s.tags', 't');
+      .leftJoinAndSelect('s.tags', 't')
+      .leftJoinAndSelect('s.scrapFolders', 'sf')
+      .leftJoinAndSelect('sf.folder', 'f');
 
     return await qb.getResult();
   }
@@ -223,7 +225,9 @@ export class ScrapsService {
     // 기본 조인
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
-      .leftJoinAndSelect('s.tags', 't');
+      .leftJoinAndSelect('s.tags', 't')
+      .leftJoinAndSelect('s.scrapFolders', 'sf')
+      .leftJoinAndSelect('sf.folder', 'f');
 
     // 텍스트 검색 (풀텍스트 검색)
     if (searchOptions.query) {
@@ -317,6 +321,8 @@ export class ScrapsService {
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
       .leftJoinAndSelect('s.tags', 't')
+      .leftJoinAndSelect('s.scrapFolders', 'sf')
+      .leftJoinAndSelect('sf.folder', 'f')
       .where({ isDeleted: false });
 
     if (matchAll) {

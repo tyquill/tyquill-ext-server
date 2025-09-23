@@ -5,6 +5,7 @@ import {
   OneToMany,
   PrimaryKey,
   Property,
+  wrap,
 } from '@mikro-orm/core';
 import { Tag } from '../../tags/entities/tag.entity';
 import { User } from '../../users/entities/user.entity';
@@ -77,19 +78,68 @@ export class Scrap {
     return this.scrapFolders.getItems().filter(sf => !sf.isDeleted);
   }
 
-  // Helper method to check if scrap is in a specific folder
+  /**
+   * Helper method to check if scrap is in a specific folder
+   *
+   * @param folderId - The folder ID to check
+   * @returns true if the scrap is in the specified folder
+   * @throws Error if scrapFolders.folder relation is not populated
+   *
+   * @example
+   * // Ensure proper population when loading scraps:
+   * const scraps = await scrapRepository.find(query, {
+   *   populate: ['scrapFolders.folder']
+   * });
+   */
   isInFolder(folderId: number): boolean {
-    return this.scrapFolders
+    const activeScrapFolders = this.scrapFolders
       .getItems()
-      .filter(sf => !sf.isDeleted)
-      .some(sf => sf.folder.folderId === folderId);
+      .filter(sf => !sf.isDeleted);
+
+    // Check if any scrapFolder has unloaded folder relation
+    const hasUnloadedRelations = activeScrapFolders.some(
+      sf => !wrap(sf.folder).isInitialized()
+    );
+
+    if (hasUnloadedRelations) {
+      throw new Error(
+        'Cannot check folder membership: scrapFolders.folder relation not populated. ' +
+        'Use populate: ["scrapFolders.folder"] when loading scraps.'
+      );
+    }
+
+    return activeScrapFolders.some(sf => sf.folder.folderId === folderId);
   }
 
-  // Helper method to get folder names this scrap belongs to
+  /**
+   * Helper method to get folder names this scrap belongs to
+   *
+   * @returns Array of folder names
+   * @throws Error if scrapFolders.folder relation is not populated
+   *
+   * @example
+   * // Ensure proper population when loading scraps:
+   * const scraps = await scrapRepository.find(query, {
+   *   populate: ['scrapFolders.folder']
+   * });
+   */
   getFolderNames(): string[] {
-    return this.scrapFolders
+    const activeScrapFolders = this.scrapFolders
       .getItems()
-      .filter(sf => !sf.isDeleted)
-      .map(sf => sf.folder.name);
+      .filter(sf => !sf.isDeleted);
+
+    // Check if any scrapFolder has unloaded folder relation
+    const hasUnloadedRelations = activeScrapFolders.some(
+      sf => !wrap(sf.folder).isInitialized()
+    );
+
+    if (hasUnloadedRelations) {
+      throw new Error(
+        'Cannot get folder names: scrapFolders.folder relation not populated. ' +
+        'Use populate: ["scrapFolders.folder"] when loading scraps.'
+      );
+    }
+
+    return activeScrapFolders.map(sf => sf.folder.name);
   }
 }

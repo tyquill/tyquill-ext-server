@@ -1,9 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -135,7 +131,8 @@ export class AdminController {
    * 특정 유저의 상세 정보 조회
    */
   @ApiOkResponse({
-    description: 'Detailed information for the requested user, including scraps and articles',
+    description:
+      'Detailed information for the requested user, including scraps and articles',
     schema: {
       type: 'object',
       properties: {

@@ -22,6 +22,7 @@ import {
 import { TagsService } from '../../tags/tags.service';
 import { CreateScrapDto } from './dto/create-scrap.dto';
 import { UpdateScrapDto } from './dto/update-scrap.dto';
+import { ScrapResponseDto, ScrapSummaryDto } from './dto/scrap-response.dto';
 import { CreateTagDto } from '../tags/dto/create-tag.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Scrap } from 'src/scraps/entities/scrap.entity';
@@ -42,7 +43,7 @@ export class ScrapsController {
   async create(
     @Body() createScrapDto: CreateScrapDto,
     @Request() req: any,
-  ): Promise<Scrap> {
+  ): Promise<ScrapSummaryDto> {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
       const { articleId, ...scrapData } = createScrapDto;
@@ -66,7 +67,7 @@ export class ScrapsController {
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title',
     @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
-  ) {
+  ): Promise<ScrapSummaryDto[] | Scrap[]> {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
 
@@ -169,10 +170,15 @@ export class ScrapsController {
    */
   @Version('1')
   @Get(':scrapId')
-  async findOne(@Param('scrapId', ParseIntPipe) scrapId: number) {
+  async findOne(
+    @Param('scrapId', ParseIntPipe) scrapId: number,
+  ): Promise<ScrapResponseDto> {
     try {
-      await this.validateScrapExists(scrapId);
-      return await this.scrapsService.findOne(scrapId);
+      const scrap = await this.scrapsService.findOne(scrapId);
+      if (!scrap) {
+        throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
+      }
+      return scrap;
     } catch (error: any) {
       if (error instanceof HttpException) {
         throw error;

@@ -12,9 +12,6 @@ import {
   UseInterceptors,
   UploadedFile,
   Req,
-  HttpCode,
-  HttpStatus,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -25,11 +22,6 @@ import { UploadedFilesService } from '../../uploaded-files/uploaded-files.servic
 import { UpdateUploadedFileDto } from './dto/update-uploaded-file.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
-interface RetryAnalysisResponseDto {
-  jobUuid: string | null;
-  status: 'queued' | 'error';
-  error?: string;
-}
 
 @Controller('uploaded-files')
 export class UploadedFilesController {
@@ -112,22 +104,4 @@ export class UploadedFilesController {
     return { message: 'Uploaded file deleted successfully' };
   }
 
-  @Version('1')
-  @Get(':id/analysis')
-  @UseGuards(JwtAuthGuard)
-  async getAnalysis(@Req() req: any, @Param('id') id: string) {
-    const data = await this.uploadedFilesService.getAnalysis(+id, req.user.id);
-    return data;
-  }
-
-  @Version('1')
-  @Post(':id/analysis/retry')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.ACCEPTED)
-  async retryAnalysis(
-    @Req() req: any,
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<RetryAnalysisResponseDto> {
-    return await this.uploadedFilesService.retryAnalysis(id, req.user.id);
-  }
 }

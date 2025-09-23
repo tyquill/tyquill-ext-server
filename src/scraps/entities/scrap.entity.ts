@@ -11,6 +11,7 @@ import { Tag } from '../../tags/entities/tag.entity';
 import { User } from '../../users/entities/user.entity';
 import { Article } from '../../articles/entities/article.entity';
 import { ScrapFolder } from '../../folders/entities/scrap-folder.entity';
+import { Folder } from '../../folders/entities/folder.entity';
 
 @Entity({ tableName: 'scraps' })
 export class Scrap {
@@ -74,7 +75,26 @@ export class Scrap {
   scrapFolders = new Collection<ScrapFolder>(this);
 
   // Computed property to get folders this scrap belongs to
-  get folders(): ScrapFolder[] {
+  get folders(): Folder[] {
+    const activeScrapFolders = this.activeScrapFolders;
+
+    // Check if any scrapFolder has unloaded folder relation
+    const hasUnloadedRelations = activeScrapFolders.some(
+      sf => !wrap(sf.folder).isInitialized()
+    );
+
+    if (hasUnloadedRelations) {
+      throw new Error(
+        'Cannot access folders: scrapFolders.folder relation not populated. ' +
+        'Use populate: ["scrapFolders.folder"] when loading scraps.'
+      );
+    }
+
+    return activeScrapFolders.map(sf => sf.folder);
+  }
+
+  // Computed property to get active ScrapFolder relationships (with metadata)
+  get activeScrapFolders(): ScrapFolder[] {
     return this.scrapFolders.getItems().filter(sf => !sf.isDeleted);
   }
 
@@ -92,9 +112,7 @@ export class Scrap {
    * });
    */
   isInFolder(folderId: number): boolean {
-    const activeScrapFolders = this.scrapFolders
-      .getItems()
-      .filter(sf => !sf.isDeleted);
+    const activeScrapFolders = this.activeScrapFolders;
 
     // Check if any scrapFolder has unloaded folder relation
     const hasUnloadedRelations = activeScrapFolders.some(
@@ -124,9 +142,7 @@ export class Scrap {
    * });
    */
   getFolderNames(): string[] {
-    const activeScrapFolders = this.scrapFolders
-      .getItems()
-      .filter(sf => !sf.isDeleted);
+    const activeScrapFolders = this.activeScrapFolders;
 
     // Check if any scrapFolder has unloaded folder relation
     const hasUnloadedRelations = activeScrapFolders.some(

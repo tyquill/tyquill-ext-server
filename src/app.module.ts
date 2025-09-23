@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { WritingStylesModule } from './writing-styles/writing-styles.module';
 import { UploadedFilesModule } from './uploaded-files/uploaded-files.module';
 import { LibraryItemsModule } from './library-items/library-items.module';
+import { FoldersModule } from './folders/folders.module';
 import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './api/admin/admin.module';
 
@@ -31,6 +32,7 @@ import { AdminModule } from './api/admin/admin.module';
     WritingStylesModule,
     UploadedFilesModule,
     LibraryItemsModule,
+    FoldersModule, // Folder management module
     QueueModule, // SQS 큐 모듈 추가
     AdminModule, // 관리자 모듈 추가
   ],

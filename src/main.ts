@@ -46,6 +46,7 @@ async function bootstrap() {
     .addTag('Users', 'User management endpoints')
     .addTag('Article Archive', 'Article archive management endpoints')
     .addTag('Library Items', 'Unified library items (scraps/uploads) endpoints')
+    .addTag('folders', 'Folder management and organization endpoints')
     .build();
 
   // api prefix 추가

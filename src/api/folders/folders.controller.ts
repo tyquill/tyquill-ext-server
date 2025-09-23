@@ -70,7 +70,7 @@ export class FoldersController {
       color: folder.color,
       icon: folder.icon,
       sortOrder: folder.sortOrder,
-      isDeleted: folder.isDeleted,
+      isDeleted: folder.deletedAt !== null && folder.deletedAt !== undefined,
       isSystem: folder.isSystem,
       createdAt: folder.createdAt,
       updatedAt: folder.updatedAt,

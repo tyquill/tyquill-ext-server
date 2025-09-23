@@ -27,6 +27,7 @@ import {
   CircularReferenceError,
   FolderNameConflictError,
 } from '../types/folder.types';
+import { User } from '../../users/entities/user.entity';
 
 @Injectable()
 export class FolderService {
@@ -71,7 +72,7 @@ export class FolderService {
     folder.color = color;
     folder.icon = icon;
     folder.sortOrder = sortOrder;
-    folder.user = { userId } as any;
+    folder.user = { userId } as User;
     folder.parentFolder = parentFolder;
 
     await this.em.persistAndFlush(folder);
@@ -167,7 +168,7 @@ export class FolderService {
     const folder = await this.folderRepository.findOne({
       folderId,
       user: { userId },
-      isDeleted: true,
+      deletedAt: { $ne: null },
     });
 
     if (!folder) {
@@ -196,14 +197,11 @@ export class FolderService {
 
     const filters: FilterQuery<Folder> = {
       user: { userId },
-      isDeleted: includeDeleted ? undefined : false,
-      isSystem: includeSystem ? undefined : false,
-      parentFolder: parentId ? { folderId: parentId } : null,
+      ...(includeDeleted ? {} : { deletedAt: null }),
+      ...(includeSystem ? {} : { isSystem: false }),
+      ...(parentId ? { parentFolder: { folderId: parentId } } : { parentFolder: null }),
+      ...(search && { name: { $like: `%${search}%` } }),
     };
-
-    if (search) {
-      filters.name = { $like: `%${search}%` };
-    }
 
     const folders = await this.folderRepository.find(filters, {
       populate: ['parentFolder', 'childFolders', 'scrapFolders'],
@@ -251,7 +249,7 @@ export class FolderService {
       color: folder.color,
       icon: folder.icon,
       sortOrder: folder.sortOrder,
-      isDeleted: folder.isDeleted,
+      isDeleted: folder.deletedAt !== null && folder.deletedAt !== undefined,
       isSystem: folder.isSystem,
       createdAt: folder.createdAt,
       updatedAt: folder.updatedAt,
@@ -315,7 +313,7 @@ export class FolderService {
         scrapFolder = new ScrapFolder();
         scrapFolder.scrap = scrap;
         scrapFolder.folder = folder;
-        scrapFolder.user = { userId } as any;
+        scrapFolder.user = { userId } as User;
         scrapFolder.notes = notes;
         scrapFolder.isPinned = isPinned;
         scrapFolder.sortOrder = sortOrder;
@@ -352,7 +350,7 @@ export class FolderService {
    */
   async getFolderStats(userId: number): Promise<IFolderStats> {
     const folders = await this.folderRepository.find(
-      { user: { userId }, isDeleted: false },
+      { user: { userId }, deletedAt: null },
       { populate: ['scrapFolders'] },
     );
 
@@ -430,7 +428,7 @@ export class FolderService {
       {
         folderId,
         user: { userId },
-        isDeleted: false,
+        deletedAt: null,
       },
       options,
     );
@@ -454,7 +452,7 @@ export class FolderService {
       user: { userId },
       name,
       parentFolder: parentFolderId ? { folderId: parentFolderId } : null,
-      isDeleted: false,
+      deletedAt: null,
     });
 
     if (existingFolder) {
@@ -504,7 +502,7 @@ export class FolderService {
         color: folder.color,
         icon: folder.icon,
         sortOrder: folder.sortOrder,
-        isDeleted: folder.isDeleted,
+        isDeleted: folder.deletedAt !== null && folder.deletedAt !== undefined,
         isSystem: folder.isSystem,
         createdAt: folder.createdAt,
         updatedAt: folder.updatedAt,

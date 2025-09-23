@@ -27,7 +27,7 @@ export const MAX_FOLDER_PATH_SEGMENTS = 10;
 
 @Entity({ tableName: 'folders' })
 @Index({ properties: ['user', 'parentFolder'] })
-@Index({ properties: ['user', 'isDeleted'] })
+@Index({ properties: ['user', 'deletedAt'] })
 @Unique({ properties: ['user', 'name', 'parentFolder'] })
 export class Folder {
   @PrimaryKey({ name: 'folder_id' })
@@ -48,9 +48,6 @@ export class Folder {
   @Property({ name: 'sort_order', type: 'integer', default: 0 })
   sortOrder: number = 0;
 
-  @Property({ name: 'is_deleted', type: 'boolean', default: false })
-  isDeleted: boolean = false;
-
   @Property({ name: 'is_system', type: 'boolean', default: false })
   isSystem: boolean = false; // For system-generated folders (e.g., "Uncategorized")
 
@@ -68,7 +65,7 @@ export class Folder {
   user: User;
 
   // Self-referencing relationship for hierarchical structure
-  @ManyToOne(() => Folder, { fieldName: 'parent_folder_id', nullable: true })
+  @ManyToOne(() => Folder, { fieldName: 'parent_id', nullable: true })
   parentFolder?: Folder;
 
   // Child folders
@@ -85,7 +82,7 @@ export class Folder {
   }
 
   get hasChildren(): boolean {
-    return this.childFolders.filter((cf) => !cf.isDeleted).length > 0;
+    return this.childFolders.length > 0;
   }
 
   get level(): number {
@@ -115,14 +112,12 @@ export class Folder {
 
   // Soft delete implementation
   softDelete(): void {
-    this.isDeleted = true;
     this.deletedAt = new Date();
     this.updatedAt = new Date();
   }
 
   // Restore from soft delete
   restore(): void {
-    this.isDeleted = false;
     this.deletedAt = undefined;
     this.updatedAt = new Date();
   }

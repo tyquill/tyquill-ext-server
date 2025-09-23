@@ -43,7 +43,7 @@ export class ScrapFolder {
   user: User;
 
   // Metadata for the relationship
-  @Property({ name: 'notes', type: 'text', nullable: true })
+  @Property({ name: 'note', type: 'text', nullable: true })
   notes?: string; // User notes about why this scrap is in this folder
 
   @Property({ name: 'is_pinned', type: 'boolean', default: false })

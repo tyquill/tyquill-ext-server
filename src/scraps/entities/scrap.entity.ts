@@ -9,6 +9,7 @@ import {
 import { Tag } from '../../tags/entities/tag.entity';
 import { User } from '../../users/entities/user.entity';
 import { Article } from '../../articles/entities/article.entity';
+import { ScrapFolder } from '../../folders/entities/scrap-folder.entity';
 
 @Entity({ tableName: 'scraps' })
 export class Scrap {
@@ -66,4 +67,29 @@ export class Scrap {
 
   @OneToMany(() => Tag, (tag) => tag.scrap)
   tags: Collection<Tag> = new Collection<Tag>(this);
+
+  // Many-to-many relationship with folders through junction table
+  @OneToMany(() => ScrapFolder, (scrapFolder) => scrapFolder.scrap)
+  scrapFolders = new Collection<ScrapFolder>(this);
+
+  // Computed property to get folders this scrap belongs to
+  get folders(): ScrapFolder[] {
+    return this.scrapFolders.getItems().filter(sf => !sf.isDeleted);
+  }
+
+  // Helper method to check if scrap is in a specific folder
+  isInFolder(folderId: number): boolean {
+    return this.scrapFolders
+      .getItems()
+      .filter(sf => !sf.isDeleted)
+      .some(sf => sf.folder.folderId === folderId);
+  }
+
+  // Helper method to get folder names this scrap belongs to
+  getFolderNames(): string[] {
+    return this.scrapFolders
+      .getItems()
+      .filter(sf => !sf.isDeleted)
+      .map(sf => sf.folder.name);
+  }
 }

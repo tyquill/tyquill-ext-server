@@ -32,9 +32,6 @@ export class ScrapFolder {
   @Property({ name: 'updated_at', onUpdate: () => new Date() })
   updatedAt: Date = new Date();
 
-  @Property({ name: 'deleted_at', nullable: true })
-  deletedAt?: Date;
-
   // Foreign key relationships
   @ManyToOne(() => Scrap, { fieldName: 'scrap_id' })
   scrap: Scrap;
@@ -55,14 +52,12 @@ export class ScrapFolder {
   // Soft delete implementation
   softDelete(): void {
     this.isDeleted = true;
-    this.deletedAt = new Date();
     this.updatedAt = new Date();
   }
 
   // Restore from soft delete
   restore(): void {
     this.isDeleted = false;
-    this.deletedAt = undefined;
     this.updatedAt = new Date();
   }
 }

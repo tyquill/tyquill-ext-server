@@ -220,3 +220,45 @@ export class FolderStatsResponse {
   })
   message: string;
 }
+
+export class UpdateFolderResponse {
+  @ApiProperty({ description: 'Success status', example: true })
+  success: boolean;
+
+  @ApiProperty({ description: 'Updated folder', type: FolderTreeNodeDto })
+  data: FolderTreeNodeDto;
+
+  @ApiProperty({
+    description: 'Response message',
+    example: 'Folder updated successfully',
+  })
+  message: string;
+}
+
+export class MoveFolderResponse {
+  @ApiProperty({ description: 'Success status', example: true })
+  success: boolean;
+
+  @ApiProperty({ description: 'Moved folder', type: FolderTreeNodeDto })
+  data: FolderTreeNodeDto;
+
+  @ApiProperty({
+    description: 'Response message',
+    example: 'Folder moved successfully',
+  })
+  message: string;
+}
+
+export class FolderWithScrapsResponse {
+  @ApiProperty({ description: 'Success status', example: true })
+  success: boolean;
+
+  @ApiProperty({ description: 'Folder with scraps', type: FolderWithScrapsDto })
+  data: FolderWithScrapsDto;
+
+  @ApiProperty({
+    description: 'Response message',
+    example: 'Folder with scraps retrieved successfully',
+  })
+  message: string;
+}

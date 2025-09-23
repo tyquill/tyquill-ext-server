@@ -41,6 +41,9 @@ import {
   CreateFolderResponse,
   FolderListResponse,
   FolderStatsResponse,
+  UpdateFolderResponse,
+  MoveFolderResponse,
+  FolderWithScrapsResponse,
   FolderTreeNodeDto,
   FolderWithScrapsDto,
   FolderStatsDto,
@@ -196,7 +199,7 @@ export class FoldersController {
   @ApiResponse({
     status: 200,
     description: 'Folder updated successfully',
-    type: FolderTreeNodeDto,
+    type: UpdateFolderResponse,
   })
   async updateFolder(
     @Request() req: any,
@@ -277,7 +280,7 @@ export class FoldersController {
   @ApiResponse({
     status: 200,
     description: 'Folder moved successfully',
-    type: FolderTreeNodeDto,
+    type: MoveFolderResponse,
   })
   async moveFolder(
     @Request() req: any,
@@ -400,7 +403,7 @@ export class FoldersController {
   @ApiResponse({
     status: 200,
     description: 'Folder with scraps retrieved successfully',
-    type: FolderWithScrapsDto,
+    type: FolderWithScrapsResponse,
   })
   async getFolderWithScraps(
     @Request() req: any,

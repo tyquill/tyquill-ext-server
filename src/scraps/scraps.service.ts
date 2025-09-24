@@ -126,6 +126,39 @@ export class ScrapsService {
     return scrap ? this.toScrapResponseDto(scrap) : null;
   }
 
+  /**
+   * Find multiple scraps by their IDs in a single query
+   * @param scrapIds Array of scrap IDs to fetch
+   * @returns Array of ScrapResponseDto for found scraps
+   */
+  async findMany(scrapIds: number[]): Promise<ScrapResponseDto[]> {
+    if (!scrapIds || scrapIds.length === 0) {
+      return [];
+    }
+
+    const scraps = await this.scrapRepository.find(
+      {
+        scrapId: { $in: scrapIds },
+        isDeleted: false
+      },
+      {
+        populate: ['tags', 'scrapFolders.folder'],
+        filters: { isDeleted: false },
+      },
+    );
+
+    // Convert all found scraps to DTOs and maintain the original order
+    const scrapMap = new Map<number, ScrapResponseDto>();
+    scraps.forEach(scrap => {
+      scrapMap.set(scrap.scrapId, this.toScrapResponseDto(scrap));
+    });
+
+    // Return scraps in the same order as requested IDs
+    return scrapIds
+      .map(id => scrapMap.get(id))
+      .filter((scrap): scrap is ScrapResponseDto => scrap !== undefined);
+  }
+
   async findByUser(
     userId: number,
     sortBy?: 'created_at' | 'updated_at' | 'title',

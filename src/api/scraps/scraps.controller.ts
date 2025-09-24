@@ -386,16 +386,9 @@ export class ScrapsController {
       // Get user's scraps with enhanced metadata
       const scraps = await this.scrapsService.findByUser(userId, sortBy, sortOrder);
 
-      // Return full response DTOs with all metadata fields
-      const fullScraps: ScrapResponseDto[] = [];
-      for (const scrap of scraps) {
-        const fullScrap = await this.scrapsService.findOne(scrap.scrapId);
-        if (fullScrap) {
-          fullScraps.push(fullScrap);
-        }
-      }
-
-      return fullScraps;
+      // Batch fetch full response DTOs with all metadata fields
+      const scrapIds = scraps.map(scrap => scrap.scrapId);
+      return await this.scrapsService.findMany(scrapIds);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -428,13 +421,7 @@ export class ScrapsController {
    * Helper method to enrich scraps with enhanced metadata
    */
   private async enrichScrapsWithMetadata(scraps: any[]): Promise<ScrapResponseDto[]> {
-    const enrichedScraps: ScrapResponseDto[] = [];
-    for (const scrap of scraps) {
-      const fullScrap = await this.scrapsService.findOne(scrap.scrapId);
-      if (fullScrap) {
-        enrichedScraps.push(fullScrap);
-      }
-    }
-    return enrichedScraps;
+    const scrapIds = scraps.map(scrap => scrap.scrapId);
+    return await this.scrapsService.findMany(scrapIds);
   }
 }

@@ -27,7 +27,7 @@ export class Scrap {
   @Property({ name: 'content', type: 'text' })
   content: string;
 
-  @Property({ name: 'content_info', type: 'json', nullable: true })
+  @Property({ name: 'content_info', type: 'json', columnType: 'jsonb', nullable: true })
   contentInfo?: {
     raw?: string;     // HTML with tags
     plain?: string;   // Markdown format
@@ -64,7 +64,7 @@ export class Scrap {
   @Property({ name: 'user_comment', type: 'text', nullable: true })
   userComment?: string;
 
-  @Property({ name: 'webpage', type: 'json', nullable: true })
+  @Property({ name: 'webpage', type: 'json', columnType: 'jsonb', nullable: true })
   webpage?: {
     url?: string;
     title?: string;
@@ -82,7 +82,7 @@ export class Scrap {
   @Property({ name: 'published_at', type: 'timestamp', nullable: true })
   publishedAt?: Date;
 
-  @Property({ name: 'authors', type: 'json', nullable: true })
+  @Property({ name: 'authors', type: 'json', columnType: 'jsonb', nullable: true })
   authors?: Array<{
     name?: string;
     picture?: string;

@@ -318,4 +318,110 @@ export class ScrapsController {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
+  // ========== VERSION 2 API - Enhanced Metadata Support ==========
+
+  /**
+   * POST /api/v2/scraps - 스크랩 생성 (향상된 메타데이터 포함)
+   */
+  @Version('2')
+  @Post()
+  async createV2(
+    @Body() createScrapDto: CreateScrapDto,
+    @Request() req: any,
+  ): Promise<ScrapResponseDto> {
+    try {
+      const userId = parseInt(req.user.id);
+      const { articleId, tags, ...scrapData } = createScrapDto;
+
+      // Create scrap with enhanced metadata
+      const scrapSummary = await this.scrapsService.create(scrapData, userId, articleId);
+
+      // Add tags if provided
+      if (tags && tags.length > 0) {
+        for (const tagName of tags) {
+          await this.tagsService.create(
+            { name: tagName, scrapId: scrapSummary.scrapId },
+            userId,
+            scrapSummary.scrapId,
+          );
+        }
+      }
+
+      // Return full scrap with all metadata
+      const fullScrap = await this.scrapsService.findOne(scrapSummary.scrapId);
+      return fullScrap!;
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  /**
+   * GET /api/v2/scraps - 현재 사용자의 스크랩 목록 조회 (향상된 메타데이터 포함)
+   */
+  @Version('2')
+  @Get()
+  async findAllV2(
+    @Request() req: any,
+    @Query('articleId') articleId?: number,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title',
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+  ): Promise<ScrapResponseDto[]> {
+    try {
+      const userId = parseInt(req.user.id);
+
+      if (search) {
+        const scraps = await this.scrapsService.search(search, userId);
+        return this.enrichScrapsWithMetadata(scraps);
+      }
+
+      if (articleId) {
+        const scraps = await this.scrapsService.findByArticle(articleId);
+        return this.enrichScrapsWithMetadata(scraps);
+      }
+
+      // Get user's scraps with enhanced metadata
+      const scraps = await this.scrapsService.findByUser(userId, sortBy, sortOrder);
+
+      // Batch fetch full response DTOs with all metadata fields
+      const scrapIds = scraps.map(scrap => scrap.scrapId);
+      return await this.scrapsService.findMany(scrapIds);
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * GET /api/v2/scraps/:scrapId - 스크랩 상세 조회 (향상된 메타데이터 포함)
+   */
+  @Version('2')
+  @Get(':scrapId')
+  async findOneV2(
+    @Param('scrapId', ParseIntPipe) scrapId: number,
+  ): Promise<ScrapResponseDto> {
+    try {
+      const scrap = await this.scrapsService.findOne(scrapId);
+      if (!scrap) {
+        throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
+      }
+      // V2 returns all enhanced metadata fields
+      return scrap;
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Helper method to enrich scraps with enhanced metadata
+   */
+  private async enrichScrapsWithMetadata(scraps: any[]): Promise<ScrapResponseDto[]> {
+    const scrapIds = scraps.map(scrap => scrap.scrapId);
+    return await this.scrapsService.findMany(scrapIds);
+  }
 }

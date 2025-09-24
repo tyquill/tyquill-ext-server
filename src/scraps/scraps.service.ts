@@ -63,10 +63,34 @@ export class ScrapsService {
     scrap.url = createScrapDto.url;
     scrap.title = createScrapDto.title;
     scrap.content = createScrapDto.content;
-    scrap.htmlContent = '';
+    scrap.htmlContent = createScrapDto.htmlContent || '';
     scrap.description = createScrapDto.description;
     scrap.userComment = createScrapDto.userComment;
     scrap.user = user;
+
+    // Store new metadata fields
+    if (createScrapDto.webpage) {
+      scrap.webpage = createScrapDto.webpage;
+    }
+
+    if (createScrapDto.content_info) {
+      scrap.contentInfo = createScrapDto.content_info;
+    }
+
+    if (createScrapDto.hero_image_url) {
+      scrap.heroImageUrl = createScrapDto.hero_image_url;
+    }
+
+    if (createScrapDto.published_at) {
+      scrap.publishedAt = new Date(createScrapDto.published_at);
+    }
+
+    if (createScrapDto.authors) {
+      scrap.authors = createScrapDto.authors;
+    }
+
+    scrap.type = createScrapDto.type || 'webclip';
+    scrap.from = createScrapDto.from || 'extension';
 
     if (article) {
       scrap.article = article;
@@ -100,6 +124,39 @@ export class ScrapsService {
     );
 
     return scrap ? this.toScrapResponseDto(scrap) : null;
+  }
+
+  /**
+   * Find multiple scraps by their IDs in a single query
+   * @param scrapIds Array of scrap IDs to fetch
+   * @returns Array of ScrapResponseDto for found scraps
+   */
+  async findMany(scrapIds: number[]): Promise<ScrapResponseDto[]> {
+    if (!scrapIds || scrapIds.length === 0) {
+      return [];
+    }
+
+    const scraps = await this.scrapRepository.find(
+      {
+        scrapId: { $in: scrapIds },
+        isDeleted: false
+      },
+      {
+        populate: ['tags', 'scrapFolders.folder'],
+        filters: { isDeleted: false },
+      },
+    );
+
+    // Convert all found scraps to DTOs and maintain the original order
+    const scrapMap = new Map<number, ScrapResponseDto>();
+    scraps.forEach(scrap => {
+      scrapMap.set(scrap.scrapId, this.toScrapResponseDto(scrap));
+    });
+
+    // Return scraps in the same order as requested IDs
+    return scrapIds
+      .map(id => scrapMap.get(id))
+      .filter((scrap): scrap is ScrapResponseDto => scrap !== undefined);
   }
 
   async findByUser(
@@ -422,6 +479,8 @@ export class ScrapsService {
           name: sf.folder.name,
           color: sf.folder.color,
         })),
+      heroImageUrl: scrap.heroImageUrl,
+      type: scrap.type,
     };
   }
 
@@ -458,6 +517,14 @@ export class ScrapsService {
           name: sf.folder.name,
           color: sf.folder.color,
         })),
+      // New metadata fields
+      contentInfo: scrap.contentInfo,
+      webpage: scrap.webpage,
+      heroImageUrl: scrap.heroImageUrl,
+      publishedAt: scrap.publishedAt,
+      authors: scrap.authors,
+      type: scrap.type,
+      from: scrap.from,
     };
   }
 }

@@ -134,7 +134,81 @@ export class ScrapResponseDto {
   folders?: {
     folderId: number;
     name: string;
+    color?: string;
   }[];
+
+  // New metadata fields
+  @ApiProperty({
+    description: 'Content information in different formats',
+    required: false,
+  })
+  contentInfo?: {
+    raw?: string;
+    plain?: string;
+    text?: string;
+    language?: string;
+    format?: string;
+  };
+
+  @ApiProperty({
+    description: 'Webpage metadata',
+    required: false,
+  })
+  webpage?: {
+    url?: string;
+    title?: string;
+    description?: string;
+    site?: {
+      host?: string;
+      favicon_url?: string;
+      name?: string;
+    };
+  };
+
+  @ApiProperty({
+    description: 'Hero image URL',
+    required: false,
+    example: 'https://example.com/image.jpg',
+  })
+  heroImageUrl?: string;
+
+  @ApiProperty({
+    description: 'Published date',
+    required: false,
+    example: '2023-01-01T00:00:00Z',
+  })
+  publishedAt?: Date;
+
+  @ApiProperty({
+    description: 'Authors information',
+    required: false,
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'John Doe' },
+        picture: { type: 'string', example: 'https://example.com/avatar.jpg' },
+      },
+    },
+  })
+  authors?: Array<{
+    name?: string;
+    picture?: string;
+  }>;
+
+  @ApiProperty({
+    description: 'Content type',
+    required: false,
+    example: 'webclip',
+  })
+  type?: string;
+
+  @ApiProperty({
+    description: 'Source of the scrap',
+    required: false,
+    example: 'extension',
+  })
+  from?: string;
 }
 
 export class ScrapSummaryDto {
@@ -242,7 +316,22 @@ export class ScrapSummaryDto {
   folders?: {
     folderId: number;
     name: string;
+    color?: string;
   }[];
+
+  @ApiProperty({
+    description: 'Hero image URL',
+    required: false,
+    example: 'https://example.com/image.jpg',
+  })
+  heroImageUrl?: string;
+
+  @ApiProperty({
+    description: 'Content type',
+    required: false,
+    example: 'webclip',
+  })
+  type?: string;
 }
 
 export class ScrapListResponse {

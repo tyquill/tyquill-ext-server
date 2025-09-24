@@ -63,10 +63,34 @@ export class ScrapsService {
     scrap.url = createScrapDto.url;
     scrap.title = createScrapDto.title;
     scrap.content = createScrapDto.content;
-    scrap.htmlContent = '';
+    scrap.htmlContent = createScrapDto.htmlContent || '';
     scrap.description = createScrapDto.description;
     scrap.userComment = createScrapDto.userComment;
     scrap.user = user;
+
+    // Store new metadata fields
+    if (createScrapDto.webpage) {
+      scrap.webpage = createScrapDto.webpage;
+    }
+
+    if (createScrapDto.content_info) {
+      scrap.contentInfo = createScrapDto.content_info;
+    }
+
+    if (createScrapDto.hero_image_url) {
+      scrap.heroImageUrl = createScrapDto.hero_image_url;
+    }
+
+    if (createScrapDto.published_at) {
+      scrap.publishedAt = new Date(createScrapDto.published_at);
+    }
+
+    if (createScrapDto.authors) {
+      scrap.authors = createScrapDto.authors;
+    }
+
+    scrap.type = createScrapDto.type || 'webclip';
+    scrap.from = createScrapDto.from || 'extension';
 
     if (article) {
       scrap.article = article;
@@ -422,6 +446,8 @@ export class ScrapsService {
           name: sf.folder.name,
           color: sf.folder.color,
         })),
+      heroImageUrl: scrap.heroImageUrl,
+      type: scrap.type,
     };
   }
 
@@ -458,6 +484,14 @@ export class ScrapsService {
           name: sf.folder.name,
           color: sf.folder.color,
         })),
+      // New metadata fields
+      contentInfo: scrap.contentInfo,
+      webpage: scrap.webpage,
+      heroImageUrl: scrap.heroImageUrl,
+      publishedAt: scrap.publishedAt,
+      authors: scrap.authors,
+      type: scrap.type,
+      from: scrap.from,
     };
   }
 }

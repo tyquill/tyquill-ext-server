@@ -27,6 +27,15 @@ export class Scrap {
   @Property({ name: 'content', type: 'text' })
   content: string;
 
+  @Property({ name: 'content_info', type: 'json', nullable: true })
+  contentInfo?: {
+    raw?: string;     // HTML with tags
+    plain?: string;   // Markdown format
+    text?: string;    // Pure text only
+    language?: string;
+    format?: string;
+  };
+
   @Property({ name: 'html_content', type: 'text' })
   htmlContent: string;
 
@@ -54,6 +63,36 @@ export class Scrap {
 
   @Property({ name: 'user_comment', type: 'text', nullable: true })
   userComment?: string;
+
+  @Property({ name: 'webpage', type: 'json', nullable: true })
+  webpage?: {
+    url?: string;
+    title?: string;
+    description?: string;
+    site?: {
+      host?: string;
+      favicon_url?: string;
+      name?: string;
+    };
+  };
+
+  @Property({ name: 'hero_image_url', type: 'text', nullable: true })
+  heroImageUrl?: string;
+
+  @Property({ name: 'published_at', type: 'timestamp', nullable: true })
+  publishedAt?: Date;
+
+  @Property({ name: 'authors', type: 'json', nullable: true })
+  authors?: Array<{
+    name?: string;
+    picture?: string;
+  }>;
+
+  @Property({ name: 'type', type: 'varchar', length: 50, nullable: true, default: 'webclip' })
+  type?: string;
+
+  @Property({ name: 'from_source', type: 'varchar', length: 50, nullable: true, default: 'extension' })
+  from?: string;
 
   @Property({ name: 'created_at' })
   createdAt: Date = new Date();

@@ -162,10 +162,31 @@ export class ScrapsService {
       filters: { isDeleted: false },
     });
 
-    // Convert all found scraps to DTOs and maintain the original order
+    // Convert all found scraps to DTOs with truncated content for list view
     const scrapMap = new Map<number, ScrapResponseDto>();
     scraps.forEach((scrap) => {
-      scrapMap.set(scrap.scrapId, this.toScrapResponseDto(scrap));
+      const dto = this.toScrapResponseDto(scrap);
+
+      // Truncate content fields to 100 characters for list view
+      if (dto.content && dto.content.length > 100) {
+        dto.content = dto.content.substring(0, 100) + '...';
+      }
+      if (dto.htmlContent && dto.htmlContent.length > 100) {
+        dto.htmlContent = dto.htmlContent.substring(0, 100) + '...';
+      }
+      if (dto.contentInfo) {
+        if (dto.contentInfo.raw && dto.contentInfo.raw.length > 100) {
+          dto.contentInfo.raw = dto.contentInfo.raw.substring(0, 100) + '...';
+        }
+        if (dto.contentInfo.plain && dto.contentInfo.plain.length > 100) {
+          dto.contentInfo.plain = dto.contentInfo.plain.substring(0, 100) + '...';
+        }
+        if (dto.contentInfo.text && dto.contentInfo.text.length > 100) {
+          dto.contentInfo.text = dto.contentInfo.text.substring(0, 100) + '...';
+        }
+      }
+
+      scrapMap.set(scrap.scrapId, dto);
     });
 
     // Return scraps in the same order as requested IDs

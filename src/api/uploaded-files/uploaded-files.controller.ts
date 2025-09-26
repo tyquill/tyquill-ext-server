@@ -22,7 +22,6 @@ import { UploadedFilesService } from '../../uploaded-files/uploaded-files.servic
 import { UpdateUploadedFileDto } from './dto/update-uploaded-file.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
-
 @Controller('uploaded-files')
 export class UploadedFilesController {
   constructor(private readonly uploadedFilesService: UploadedFilesService) {}
@@ -103,5 +102,4 @@ export class UploadedFilesController {
     this.uploadedFilesService.remove(+id, req.user.id);
     return { message: 'Uploaded file deleted successfully' };
   }
-
 }

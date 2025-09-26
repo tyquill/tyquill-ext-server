@@ -119,24 +119,6 @@ export class ScrapResponseDto {
     name: string;
   }[];
 
-  @ApiProperty({
-    description: 'Folders containing this scrap',
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        folderId: { type: 'number', example: 1 },
-        name: { type: 'string', example: 'Research' },
-      },
-    },
-    example: [{ folderId: 1, name: 'Research' }],
-  })
-  folders?: {
-    folderId: number;
-    name: string;
-    color?: string;
-  }[];
-
   // New metadata fields
   @ApiProperty({
     description: 'Content information in different formats',
@@ -299,24 +281,6 @@ export class ScrapSummaryDto {
   tags?: {
     tagId: number;
     name: string;
-  }[];
-
-  @ApiProperty({
-    description: 'Folders containing this scrap',
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        folderId: { type: 'number', example: 1 },
-        name: { type: 'string', example: 'Research' },
-      },
-    },
-    example: [{ folderId: 1, name: 'Research' }],
-  })
-  folders?: {
-    folderId: number;
-    name: string;
-    color?: string;
   }[];
 
   @ApiProperty({

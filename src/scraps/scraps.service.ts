@@ -109,7 +109,7 @@ export class ScrapsService {
       : { isDeleted: false, mimeType: null };
 
     return await this.scrapRepository.find(query, {
-      populate: ['tags', 'scrapFolders.folder'],
+ㅇ      populate: ['tags'],
       filters: { isDeleted: false },
     });
   }
@@ -118,7 +118,7 @@ export class ScrapsService {
     const scrap = await this.scrapRepository.findOne(
       { scrapId, isDeleted: false },
       {
-        populate: ['tags', 'scrapFolders.folder'],
+        populate: ['tags'],
         filters: { isDeleted: false },
       },
     );
@@ -139,23 +139,23 @@ export class ScrapsService {
     const scraps = await this.scrapRepository.find(
       {
         scrapId: { $in: scrapIds },
-        isDeleted: false
+        isDeleted: false,
       },
       {
-        populate: ['tags', 'scrapFolders.folder'],
+        populate: ['tags'],
         filters: { isDeleted: false },
       },
     );
 
     // Convert all found scraps to DTOs and maintain the original order
     const scrapMap = new Map<number, ScrapResponseDto>();
-    scraps.forEach(scrap => {
+    scraps.forEach((scrap) => {
       scrapMap.set(scrap.scrapId, this.toScrapResponseDto(scrap));
     });
 
     // Return scraps in the same order as requested IDs
     return scrapIds
-      .map(id => scrapMap.get(id))
+      .map((id) => scrapMap.get(id))
       .filter((scrap): scrap is ScrapResponseDto => scrap !== undefined);
   }
 
@@ -180,7 +180,7 @@ export class ScrapsService {
     }
 
     const scraps = await this.scrapRepository.find(query, {
-      populate: ['tags', 'scrapFolders.folder'],
+      populate: ['tags'],
       orderBy: orderBy,
       filters: { isDeleted: false },
     });
@@ -193,7 +193,7 @@ export class ScrapsService {
     return await this.scrapRepository.find(
       { article: { articleId }, isDeleted: false },
       {
-        populate: ['tags', 'scrapFolders.folder'],
+        populate: ['tags'],
         filters: { isDeleted: false },
       },
     );
@@ -232,7 +232,7 @@ export class ScrapsService {
     const scrap = await this.scrapRepository.findOne(
       { scrapId },
       {
-        populate: ['tags', 'scrapFolders.folder'],
+        populate: ['tags'],
         filters: { isDeleted: false },
       },
     );
@@ -266,9 +266,7 @@ export class ScrapsService {
 
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
-      .leftJoinAndSelect('s.tags', 't')
-      .leftJoinAndSelect('s.scrapFolders', 'sf')
-      .leftJoinAndSelect('sf.folder', 'f');
+      .leftJoinAndSelect('s.tags', 't');
 
     return await qb.getResult();
   }
@@ -285,9 +283,7 @@ export class ScrapsService {
     // 기본 조인
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
-      .leftJoinAndSelect('s.tags', 't')
-      .leftJoinAndSelect('s.scrapFolders', 'sf')
-      .leftJoinAndSelect('sf.folder', 'f');
+      .leftJoinAndSelect('s.tags', 't');
 
     // 텍스트 검색 (풀텍스트 검색)
     if (searchOptions.query) {
@@ -381,8 +377,6 @@ export class ScrapsService {
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
       .leftJoinAndSelect('s.tags', 't')
-      .leftJoinAndSelect('s.scrapFolders', 'sf')
-      .leftJoinAndSelect('sf.folder', 'f')
       .where({ isDeleted: false });
 
     if (matchAll) {
@@ -471,14 +465,6 @@ export class ScrapsService {
         tagId: tag.tagId,
         name: tag.name,
       })),
-      folders: scrap.scrapFolders
-        ?.getItems()
-        .filter((sf) => !sf.isDeleted)
-        .map((sf) => ({
-          folderId: sf.folder.folderId,
-          name: sf.folder.name,
-          color: sf.folder.color,
-        })),
       heroImageUrl: scrap.heroImageUrl,
       type: scrap.type,
     };
@@ -509,14 +495,6 @@ export class ScrapsService {
         tagId: tag.tagId,
         name: tag.name,
       })),
-      folders: scrap.scrapFolders
-        ?.getItems()
-        .filter((sf) => !sf.isDeleted)
-        .map((sf) => ({
-          folderId: sf.folder.folderId,
-          name: sf.folder.name,
-          color: sf.folder.color,
-        })),
       // New metadata fields
       contentInfo: scrap.contentInfo,
       webpage: scrap.webpage,

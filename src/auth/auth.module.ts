@@ -15,6 +15,7 @@ import { CallbackController } from './callback.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard, OptionalJwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { UsersModule } from '../users/users.module';
       }),
     }),
     UsersModule,
+    NotificationsModule,
   ],
   controllers: [AuthController, CallbackController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard, OptionalJwtAuthGuard],

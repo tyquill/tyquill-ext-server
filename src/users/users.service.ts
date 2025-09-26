@@ -73,7 +73,7 @@ export class UsersService {
   /**
    * OAuth를 통한 사용자 생성 또는 업데이트
    */
-  async createOrUpdateOAuthUser(data: CreateOAuthUserData): Promise<User> {
+  async createOrUpdateOAuthUser(data: CreateOAuthUserData): Promise<{ user: User; isNewUser: boolean }> {
     // 1. 기존 OAuth 계정 확인
     const existingOAuth = await this.userOAuthRepository.findOne(
       { oauthProvider: data.oauthProvider, oauthId: data.oauthId },
@@ -94,11 +94,12 @@ export class UsersService {
       }
 
       await this.em.persistAndFlush([existingOAuth, user]);
-      return user;
+      return { user, isNewUser: false };
     }
 
     // 2. 이메일로 기존 사용자 확인
     let user = await this.findByEmail(data.email);
+    let isNewUser = false;
 
     if (!user) {
       // 새 사용자 생성
@@ -107,6 +108,7 @@ export class UsersService {
       user.name = data.name;
       user.role = UserRole.USER;
       await this.em.persistAndFlush(user);
+      isNewUser = true;
 
       // Event tracking moved to client
     }
@@ -122,7 +124,8 @@ export class UsersService {
     await this.em.persistAndFlush([userOAuth, user]);
 
     // 4. 사용자 정보 다시 로드 (OAuth 계정 포함)
-    return (await this.findOne(user.userId)) as User;
+    const fullUser = (await this.findOne(user.userId)) as User;
+    return { user: fullUser, isNewUser };
   }
 
   /**

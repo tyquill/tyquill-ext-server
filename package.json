@@ -45,6 +45,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
+    "@slack/webhook": "^7.0.6",
     "@ssut/nestjs-sqs": "^3.0.1",
     "@types/cheerio": "^0.22.35",
     "@types/uuid": "^10.0.0",

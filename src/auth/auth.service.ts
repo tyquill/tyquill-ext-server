@@ -12,6 +12,7 @@ import { AuthenticatedUser } from './strategies/jwt.strategy';
 import { UsersService } from '../users/users.service';
 import { OAuthProvider } from '../users/entities/user-oauth.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { SlackService } from '../notifications/slack.service';
 
 /**
  * Google OAuth 인증 요청 DTO
@@ -76,6 +77,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
+    private readonly slackService: SlackService,
   ) {
     this.logger.log(
       '✅ AuthService initialized successfully for Chrome Extension',
@@ -114,7 +116,7 @@ export class AuthService {
       );
 
       // 데이터베이스에서 사용자 생성 또는 업데이트
-      const user = await this.usersService.createOrUpdateOAuthUser({
+      const { user, isNewUser } = await this.usersService.createOrUpdateOAuthUser({
         email: userInfo.email,
         name: userInfo.name,
         oauthProvider: OAuthProvider.GOOGLE,
@@ -122,10 +124,22 @@ export class AuthService {
         profileData: userInfo,
       });
 
+      // 신규 사용자인 경우 Slack 알림 전송
+      if (isNewUser) {
+        await this.slackService.notifyNewUserSignup({
+          email: user.email,
+          name: user.name,
+          userId: user.userId,
+          provider: 'Google OAuth (Chrome Extension)',
+          createdAt: user.createdAt,
+        });
+      }
+
       this.logger.log('Chrome Extension OAuth authentication successful', {
         userId: user.userId,
         email: user.email,
         extensionId: tokenDto.extensionId,
+        isNewUser,
       });
 
       return await this.buildAuthResponse(user, 'google');
@@ -238,7 +252,7 @@ export class AuthService {
       );
 
       // 3. 데이터베이스에서 사용자 생성 또는 업데이트
-      const user = await this.usersService.createOrUpdateOAuthUser({
+      const { user, isNewUser } = await this.usersService.createOrUpdateOAuthUser({
         email: userInfo.email,
         name: userInfo.name,
         oauthProvider: OAuthProvider.GOOGLE,
@@ -246,9 +260,21 @@ export class AuthService {
         profileData: userInfo,
       });
 
+      // 신규 사용자인 경우 Slack 알림 전송
+      if (isNewUser) {
+        await this.slackService.notifyNewUserSignup({
+          email: user.email,
+          name: user.name,
+          userId: user.userId,
+          provider: 'Google OAuth (Web)',
+          createdAt: user.createdAt,
+        });
+      }
+
       this.logger.log('Google OAuth authentication successful', {
         userId: user.userId,
         email: user.email,
+        isNewUser,
       });
 
       return await this.buildAuthResponse(user, 'google');

@@ -172,9 +172,11 @@ export class ScrapsController {
   @Get(':scrapId')
   async findOne(
     @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Request() req: any,
   ): Promise<ScrapResponseDto> {
     try {
-      const scrap = await this.scrapsService.findOne(scrapId);
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      const scrap = await this.scrapsService.findOne(scrapId, userId);
       if (!scrap) {
         throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
       }
@@ -195,10 +197,12 @@ export class ScrapsController {
   async update(
     @Param('scrapId', ParseIntPipe) scrapId: number,
     @Body() updateScrapDto: UpdateScrapDto,
+    @Request() req: any,
   ) {
     try {
-      await this.validateScrapExists(scrapId);
-      return await this.scrapsService.update(scrapId, updateScrapDto);
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      await this.validateScrapExists(scrapId, userId);
+      return await this.scrapsService.update(scrapId, updateScrapDto, userId);
     } catch (error: any) {
       if (error instanceof HttpException) {
         throw error;
@@ -212,9 +216,13 @@ export class ScrapsController {
    */
   @Version('1')
   @Delete(':scrapId')
-  async remove(@Param('scrapId', ParseIntPipe) scrapId: number) {
+  async remove(
+    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Request() req: any,
+  ) {
     try {
-      await this.scrapsService.remove(scrapId);
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      await this.scrapsService.remove(scrapId, userId);
       return { message: 'Scrap deleted successfully' };
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -249,8 +257,8 @@ export class ScrapsController {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
 
-      // 스크랩 존재 확인
-      await this.validateScrapExists(scrapId);
+      // 스크랩 존재 및 권한 확인
+      await this.validateScrapExists(scrapId, userId);
 
       // 태그 생성 (scrapId와 함께)
       const tagData = { ...createTagDto, scrapId };
@@ -263,8 +271,8 @@ export class ScrapsController {
     }
   }
 
-  private async validateScrapExists(scrapId: number) {
-    const scrap = await this.scrapsService.findOne(scrapId);
+  private async validateScrapExists(scrapId: number, userId?: number) {
+    const scrap = await this.scrapsService.findOne(scrapId, userId);
     if (!scrap) {
       throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
     }
@@ -275,10 +283,14 @@ export class ScrapsController {
    */
   @Version('1')
   @Get(':scrapId/tags')
-  async getScrapTags(@Param('scrapId', ParseIntPipe) scrapId: number) {
+  async getScrapTags(
+    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Request() req: any,
+  ) {
     try {
-      // 스크랩 존재 확인
-      await this.validateScrapExists(scrapId);
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      // 스크랩 존재 및 권한 확인
+      await this.validateScrapExists(scrapId, userId);
 
       return await this.tagsService.findByScrap(scrapId);
     } catch (error: any) {
@@ -302,8 +314,8 @@ export class ScrapsController {
     try {
       const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
 
-      // 스크랩 존재 확인
-      const scrap = await this.scrapsService.findOne(scrapId);
+      // 스크랩 존재 및 권한 확인
+      const scrap = await this.scrapsService.findOne(scrapId, userId);
       if (!scrap) {
         throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
       }
@@ -379,12 +391,12 @@ export class ScrapsController {
 
       if (search) {
         const scraps = await this.scrapsService.search(search, userId);
-        return this.enrichScrapsWithMetadata(scraps);
+        return this.enrichScrapsWithMetadata(scraps, userId);
       }
 
       if (articleId) {
         const scraps = await this.scrapsService.findByArticle(articleId);
-        return this.enrichScrapsWithMetadata(scraps);
+        return this.enrichScrapsWithMetadata(scraps, userId);
       }
 
       // Get user's scraps with enhanced metadata
@@ -396,7 +408,7 @@ export class ScrapsController {
 
       // Batch fetch full response DTOs with all metadata fields
       const scrapIds = scraps.map((scrap) => scrap.scrapId);
-      return await this.scrapsService.findMany(scrapIds);
+      return await this.scrapsService.findMany(scrapIds, userId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -409,9 +421,11 @@ export class ScrapsController {
   @Get(':scrapId')
   async findOneV2(
     @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Request() req: any,
   ): Promise<ScrapResponseDto> {
     try {
-      const scrap = await this.scrapsService.findOne(scrapId);
+      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      const scrap = await this.scrapsService.findOne(scrapId, userId);
       if (!scrap) {
         throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
       }
@@ -430,8 +444,9 @@ export class ScrapsController {
    */
   private async enrichScrapsWithMetadata(
     scraps: any[],
+    userId: number,
   ): Promise<ScrapResponseDto[]> {
     const scrapIds = scraps.map((scrap) => scrap.scrapId);
-    return await this.scrapsService.findMany(scrapIds);
+    return await this.scrapsService.findMany(scrapIds, userId);
   }
 }

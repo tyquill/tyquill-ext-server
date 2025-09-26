@@ -19,7 +19,12 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:articles": "jest --config ./test/jest-e2e.json --testNamePattern=\"Articles E2E\"",
-    "test:production": "ts-node -r tsconfig-paths/register test/production-test.ts"
+    "test:production": "ts-node -r tsconfig-paths/register test/production-test.ts",
+    "migration:create": "mikro-orm migration:create",
+    "migration:up": "mikro-orm migration:up",
+    "migration:down": "mikro-orm migration:down",
+    "migration:list": "mikro-orm migration:list",
+    "migration:up:prod": "NODE_ENV=production mikro-orm migration:up"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.879.0",

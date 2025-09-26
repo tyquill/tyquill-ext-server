@@ -46,6 +46,7 @@ async function bootstrap() {
     .addTag('Users', 'User management endpoints')
     .addTag('Article Archive', 'Article archive management endpoints')
     .addTag('Library Items', 'Unified library items (scraps/uploads) endpoints')
+    .addTag('folders', 'Folder management and organization endpoints')
     .build();
 
   // api prefix 추가
@@ -65,22 +66,9 @@ async function bootstrap() {
 
   // CORS 설정 (크롬 익스텐션 포함)
   app.enableCors({
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? [
-            process.env.FRONTEND_URL,
-            process.env.ADMIN_URL,
-            `chrome-extension://${process.env.CHROME_EXTENSION_ID}`,
-            `chrome-extension://${process.env.CHROME_EXTENSION_ID_2}`,
-          ].filter(Boolean)
-        : [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            `chrome-extension://${process.env.CHROME_EXTENSION_ID}`,
-            `chrome-extension://${process.env.CHROME_EXTENSION_ID_2}`,
-          ].filter(Boolean),
+    origin: '*',
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 

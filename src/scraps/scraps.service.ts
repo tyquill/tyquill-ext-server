@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { CreateScrapDto } from '../api/scraps/dto/create-scrap.dto';
 import { UpdateScrapDto } from '../api/scraps/dto/update-scrap.dto';
+import {
+  ScrapResponseDto,
+  ScrapSummaryDto,
+} from '../api/scraps/dto/scrap-response.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { Scrap } from './entities/scrap.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
@@ -40,7 +44,7 @@ export class ScrapsService {
     createScrapDto: CreateScrapDto,
     userId: number,
     articleId?: number,
-  ): Promise<Scrap> {
+  ): Promise<ScrapSummaryDto> {
     const user = await this.userRepository.findOne({ userId });
     if (!user) {
       throw new Error('User not found');
@@ -59,20 +63,44 @@ export class ScrapsService {
     scrap.url = createScrapDto.url;
     scrap.title = createScrapDto.title;
     scrap.content = createScrapDto.content;
-    scrap.htmlContent = '';
+    scrap.htmlContent = createScrapDto.htmlContent || '';
     scrap.description = createScrapDto.description;
     scrap.userComment = createScrapDto.userComment;
     scrap.user = user;
+
+    // Store new metadata fields
+    if (createScrapDto.webpage) {
+      scrap.webpage = createScrapDto.webpage;
+    }
+
+    if (createScrapDto.content_info) {
+      scrap.contentInfo = createScrapDto.content_info;
+    }
+
+    if (createScrapDto.hero_image_url) {
+      scrap.heroImageUrl = createScrapDto.hero_image_url;
+    }
+
+    if (createScrapDto.published_at) {
+      scrap.publishedAt = new Date(createScrapDto.published_at);
+    }
+
+    if (createScrapDto.authors) {
+      scrap.authors = createScrapDto.authors;
+    }
+
+    scrap.type = createScrapDto.type || 'webclip';
+    scrap.from = createScrapDto.from || 'extension';
 
     if (article) {
       scrap.article = article;
     }
 
     await this.em.persistAndFlush(scrap);
-    scrap.content = scrap.content.substring(0, 100);
 
     // Event tracking moved to client
-    return scrap;
+    // Return DTO instead of mutated entity
+    return this.toScrapSummaryDto(scrap);
   }
 
   async findAll(userId?: number): Promise<Scrap[]> {
@@ -86,21 +114,92 @@ export class ScrapsService {
     });
   }
 
-  async findOne(scrapId: number): Promise<Scrap | null> {
-    return await this.scrapRepository.findOne(
-      { scrapId, isDeleted: false },
-      {
-        populate: ['tags'],
-        filters: { isDeleted: false },
-      },
-    );
+  async findOne(
+    scrapId: number,
+    userId?: number,
+  ): Promise<ScrapResponseDto | null> {
+    const query: any = { scrapId, isDeleted: false };
+
+    // Add user authorization if userId is provided
+    if (userId !== undefined) {
+      query.user = { userId };
+    }
+
+    const scrap = await this.scrapRepository.findOne(query, {
+      populate: ['tags'],
+      filters: { isDeleted: false },
+    });
+
+    return scrap ? this.toScrapResponseDto(scrap) : null;
+  }
+
+  /**
+   * Find multiple scraps by their IDs in a single query
+   * @param scrapIds Array of scrap IDs to fetch
+   * @param userId Optional user ID for authorization
+   * @returns Array of ScrapResponseDto for found scraps
+   */
+  async findMany(
+    scrapIds: number[],
+    userId?: number,
+  ): Promise<ScrapResponseDto[]> {
+    if (!scrapIds || scrapIds.length === 0) {
+      return [];
+    }
+
+    const query: any = {
+      scrapId: { $in: scrapIds },
+      isDeleted: false,
+    };
+
+    // Add user authorization if userId is provided
+    if (userId !== undefined) {
+      query.user = { userId };
+    }
+
+    const scraps = await this.scrapRepository.find(query, {
+      populate: ['tags'],
+      filters: { isDeleted: false },
+    });
+
+    // Convert all found scraps to DTOs with truncated content for list view
+    const scrapMap = new Map<number, ScrapResponseDto>();
+    scraps.forEach((scrap) => {
+      const dto = this.toScrapResponseDto(scrap);
+
+      // Truncate content fields to 100 characters for list view
+      if (dto.content && dto.content.length > 100) {
+        dto.content = dto.content.substring(0, 100) + '...';
+      }
+      if (dto.htmlContent && dto.htmlContent.length > 100) {
+        dto.htmlContent = dto.htmlContent.substring(0, 100) + '...';
+      }
+      if (dto.contentInfo) {
+        if (dto.contentInfo.raw && dto.contentInfo.raw.length > 100) {
+          dto.contentInfo.raw = dto.contentInfo.raw.substring(0, 100) + '...';
+        }
+        if (dto.contentInfo.plain && dto.contentInfo.plain.length > 100) {
+          dto.contentInfo.plain = dto.contentInfo.plain.substring(0, 100) + '...';
+        }
+        if (dto.contentInfo.text && dto.contentInfo.text.length > 100) {
+          dto.contentInfo.text = dto.contentInfo.text.substring(0, 100) + '...';
+        }
+      }
+
+      scrapMap.set(scrap.scrapId, dto);
+    });
+
+    // Return scraps in the same order as requested IDs
+    return scrapIds
+      .map((id) => scrapMap.get(id))
+      .filter((scrap): scrap is ScrapResponseDto => scrap !== undefined);
   }
 
   async findByUser(
     userId: number,
     sortBy?: 'created_at' | 'updated_at' | 'title',
     sortOrder?: 'ASC' | 'DESC',
-  ): Promise<Scrap[]> {
+  ): Promise<ScrapSummaryDto[]> {
     const query = { user: { userId }, isDeleted: false, mimeType: null };
     let orderBy: any = { createdAt: 'DESC' };
 
@@ -122,27 +221,33 @@ export class ScrapsService {
       filters: { isDeleted: false },
     });
 
-    return scraps.map((scrap) => ({
-      ...scrap,
-      content: scrap.content.substring(0, 100),
-    }));
+    // Return DTOs with content preview instead of mutating entities
+    return scraps.map((scrap) => this.toScrapSummaryDto(scrap));
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {
     return await this.scrapRepository.find(
       { article: { articleId }, isDeleted: false },
-      { populate: ['tags'], filters: { isDeleted: false } },
+      {
+        populate: ['tags'],
+        filters: { isDeleted: false },
+      },
     );
   }
 
   async update(
     scrapId: number,
     updateScrapDto: UpdateScrapDto,
+    userId?: number,
   ): Promise<Scrap | null> {
-    const scrap = await this.scrapRepository.findOne({
-      scrapId,
-      isDeleted: false,
-    });
+    const query: any = { scrapId, isDeleted: false };
+
+    // Add user authorization if userId is provided
+    if (userId !== undefined) {
+      query.user = { userId };
+    }
+
+    const scrap = await this.scrapRepository.findOne(query);
     if (!scrap) {
       return null;
     }
@@ -164,14 +269,18 @@ export class ScrapsService {
     return scrap;
   }
 
-  async remove(scrapId: number): Promise<void> {
-    const scrap = await this.scrapRepository.findOne(
-      { scrapId },
-      {
-        populate: ['tags'],
-        filters: { isDeleted: false },
-      },
-    );
+  async remove(scrapId: number, userId?: number): Promise<void> {
+    const query: any = { scrapId };
+
+    // Add user authorization if userId is provided
+    if (userId !== undefined) {
+      query.user = { userId };
+    }
+
+    const scrap = await this.scrapRepository.findOne(query, {
+      populate: ['tags'],
+      filters: { isDeleted: false },
+    });
 
     if (scrap) {
       if (scrap.tags.length > 0) {
@@ -375,5 +484,70 @@ export class ScrapsService {
       // 실패 시 원본 텍스트의 일부만 반환
       return text.length > 500 ? text.substring(0, 500) + '...' : text;
     }
+  }
+
+  /**
+   * Convert Scrap entity to ScrapSummaryDto with content preview
+   */
+  private toScrapSummaryDto(scrap: Scrap): ScrapSummaryDto {
+    return {
+      scrapId: scrap.scrapId,
+      url: scrap.url,
+      title: scrap.title,
+      contentPreview:
+        scrap.content && scrap.content.length > 100
+          ? scrap.content.substring(0, 100) + '...'
+          : scrap.content,
+      description: scrap.description,
+      userComment: scrap.userComment,
+      fileName: scrap.fileName,
+      mimeType: scrap.mimeType,
+      isDeleted: scrap.isDeleted,
+      createdAt: scrap.createdAt,
+      updatedAt: scrap.updatedAt,
+      articleId: scrap.article?.articleId,
+      tags: scrap.tags?.getItems().map((tag) => ({
+        tagId: tag.tagId,
+        name: tag.name,
+      })),
+      heroImageUrl: scrap.heroImageUrl,
+      type: scrap.type,
+    };
+  }
+
+  /**
+   * Convert Scrap entity to ScrapResponseDto with full content
+   */
+  private toScrapResponseDto(scrap: Scrap): ScrapResponseDto {
+    return {
+      scrapId: scrap.scrapId,
+      url: scrap.url,
+      title: scrap.title,
+      content: scrap.content,
+      htmlContent: scrap.htmlContent,
+      description: scrap.description,
+      userComment: scrap.userComment,
+      fileName: scrap.fileName,
+      filePath: scrap.filePath,
+      mimeType: scrap.mimeType,
+      fileSize: scrap.fileSize,
+      aiContent: scrap.aiContent,
+      isDeleted: scrap.isDeleted,
+      createdAt: scrap.createdAt,
+      updatedAt: scrap.updatedAt,
+      articleId: scrap.article?.articleId,
+      tags: scrap.tags?.getItems().map((tag) => ({
+        tagId: tag.tagId,
+        name: tag.name,
+      })),
+      // New metadata fields
+      contentInfo: scrap.contentInfo,
+      webpage: scrap.webpage,
+      heroImageUrl: scrap.heroImageUrl,
+      publishedAt: scrap.publishedAt,
+      authors: scrap.authors,
+      type: scrap.type,
+      from: scrap.from,
+    };
   }
 }

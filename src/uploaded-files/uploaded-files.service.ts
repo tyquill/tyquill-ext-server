@@ -13,10 +13,6 @@ import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
-import { FileAnalysisProducerService } from '../queue/services/file-analysis-producer.service';
-import { FileAnalysisMessage } from '../queue/dto/file-analysis.dto';
-import { JobStatusService } from '../queue/services/job-status.service';
-import { JobStatus } from '../queue/entities/job-status.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 @Injectable()
@@ -24,10 +20,6 @@ export class UploadedFilesService {
   private readonly logger = new Logger(UploadedFilesService.name);
   private s3Client: S3Client;
   private bucket: string;
-  private readonly ANALYZABLE_MIME_TYPES = new Set([
-    'application/pdf',
-  ] as const);
-  private readonly MAX_JOB_SEARCH_LIMIT = 50;
 
   constructor(
     private readonly em: EntityManager,
@@ -35,8 +27,6 @@ export class UploadedFilesService {
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
-    private readonly fileAnalysisProducerService: FileAnalysisProducerService,
-    private readonly jobStatusService: JobStatusService,
   ) {
     this.bucket = process.env.AWS_S3_BUCKET || '';
     if (this.bucket === '') {
@@ -111,48 +101,6 @@ export class UploadedFilesService {
     await this.em.removeAndFlush(uploadedFile);
   }
 
-  async getAnalysis(
-    id: number,
-    userId: number,
-  ): Promise<{
-    markdown: string | null;
-    updatedAt?: Date;
-    status?: JobStatus;
-    jobUuid?: string;
-    error?: string;
-  }> {
-    const uploaded = await this.findOne(id, userId);
-
-    // Find the latest job for this uploaded file from recent jobs
-    let jobUuid: string | undefined;
-    let status: JobStatus | undefined;
-    let error: string | undefined;
-    try {
-      const jobs = await this.jobStatusService.getJobsByUser(
-        userId,
-        this.MAX_JOB_SEARCH_LIMIT,
-      );
-      const latest = jobs.find(
-        (j) => j.payload && j.payload.uploadedFileId === id,
-      );
-      if (latest) {
-        jobUuid = latest.jobUuid;
-        status = latest.status;
-        error = latest.errorMessage ?? undefined;
-      }
-    } catch (e) {
-      // ignore job lookup failures; return content only
-    }
-
-    return {
-      markdown: uploaded.aiContent ?? null,
-      updatedAt: uploaded.updatedAt ?? uploaded.createdAt,
-      status,
-      jobUuid,
-      error,
-    };
-  }
-
   async uploadToS3AndSave(
     file: Express.Multer.File,
     title: string,
@@ -201,11 +149,6 @@ export class UploadedFilesService {
         fileSize: file.size,
       });
 
-      // PDF 또는 문서 파일인 경우 AI 분석을 큐에 요청
-      if (this.shouldAnalyzeFile(file.mimetype)) {
-        await this.queueFileAnalysis(uploadedFile, fileUrl);
-      }
-
       // 임시 파일 정리
       if (tmpPath) {
         fs.promises.unlink(tmpPath).catch((error) => {
@@ -250,77 +193,5 @@ export class UploadedFilesService {
 
     await this.em.persistAndFlush(scrap);
     return scrap;
-  }
-
-  private shouldAnalyzeFile(mimeType: string): boolean {
-    return this.ANALYZABLE_MIME_TYPES.has(mimeType as any);
-  }
-
-  private async queueFileAnalysis(
-    uploadedFile: Scrap,
-    fileUrl: string,
-  ): Promise<string | null> {
-    try {
-      this.logger.log(
-        `📤 Queuing AI analysis for file: ${uploadedFile.fileName}`,
-      );
-
-      const analysisMessage: FileAnalysisMessage = {
-        uploadedFileId: uploadedFile.scrapId,
-        fileUrl: fileUrl,
-        fileName: uploadedFile.fileName!,
-        mimeType: uploadedFile.mimeType!,
-        userId: uploadedFile.user.userId,
-        timestamp: new Date().toISOString(),
-      };
-
-      const jobUuid =
-        await this.fileAnalysisProducerService.sendFileAnalysisRequest(
-          analysisMessage,
-        );
-
-      this.logger.log(
-        `✅ AI analysis queued for file: ${uploadedFile.fileName} (Job: ${jobUuid})`,
-      );
-      return jobUuid;
-    } catch (error) {
-      this.logger.error(
-        `❌ Failed to queue analysis for file ${uploadedFile.fileName}:`,
-        error,
-      );
-      // Don't throw - let the file upload succeed even if queueing fails
-      return null;
-    }
-  }
-
-  async retryAnalysis(
-    id: number,
-    userId: number,
-  ): Promise<{ jobUuid: string | null; status: 'queued' | 'error' }> {
-    const uploaded = await this.findOne(id, userId);
-
-    try {
-      const recentJobs = await this.jobStatusService.getJobsByUser(
-        userId,
-        this.MAX_JOB_SEARCH_LIMIT,
-      );
-      const pendingJob = recentJobs.find(
-        (j) =>
-          j.payload?.uploadedFileId === id &&
-          (j.status === JobStatus.PENDING || j.status === JobStatus.PROCESSING),
-      );
-
-      if (pendingJob) {
-        this.logger.warn(
-          `Analysis already in progress for file ${id} (Job: ${pendingJob.jobUuid})`,
-        );
-        return { jobUuid: pendingJob.jobUuid, status: 'queued' };
-      }
-    } catch (error) {
-      this.logger.error(`❌ Failed to retry analysis for file ${id}:`, error);
-    }
-
-    const jobUuid = await this.queueFileAnalysis(uploaded, uploaded.filePath!);
-    return { jobUuid, status: jobUuid ? 'queued' : 'error' };
   }
 }

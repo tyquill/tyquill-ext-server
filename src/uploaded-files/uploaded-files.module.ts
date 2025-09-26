@@ -7,10 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [
-    MikroOrmModule.forFeature([Scrap, User]),
-    AuthModule,
-  ],
+  imports: [MikroOrmModule.forFeature([Scrap, User]), AuthModule],
   controllers: [UploadedFilesController],
   providers: [UploadedFilesService],
   exports: [UploadedFilesService],

@@ -109,19 +109,26 @@ export class ScrapsService {
       : { isDeleted: false, mimeType: null };
 
     return await this.scrapRepository.find(query, {
-      populate: ['tags', 'scrapFolders.folder'],
+      populate: ['tags'],
       filters: { isDeleted: false },
     });
   }
 
-  async findOne(scrapId: number): Promise<ScrapResponseDto | null> {
-    const scrap = await this.scrapRepository.findOne(
-      { scrapId, isDeleted: false },
-      {
-        populate: ['tags', 'scrapFolders.folder'],
-        filters: { isDeleted: false },
-      },
-    );
+  async findOne(
+    scrapId: number,
+    userId?: number,
+  ): Promise<ScrapResponseDto | null> {
+    const query: any = { scrapId, isDeleted: false };
+
+    // Add user authorization if userId is provided
+    if (userId !== undefined) {
+      query.user = { userId };
+    }
+
+    const scrap = await this.scrapRepository.findOne(query, {
+      populate: ['tags'],
+      filters: { isDeleted: false },
+    });
 
     return scrap ? this.toScrapResponseDto(scrap) : null;
   }
@@ -129,33 +136,62 @@ export class ScrapsService {
   /**
    * Find multiple scraps by their IDs in a single query
    * @param scrapIds Array of scrap IDs to fetch
+   * @param userId Optional user ID for authorization
    * @returns Array of ScrapResponseDto for found scraps
    */
-  async findMany(scrapIds: number[]): Promise<ScrapResponseDto[]> {
+  async findMany(
+    scrapIds: number[],
+    userId?: number,
+  ): Promise<ScrapResponseDto[]> {
     if (!scrapIds || scrapIds.length === 0) {
       return [];
     }
 
-    const scraps = await this.scrapRepository.find(
-      {
-        scrapId: { $in: scrapIds },
-        isDeleted: false
-      },
-      {
-        populate: ['tags', 'scrapFolders.folder'],
-        filters: { isDeleted: false },
-      },
-    );
+    const query: any = {
+      scrapId: { $in: scrapIds },
+      isDeleted: false,
+    };
 
-    // Convert all found scraps to DTOs and maintain the original order
+    // Add user authorization if userId is provided
+    if (userId !== undefined) {
+      query.user = { userId };
+    }
+
+    const scraps = await this.scrapRepository.find(query, {
+      populate: ['tags'],
+      filters: { isDeleted: false },
+    });
+
+    // Convert all found scraps to DTOs with truncated content for list view
     const scrapMap = new Map<number, ScrapResponseDto>();
-    scraps.forEach(scrap => {
-      scrapMap.set(scrap.scrapId, this.toScrapResponseDto(scrap));
+    scraps.forEach((scrap) => {
+      const dto = this.toScrapResponseDto(scrap);
+
+      // Truncate content fields to 100 characters for list view
+      if (dto.content && dto.content.length > 100) {
+        dto.content = dto.content.substring(0, 100) + '...';
+      }
+      if (dto.htmlContent && dto.htmlContent.length > 100) {
+        dto.htmlContent = dto.htmlContent.substring(0, 100) + '...';
+      }
+      if (dto.contentInfo) {
+        if (dto.contentInfo.raw && dto.contentInfo.raw.length > 100) {
+          dto.contentInfo.raw = dto.contentInfo.raw.substring(0, 100) + '...';
+        }
+        if (dto.contentInfo.plain && dto.contentInfo.plain.length > 100) {
+          dto.contentInfo.plain = dto.contentInfo.plain.substring(0, 100) + '...';
+        }
+        if (dto.contentInfo.text && dto.contentInfo.text.length > 100) {
+          dto.contentInfo.text = dto.contentInfo.text.substring(0, 100) + '...';
+        }
+      }
+
+      scrapMap.set(scrap.scrapId, dto);
     });
 
     // Return scraps in the same order as requested IDs
     return scrapIds
-      .map(id => scrapMap.get(id))
+      .map((id) => scrapMap.get(id))
       .filter((scrap): scrap is ScrapResponseDto => scrap !== undefined);
   }
 
@@ -180,7 +216,7 @@ export class ScrapsService {
     }
 
     const scraps = await this.scrapRepository.find(query, {
-      populate: ['tags', 'scrapFolders.folder'],
+      populate: ['tags'],
       orderBy: orderBy,
       filters: { isDeleted: false },
     });
@@ -193,7 +229,7 @@ export class ScrapsService {
     return await this.scrapRepository.find(
       { article: { articleId }, isDeleted: false },
       {
-        populate: ['tags', 'scrapFolders.folder'],
+        populate: ['tags'],
         filters: { isDeleted: false },
       },
     );
@@ -202,11 +238,16 @@ export class ScrapsService {
   async update(
     scrapId: number,
     updateScrapDto: UpdateScrapDto,
+    userId?: number,
   ): Promise<Scrap | null> {
-    const scrap = await this.scrapRepository.findOne({
-      scrapId,
-      isDeleted: false,
-    });
+    const query: any = { scrapId, isDeleted: false };
+
+    // Add user authorization if userId is provided
+    if (userId !== undefined) {
+      query.user = { userId };
+    }
+
+    const scrap = await this.scrapRepository.findOne(query);
     if (!scrap) {
       return null;
     }
@@ -228,14 +269,18 @@ export class ScrapsService {
     return scrap;
   }
 
-  async remove(scrapId: number): Promise<void> {
-    const scrap = await this.scrapRepository.findOne(
-      { scrapId },
-      {
-        populate: ['tags', 'scrapFolders.folder'],
-        filters: { isDeleted: false },
-      },
-    );
+  async remove(scrapId: number, userId?: number): Promise<void> {
+    const query: any = { scrapId };
+
+    // Add user authorization if userId is provided
+    if (userId !== undefined) {
+      query.user = { userId };
+    }
+
+    const scrap = await this.scrapRepository.findOne(query, {
+      populate: ['tags'],
+      filters: { isDeleted: false },
+    });
 
     if (scrap) {
       if (scrap.tags.length > 0) {
@@ -266,9 +311,7 @@ export class ScrapsService {
 
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
-      .leftJoinAndSelect('s.tags', 't')
-      .leftJoinAndSelect('s.scrapFolders', 'sf')
-      .leftJoinAndSelect('sf.folder', 'f');
+      .leftJoinAndSelect('s.tags', 't');
 
     return await qb.getResult();
   }
@@ -285,9 +328,7 @@ export class ScrapsService {
     // 기본 조인
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
-      .leftJoinAndSelect('s.tags', 't')
-      .leftJoinAndSelect('s.scrapFolders', 'sf')
-      .leftJoinAndSelect('sf.folder', 'f');
+      .leftJoinAndSelect('s.tags', 't');
 
     // 텍스트 검색 (풀텍스트 검색)
     if (searchOptions.query) {
@@ -381,8 +422,6 @@ export class ScrapsService {
     qb.leftJoinAndSelect('s.user', 'u')
       .leftJoinAndSelect('s.article', 'a')
       .leftJoinAndSelect('s.tags', 't')
-      .leftJoinAndSelect('s.scrapFolders', 'sf')
-      .leftJoinAndSelect('sf.folder', 'f')
       .where({ isDeleted: false });
 
     if (matchAll) {
@@ -471,14 +510,6 @@ export class ScrapsService {
         tagId: tag.tagId,
         name: tag.name,
       })),
-      folders: scrap.scrapFolders
-        ?.getItems()
-        .filter((sf) => !sf.isDeleted)
-        .map((sf) => ({
-          folderId: sf.folder.folderId,
-          name: sf.folder.name,
-          color: sf.folder.color,
-        })),
       heroImageUrl: scrap.heroImageUrl,
       type: scrap.type,
     };
@@ -509,14 +540,6 @@ export class ScrapsService {
         tagId: tag.tagId,
         name: tag.name,
       })),
-      folders: scrap.scrapFolders
-        ?.getItems()
-        .filter((sf) => !sf.isDeleted)
-        .map((sf) => ({
-          folderId: sf.folder.folderId,
-          name: sf.folder.name,
-          color: sf.folder.color,
-        })),
       // New metadata fields
       contentInfo: scrap.contentInfo,
       webpage: scrap.webpage,

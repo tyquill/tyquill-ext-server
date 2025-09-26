@@ -101,7 +101,6 @@ export class UploadedFilesService {
     await this.em.removeAndFlush(uploadedFile);
   }
 
-
   async uploadToS3AndSave(
     file: Express.Multer.File,
     title: string,
@@ -150,7 +149,6 @@ export class UploadedFilesService {
         fileSize: file.size,
       });
 
-
       // 임시 파일 정리
       if (tmpPath) {
         fs.promises.unlink(tmpPath).catch((error) => {
@@ -196,5 +194,4 @@ export class UploadedFilesService {
     await this.em.persistAndFlush(scrap);
     return scrap;
   }
-
 }

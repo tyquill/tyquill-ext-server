@@ -116,13 +116,14 @@ export class AuthService {
       );
 
       // 데이터베이스에서 사용자 생성 또는 업데이트
-      const { user, isNewUser } = await this.usersService.createOrUpdateOAuthUser({
-        email: userInfo.email,
-        name: userInfo.name,
-        oauthProvider: OAuthProvider.GOOGLE,
-        oauthId: userInfo.id,
-        profileData: userInfo,
-      });
+      const { user, isNewUser } =
+        await this.usersService.createOrUpdateOAuthUser({
+          email: userInfo.email,
+          name: userInfo.name,
+          oauthProvider: OAuthProvider.GOOGLE,
+          oauthId: userInfo.id,
+          profileData: userInfo,
+        });
 
       // 신규 사용자인 경우 Slack 알림 전송
       if (isNewUser) {
@@ -252,13 +253,14 @@ export class AuthService {
       );
 
       // 3. 데이터베이스에서 사용자 생성 또는 업데이트
-      const { user, isNewUser } = await this.usersService.createOrUpdateOAuthUser({
-        email: userInfo.email,
-        name: userInfo.name,
-        oauthProvider: OAuthProvider.GOOGLE,
-        oauthId: userInfo.id,
-        profileData: userInfo,
-      });
+      const { user, isNewUser } =
+        await this.usersService.createOrUpdateOAuthUser({
+          email: userInfo.email,
+          name: userInfo.name,
+          oauthProvider: OAuthProvider.GOOGLE,
+          oauthId: userInfo.id,
+          profileData: userInfo,
+        });
 
       // 신규 사용자인 경우 Slack 알림 전송
       if (isNewUser) {

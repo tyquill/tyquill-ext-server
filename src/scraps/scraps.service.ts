@@ -179,7 +179,8 @@ export class ScrapsService {
           dto.contentInfo.raw = dto.contentInfo.raw.substring(0, 100) + '...';
         }
         if (dto.contentInfo.plain && dto.contentInfo.plain.length > 100) {
-          dto.contentInfo.plain = dto.contentInfo.plain.substring(0, 100) + '...';
+          dto.contentInfo.plain =
+            dto.contentInfo.plain.substring(0, 100) + '...';
         }
         if (dto.contentInfo.text && dto.contentInfo.text.length > 100) {
           dto.contentInfo.text = dto.contentInfo.text.substring(0, 100) + '...';

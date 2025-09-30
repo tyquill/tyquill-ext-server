@@ -19,6 +19,7 @@ import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
+import { SlackService } from '../notifications/slack.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 // Analytics tracking migrated to extension client (PostHog).
 
@@ -37,6 +38,7 @@ export class ArticlesService {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
     private readonly newsletterAgentService: NewsletterAgentService,
+    private readonly slackService: SlackService,
     @InjectRepository(WritingStyleExample)
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
     // Uploaded files are represented as scraps with file metadata
@@ -201,6 +203,28 @@ export class ArticlesService {
     await this.em.persistAndFlush(archive);
 
     // Event tracking moved to client
+
+    // Send Slack notification for successful article generation
+    const generationStartTime = Date.now();
+    try {
+      await this.slackService.notifyArticleGeneration({
+        articleId: article.articleId,
+        title: newsletterResult.title,
+        topic: generateDto.topic,
+        keyInsight: generateDto.keyInsight,
+        userEmail: user.email,
+        userName: user.name,
+        userId: user.userId,
+        contentLength: newsletterResult.content?.length,
+        version: 'V1',
+        createdAt: article.createdAt,
+      });
+    } catch (slackError) {
+      this.logger.warn(
+        'Failed to send Slack notification for article generation:',
+        slackError,
+      );
+    }
 
     return {
       id: article.articleId,
@@ -697,6 +721,27 @@ export class ArticlesService {
         `🎉 Background generation completed for articleId=${articleId}`,
       );
 
+      // Send Slack notification for successful article generation
+      try {
+        await this.slackService.notifyArticleGeneration({
+          articleId: article.articleId,
+          title: newsletterResult.title,
+          topic: generateDto.topic,
+          keyInsight: generateDto.keyInsight,
+          userEmail: article.user.email,
+          userName: article.user.name,
+          userId: article.user.userId,
+          contentLength: newsletterResult.content?.length,
+          version: 'V2',
+          createdAt: article.createdAt,
+        });
+      } catch (slackError) {
+        this.logger.warn(
+          'Failed to send Slack notification for V2 article generation:',
+          slackError,
+        );
+      }
+
       // Event tracking moved to client
     } catch (error) {
       this.logger.error(
@@ -985,6 +1030,27 @@ export class ArticlesService {
       this.logger.log(
         `🎉 V3 Background generation completed for articleId=${articleId}`,
       );
+
+      // Send Slack notification for successful article generation
+      try {
+        await this.slackService.notifyArticleGeneration({
+          articleId: article.articleId,
+          title: newsletterResult.title,
+          topic: generateDto.topic,
+          keyInsight: generateDto.keyInsight,
+          userEmail: article.user.email,
+          userName: article.user.name,
+          userId: article.user.userId,
+          contentLength: newsletterResult.content?.length,
+          version: 'V3',
+          createdAt: article.createdAt,
+        });
+      } catch (slackError) {
+        this.logger.warn(
+          'Failed to send Slack notification for V3 article generation:',
+          slackError,
+        );
+      }
 
       // Event tracking moved to client
     } catch (error) {

@@ -73,7 +73,9 @@ export class UsersService {
   /**
    * OAuth를 통한 사용자 생성 또는 업데이트
    */
-  async createOrUpdateOAuthUser(data: CreateOAuthUserData): Promise<{ user: User; isNewUser: boolean }> {
+  async createOrUpdateOAuthUser(
+    data: CreateOAuthUserData,
+  ): Promise<{ user: User; isNewUser: boolean }> {
     // 1. 기존 OAuth 계정 확인
     const existingOAuth = await this.userOAuthRepository.findOne(
       { oauthProvider: data.oauthProvider, oauthId: data.oauthId },

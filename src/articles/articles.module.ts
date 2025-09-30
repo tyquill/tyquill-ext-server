@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ArticlesService } from './articles.service';
 import { ArticlesController } from '../api/articles/articles.controller';
 import { AgentsModule } from '../agents/agents.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
@@ -20,6 +21,7 @@ import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-e
       WritingStyleExample,
     ]),
     AgentsModule,
+    NotificationsModule,
   ],
   controllers: [ArticlesController],
   providers: [ArticlesService],

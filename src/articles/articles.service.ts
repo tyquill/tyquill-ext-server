@@ -269,10 +269,13 @@ export class ArticlesService {
       .getItems()
       .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0));
 
+    const latestArchive = article.getLatestArchive();
+
     return {
       articleId: article.articleId,
       title: article.getLatestTitle() || article.topic,
       content: article.getLatestContent() || '',
+      contentFormat: latestArchive?.contentFormat || 'markdown',
       topic: article.topic,
       keyInsight: article.keyInsight,
       generationParams: article.generationParams,
@@ -283,6 +286,7 @@ export class ArticlesService {
         archiveId: archive.articleArchiveId,
         title: archive.title,
         content: archive.content,
+        contentFormat: archive.contentFormat || 'markdown',
         versionNumber: archive.versionNumber,
         createdAt: archive.createdAt,
       })),
@@ -387,6 +391,7 @@ export class ArticlesService {
         const newArchive = new ArticleArchive();
         newArchive.title = newTitle;
         newArchive.content = newContent;
+        newArchive.contentFormat = updateArticleDto.contentFormat || 'markdown';
         newArchive.versionNumber = newVersionNumber;
         newArchive.article = article;
 

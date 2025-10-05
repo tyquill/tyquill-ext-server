@@ -191,6 +191,20 @@ export class UploadedFilesService {
     scrap.content = '';
     scrap.htmlContent = '';
 
+    // Set type based on mimeType
+    if (params.mimeType === 'application/pdf') {
+      scrap.type = 'pdf';
+    } else if (params.mimeType?.startsWith('image/')) {
+      scrap.type = 'image';
+    } else if (params.mimeType?.startsWith('video/')) {
+      scrap.type = 'video';
+    } else if (params.mimeType?.startsWith('audio/')) {
+      scrap.type = 'audio';
+    } else {
+      scrap.type = 'upload';
+    }
+    scrap.from = 'extension';
+
     await this.em.persistAndFlush(scrap);
     return scrap;
   }

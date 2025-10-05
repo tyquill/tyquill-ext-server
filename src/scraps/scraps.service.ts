@@ -226,6 +226,60 @@ export class ScrapsService {
     return scraps.map((scrap) => this.toScrapSummaryDto(scrap));
   }
 
+  /**
+   * V2: Find all scraps by user with pagination (webclip + upload unified)
+   */
+  async findByUserV2(
+    userId: number,
+    sortBy?: 'created_at' | 'updated_at' | 'title',
+    sortOrder?: 'ASC' | 'DESC',
+    type?: string, // 'webclip', 'upload', or undefined for all
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ scraps: ScrapSummaryDto[]; total: number; hasMore: boolean }> {
+    const query: any = { user: { userId }, isDeleted: false };
+
+    // Filter by type if specified
+    if (type === 'webclip') {
+      query.mimeType = null;
+    } else if (type === 'upload') {
+      query.mimeType = { $ne: null };
+    }
+    // If type is undefined, return all scraps (both webclip and upload)
+
+    let orderBy: any = { createdAt: 'DESC' };
+
+    switch (sortBy) {
+      case 'created_at':
+        orderBy = { createdAt: sortOrder };
+        break;
+      case 'updated_at':
+        orderBy = { updatedAt: sortOrder };
+        break;
+      case 'title':
+        orderBy = { title: sortOrder };
+        break;
+    }
+
+    const offset = (page - 1) * limit;
+
+    const [scraps, total] = await this.scrapRepository.findAndCount(query, {
+      populate: ['tags'],
+      orderBy: orderBy,
+      filters: { isDeleted: false },
+      limit,
+      offset,
+    });
+
+    const hasMore = offset + scraps.length < total;
+
+    return {
+      scraps: scraps.map((scrap) => this.toScrapSummaryDto(scrap)),
+      total,
+      hasMore,
+    };
+  }
+
   async findByArticle(articleId: number): Promise<Scrap[]> {
     return await this.scrapRepository.find(
       { article: { articleId }, isDeleted: false },
@@ -543,7 +597,14 @@ export class ScrapsService {
       })),
       // New metadata fields
       contentInfo: scrap.contentInfo,
-      webpage: scrap.webpage,
+      // Only include favicon from webpage to reduce payload size
+      webpage: scrap.webpage
+        ? {
+            site: {
+              favicon_url: scrap.webpage.site?.favicon_url,
+            },
+          }
+        : undefined,
       heroImageUrl: scrap.heroImageUrl,
       publishedAt: scrap.publishedAt,
       authors: scrap.authors,

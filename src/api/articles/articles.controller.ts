@@ -10,7 +10,10 @@ import {
   Version,
   UseGuards,
   Request,
+  Sse,
+  MessageEvent,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { ArticlesService } from '../../articles/articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import {
@@ -289,5 +292,38 @@ export class ArticlesController {
   findAllV3(@Request() req: any) {
     const userId = parseInt(req.user.id);
     return this.articlesService.findByUserV3(userId);
+  }
+
+  /**
+   * V3: AI를 사용하여 뉴스레터를 실시간 스트리밍으로 생성합니다
+   * POST /api/v3/articles/generate-stream
+   */
+  @ApiOperation({
+    summary:
+      'V3: AI를 사용하여 뉴스레터를 실시간 스트리밍으로 생성합니다 (SSE)',
+    description:
+      'Server-Sent Events를 통해 실시간으로 생성 진행 상황을 전송합니다. 각 노드의 실행 상태와 진행률을 확인할 수 있습니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '스트리밍 연결이 성공적으로 설정되었습니다.',
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
+  @ApiResponse({
+    status: 404,
+    description: '사용자나 리소스를 찾을 수 없습니다.',
+  })
+  @Version('3')
+  @Post('generate-stream')
+  @Sse()
+  generateArticleV3Stream(
+    @Request() req: any,
+    @Body() generateArticleDto: GenerateArticleV3Dto,
+  ): Observable<MessageEvent> {
+    const userId = parseInt(req.user.id);
+    return this.articlesService.generateArticleV3Stream(
+      userId,
+      generateArticleDto,
+    );
   }
 }

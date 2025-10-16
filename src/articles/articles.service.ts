@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { CreateArticleDto } from '../api/articles/dto/create-article.dto';
 import {
   GenerateArticleDto,
@@ -17,7 +23,7 @@ import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { EntityManager, EntityRepository, LockMode } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { SlackService } from '../notifications/slack.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
@@ -473,6 +479,135 @@ export class ArticlesService {
     await this.em.persistAndFlush(archive);
 
     return archive;
+  }
+
+  /**
+   * 아티클 버전 히스토리 조회
+   */
+  async getVersions(articleId: number, userId: number): Promise<any[]> {
+    this.logger.log(
+      `📋 Fetching versions for article ${articleId} by user ${userId}`,
+    );
+
+    const article = await this.articleRepository.findOne(
+      { articleId, isDeleted: false },
+      { populate: ['archives', 'user'] },
+    );
+
+    if (!article) {
+      throw new NotFoundException('아티클을 찾을 수 없습니다.');
+    }
+
+    // 권한 검증
+    if (article.user.userId !== userId) {
+      throw new ForbiddenException('이 아티클에 접근할 권한이 없습니다.');
+    }
+
+    // 모든 아카이브 버전을 버전 번호 역순으로 정렬 (최신 버전이 먼저)
+    const versions = article.archives
+      .getItems()
+      .filter((archive) => !archive.isDeleted)
+      .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))
+      .map((archive) => ({
+        versionNumber: archive.versionNumber,
+        title: archive.title,
+        content: archive.content,
+        contentFormat: archive.contentFormat || 'markdown',
+        createdAt: archive.createdAt,
+        characterCount: archive.content?.length || 0,
+      }));
+
+    this.logger.log(
+      `✅ Retrieved ${versions.length} versions for article ${articleId}`,
+    );
+
+    return versions;
+  }
+
+  /**
+   * 특정 버전으로 복원
+   */
+  async restoreVersion(
+    articleId: number,
+    versionNumber: number,
+    userId: number,
+  ): Promise<any> {
+    this.logger.log(
+      `🔄 Restoring article ${articleId} to version ${versionNumber} by user ${userId}`,
+    );
+
+    // 입력 검증
+    if (versionNumber < 1) {
+      throw new BadRequestException('버전 번호는 1 이상이어야 합니다.');
+    }
+
+    // 트랜잭션 및 락을 사용하여 동시성 문제 방지
+    return await this.em.transactional(async (em) => {
+      // PESSIMISTIC_WRITE 락으로 아티클 조회
+      const article = await em.findOne(
+        Article,
+        { articleId, isDeleted: false },
+        {
+          populate: ['archives', 'user'],
+          lockMode: LockMode.PESSIMISTIC_WRITE,
+        },
+      );
+
+      if (!article) {
+        throw new NotFoundException('아티클을 찾을 수 없습니다.');
+      }
+
+      // 권한 검증
+      if (article.user.userId !== userId) {
+        throw new ForbiddenException('이 아티클을 수정할 권한이 없습니다.');
+      }
+
+      // 복원할 버전 찾기
+      const targetVersion = article.archives
+        .getItems()
+        .find(
+          (archive) =>
+            archive.versionNumber === versionNumber && !archive.isDeleted,
+        );
+
+      if (!targetVersion) {
+        throw new NotFoundException(
+          `버전 ${versionNumber}을(를) 찾을 수 없습니다.`,
+        );
+      }
+
+      // 이미 로드된 archives에서 최신 버전 번호 계산 (중복 쿼리 제거)
+      const latestVersionNumber = Math.max(
+        ...article.archives
+          .getItems()
+          .filter((a) => !a.isDeleted)
+          .map((a) => a.versionNumber || 0),
+        0,
+      );
+
+      // 최신 버전 복원 시도 검증
+      if (versionNumber === latestVersionNumber) {
+        throw new BadRequestException('이미 최신 버전입니다.');
+      }
+
+      // 새 버전 생성 (복원된 내용으로)
+      const newVersionNumber = latestVersionNumber + 1;
+      const newArchive = new ArticleArchive();
+      newArchive.title = targetVersion.title;
+      newArchive.content = targetVersion.content;
+      newArchive.contentFormat = targetVersion.contentFormat || 'markdown';
+      newArchive.versionNumber = newVersionNumber;
+      newArchive.article = article;
+
+      await em.persistAndFlush(newArchive);
+
+      this.logger.log(
+        `✅ Version ${versionNumber} restored as new version ${newVersionNumber}`,
+      );
+
+      // 복원된 아티클 정보 반환
+      return this.findOne(articleId);
+    });
   }
 
   /**

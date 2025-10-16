@@ -12,6 +12,7 @@ import {
   Request,
   Sse,
   MessageEvent,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { ArticlesService } from '../../articles/articles.service';
@@ -145,6 +146,45 @@ export class ArticlesController {
   @Post(':id/archive')
   archive(@Param('id') id: string) {
     return this.articlesService.archive(+id);
+  }
+
+  /**
+   * 아티클 버전 히스토리 조회
+   * GET /api/v1/articles/:id/versions
+   */
+  @Version('1')
+  @Get(':id/versions')
+  @ApiOperation({ summary: '아티클의 모든 버전 목록을 조회합니다' })
+  @ApiResponse({ status: 200, description: '버전 목록 조회 성공' })
+  @ApiResponse({ status: 400, description: '잘못된 요청입니다' })
+  @ApiResponse({ status: 403, description: '권한이 없습니다' })
+  @ApiResponse({ status: 404, description: '아티클을 찾을 수 없습니다' })
+  getVersions(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const userId = parseInt(req.user.id);
+    return this.articlesService.getVersions(id, userId);
+  }
+
+  /**
+   * 특정 버전으로 복원
+   * POST /api/v1/articles/:id/restore/:versionNumber
+   */
+  @Version('1')
+  @Post(':id/restore/:versionNumber')
+  @ApiOperation({ summary: '아티클을 특정 버전으로 복원합니다' })
+  @ApiResponse({ status: 200, description: '버전 복원 성공' })
+  @ApiResponse({ status: 400, description: '잘못된 요청입니다' })
+  @ApiResponse({ status: 403, description: '권한이 없습니다' })
+  @ApiResponse({ status: 404, description: '아티클 또는 버전을 찾을 수 없습니다' })
+  restoreVersion(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionNumber', ParseIntPipe) versionNumber: number,
+  ) {
+    const userId = parseInt(req.user.id);
+    return this.articlesService.restoreVersion(id, versionNumber, userId);
   }
 
   /**

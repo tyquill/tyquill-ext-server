@@ -476,6 +476,89 @@ export class ArticlesService {
   }
 
   /**
+   * 아티클 버전 히스토리 조회
+   */
+  async getVersions(articleId: number): Promise<any[]> {
+    const article = await this.articleRepository.findOne(
+      { articleId, isDeleted: false },
+      { populate: ['archives'] },
+    );
+
+    if (!article) {
+      throw new NotFoundException('아티클을 찾을 수 없습니다.');
+    }
+
+    // 모든 아카이브 버전을 버전 번호 역순으로 정렬 (최신 버전이 먼저)
+    const versions = article.archives
+      .getItems()
+      .filter((archive) => !archive.isDeleted)
+      .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))
+      .map((archive) => ({
+        versionNumber: archive.versionNumber,
+        title: archive.title,
+        content: archive.content,
+        contentFormat: archive.contentFormat || 'markdown',
+        createdAt: archive.createdAt,
+        characterCount: archive.content?.length || 0,
+      }));
+
+    return versions;
+  }
+
+  /**
+   * 특정 버전으로 복원
+   */
+  async restoreVersion(articleId: number, versionNumber: number): Promise<any> {
+    const article = await this.articleRepository.findOne(
+      { articleId, isDeleted: false },
+      { populate: ['archives'] },
+    );
+
+    if (!article) {
+      throw new NotFoundException('아티클을 찾을 수 없습니다.');
+    }
+
+    // 복원할 버전 찾기
+    const targetVersion = article.archives
+      .getItems()
+      .find(
+        (archive) =>
+          archive.versionNumber === versionNumber && !archive.isDeleted,
+      );
+
+    if (!targetVersion) {
+      throw new NotFoundException(
+        `버전 ${versionNumber}을(를) 찾을 수 없습니다.`,
+      );
+    }
+
+    // 최신 버전 번호 확인
+    const latestArchive = await this.em.findOne(
+      ArticleArchive,
+      { article: article, isDeleted: false },
+      { orderBy: { versionNumber: 'desc' }, filters: { isDeleted: false } },
+    );
+
+    // 새 버전 생성 (복원된 내용으로)
+    const newVersionNumber = (latestArchive?.versionNumber || 0) + 1;
+    const newArchive = new ArticleArchive();
+    newArchive.title = targetVersion.title;
+    newArchive.content = targetVersion.content;
+    newArchive.contentFormat = targetVersion.contentFormat || 'markdown';
+    newArchive.versionNumber = newVersionNumber;
+    newArchive.article = article;
+
+    await this.em.persistAndFlush(newArchive);
+
+    this.logger.log(
+      `✅ Version ${versionNumber} restored as new version ${newVersionNumber}`,
+    );
+
+    // 복원된 아티클 정보 반환
+    return this.findOne(articleId);
+  }
+
+  /**
    * 아티클 검색
    */
   async search(query: string, userId?: number): Promise<Article[]> {

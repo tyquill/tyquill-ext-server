@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { CreateArticleDto } from '../api/articles/dto/create-article.dto';
 import {
   GenerateArticleDto,
@@ -17,10 +23,13 @@ import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { EntityManager, EntityRepository, LockMode } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { SlackService } from '../notifications/slack.service';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
+import { Observable } from 'rxjs';
+import { MessageEvent } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 // Analytics tracking migrated to extension client (PostHog).
 
 @Injectable()
@@ -41,6 +50,7 @@ export class ArticlesService {
     private readonly slackService: SlackService,
     @InjectRepository(WritingStyleExample)
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
+    private readonly configService: ConfigService,
     // Uploaded files are represented as scraps with file metadata
   ) {}
 
@@ -269,10 +279,13 @@ export class ArticlesService {
       .getItems()
       .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0));
 
+    const latestArchive = article.getLatestArchive();
+
     return {
       articleId: article.articleId,
       title: article.getLatestTitle() || article.topic,
       content: article.getLatestContent() || '',
+      contentFormat: latestArchive?.contentFormat || 'markdown',
       topic: article.topic,
       keyInsight: article.keyInsight,
       generationParams: article.generationParams,
@@ -283,6 +296,7 @@ export class ArticlesService {
         archiveId: archive.articleArchiveId,
         title: archive.title,
         content: archive.content,
+        contentFormat: archive.contentFormat || 'markdown',
         versionNumber: archive.versionNumber,
         createdAt: archive.createdAt,
       })),
@@ -387,6 +401,7 @@ export class ArticlesService {
         const newArchive = new ArticleArchive();
         newArchive.title = newTitle;
         newArchive.content = newContent;
+        newArchive.contentFormat = updateArticleDto.contentFormat || 'markdown';
         newArchive.versionNumber = newVersionNumber;
         newArchive.article = article;
 
@@ -464,6 +479,135 @@ export class ArticlesService {
     await this.em.persistAndFlush(archive);
 
     return archive;
+  }
+
+  /**
+   * 아티클 버전 히스토리 조회
+   */
+  async getVersions(articleId: number, userId: number): Promise<any[]> {
+    this.logger.log(
+      `📋 Fetching versions for article ${articleId} by user ${userId}`,
+    );
+
+    const article = await this.articleRepository.findOne(
+      { articleId, isDeleted: false },
+      { populate: ['archives', 'user'] },
+    );
+
+    if (!article) {
+      throw new NotFoundException('아티클을 찾을 수 없습니다.');
+    }
+
+    // 권한 검증
+    if (article.user.userId !== userId) {
+      throw new ForbiddenException('이 아티클에 접근할 권한이 없습니다.');
+    }
+
+    // 모든 아카이브 버전을 버전 번호 역순으로 정렬 (최신 버전이 먼저)
+    const versions = article.archives
+      .getItems()
+      .filter((archive) => !archive.isDeleted)
+      .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))
+      .map((archive) => ({
+        versionNumber: archive.versionNumber,
+        title: archive.title,
+        content: archive.content,
+        contentFormat: archive.contentFormat || 'markdown',
+        createdAt: archive.createdAt,
+        characterCount: archive.content?.length || 0,
+      }));
+
+    this.logger.log(
+      `✅ Retrieved ${versions.length} versions for article ${articleId}`,
+    );
+
+    return versions;
+  }
+
+  /**
+   * 특정 버전으로 복원
+   */
+  async restoreVersion(
+    articleId: number,
+    versionNumber: number,
+    userId: number,
+  ): Promise<any> {
+    this.logger.log(
+      `🔄 Restoring article ${articleId} to version ${versionNumber} by user ${userId}`,
+    );
+
+    // 입력 검증
+    if (versionNumber < 1) {
+      throw new BadRequestException('버전 번호는 1 이상이어야 합니다.');
+    }
+
+    // 트랜잭션 및 락을 사용하여 동시성 문제 방지
+    return await this.em.transactional(async (em) => {
+      // PESSIMISTIC_WRITE 락으로 아티클 조회
+      const article = await em.findOne(
+        Article,
+        { articleId, isDeleted: false },
+        {
+          populate: ['archives', 'user'],
+          lockMode: LockMode.PESSIMISTIC_WRITE,
+        },
+      );
+
+      if (!article) {
+        throw new NotFoundException('아티클을 찾을 수 없습니다.');
+      }
+
+      // 권한 검증
+      if (article.user.userId !== userId) {
+        throw new ForbiddenException('이 아티클을 수정할 권한이 없습니다.');
+      }
+
+      // 복원할 버전 찾기
+      const targetVersion = article.archives
+        .getItems()
+        .find(
+          (archive) =>
+            archive.versionNumber === versionNumber && !archive.isDeleted,
+        );
+
+      if (!targetVersion) {
+        throw new NotFoundException(
+          `버전 ${versionNumber}을(를) 찾을 수 없습니다.`,
+        );
+      }
+
+      // 이미 로드된 archives에서 최신 버전 번호 계산 (중복 쿼리 제거)
+      const latestVersionNumber = Math.max(
+        ...article.archives
+          .getItems()
+          .filter((a) => !a.isDeleted)
+          .map((a) => a.versionNumber || 0),
+        0,
+      );
+
+      // 최신 버전 복원 시도 검증
+      if (versionNumber === latestVersionNumber) {
+        throw new BadRequestException('이미 최신 버전입니다.');
+      }
+
+      // 새 버전 생성 (복원된 내용으로)
+      const newVersionNumber = latestVersionNumber + 1;
+      const newArchive = new ArticleArchive();
+      newArchive.title = targetVersion.title;
+      newArchive.content = targetVersion.content;
+      newArchive.contentFormat = targetVersion.contentFormat || 'markdown';
+      newArchive.versionNumber = newVersionNumber;
+      newArchive.article = article;
+
+      await em.persistAndFlush(newArchive);
+
+      this.logger.log(
+        `✅ Version ${versionNumber} restored as new version ${newVersionNumber}`,
+      );
+
+      // 복원된 아티클 정보 반환
+      return this.findOne(articleId);
+    });
   }
 
   /**
@@ -1073,5 +1217,293 @@ export class ArticlesService {
         );
       }
     }
+  }
+
+  // ========== V3 Streaming API ==========
+
+  /**
+   * V3: 실시간 스트리밍으로 아티클 생성
+   */
+  generateArticleV3Stream(
+    userId: number,
+    generateDto: GenerateArticleV3Dto,
+  ): Observable<MessageEvent> {
+    return new Observable((observer) => {
+      const agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL');
+
+      // Main async function
+      (async () => {
+        let article: Article | null = null;
+
+        try {
+          this.logger.log(
+            `📡 Starting V3 streaming article generation for user ${userId}`,
+          );
+
+          // 사용자 검증
+          const user = await this.userRepository.findOne({ userId: userId });
+          if (!user) {
+            throw new NotFoundException('사용자를 찾을 수 없습니다.');
+          }
+
+          // 즉시 processing 상태로 아티클 생성
+          article = new Article();
+          article.topic = generateDto.topic;
+          article.keyInsight = generateDto.keyInsight;
+          article.generationParams = generateDto.generationParams;
+          article.generationStatus = 'processing';
+          article.user = user;
+
+          await this.em.persistAndFlush(article);
+
+          this.logger.log(
+            `✅ Article created with ID: ${article.articleId}, starting stream`,
+          );
+
+          // Prepare scrap data
+          let scrapsWithComments: Array<{
+            scrap: Scrap;
+            userComment?: string;
+          }> = [];
+
+          if (
+            generateDto.scrapWithOptionalComment &&
+            generateDto.scrapWithOptionalComment.length > 0
+          ) {
+            const scraps = await this.scrapRepository.find({
+              scrapId: {
+                $in: generateDto.scrapWithOptionalComment.map(
+                  (comment) => comment.scrapId,
+                ),
+              },
+              user: user,
+              isDeleted: false,
+            });
+
+            scrapsWithComments = scraps.map((scrap) => {
+              const scrapComment = generateDto.scrapWithOptionalComment?.find(
+                (comment) => comment.scrapId === scrap.scrapId,
+              );
+              return {
+                scrap,
+                userComment: scrapComment?.userComment,
+              };
+            });
+          }
+
+          // Prepare PDF uploads
+          let pdfUploadsWithPrompts: Array<{
+            url: string;
+            usagePrompt: string;
+            aiContent: string;
+          }> = [];
+
+          if (
+            generateDto.uploadWithUsagePrompt &&
+            generateDto.uploadWithUsagePrompt.length > 0
+          ) {
+            const uploads = generateDto.uploadWithUsagePrompt;
+            const scrapIds = uploads.map((u) => u.uploadedFileId);
+
+            const usagePromptById = new Map<number, string>();
+            for (const u of uploads)
+              usagePromptById.set(u.uploadedFileId, u.usagePrompt);
+
+            const uploadScraps = await this.scrapRepository.find({
+              scrapId: { $in: scrapIds },
+              user: user,
+              isDeleted: false,
+            });
+
+            pdfUploadsWithPrompts = uploadScraps
+              .map((scrap) => {
+                const url = scrap.filePath || scrap.url;
+                if (!url) return null;
+                return {
+                  url,
+                  usagePrompt: usagePromptById.get(scrap.scrapId) || '',
+                  aiContent: scrap.aiContent || '',
+                };
+              })
+              .filter(
+                (
+                  x,
+                ): x is { url: string; usagePrompt: string; aiContent: string } =>
+                  x !== null,
+              );
+          }
+
+          // Prepare writing style examples
+          let writingStyleExampleContents: string[] = [];
+          if (generateDto.writingStyleId) {
+            const writingStyleExamples =
+              await this.writingStyleExampleRepository.find(
+                {
+                  writingStyle: {
+                    id: generateDto.writingStyleId,
+                    user: user,
+                  },
+                },
+                { populate: ['writingStyle'] },
+              );
+            writingStyleExampleContents = writingStyleExamples.map(
+              (example) => example.content,
+            );
+          }
+
+          // Format scraps for API
+          const formattedScrapsWithComments = scrapsWithComments.map(
+            (item) => ({
+              scrap: {
+                id: item.scrap.scrapId,
+                title: item.scrap.title,
+                url: item.scrap.url,
+                content: item.scrap.content,
+                userComment: item.scrap.userComment,
+              },
+              userComment: item.userComment,
+            }),
+          );
+
+          // Call Python agent streaming endpoint
+          const response = await fetch(
+            `${agentApiUrl}/api/v1/newsletter/generate-stream`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                topic: generateDto.topic,
+                keyInsight: generateDto.keyInsight,
+                scrapsWithComments: formattedScrapsWithComments,
+                generationParams: generateDto.generationParams,
+                articleStructureTemplate: generateDto.articleStructureTemplate,
+                writingStyleExampleContents,
+                pdfUrlsWithPrompts: pdfUploadsWithPrompts,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Python agent returned ${response.status}: ${response.statusText}`,
+            );
+          }
+
+          if (!response.body) {
+            throw new Error('Response body is null');
+          }
+
+          // Read the stream
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              this.logger.log('📡 Stream ended');
+              break;
+            }
+
+            // Decode chunk
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete SSE messages
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || ''; // Keep incomplete message in buffer
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const jsonData = line.slice(6); // Remove 'data: ' prefix
+                try {
+                  const event = JSON.parse(jsonData);
+
+                  // Forward to client
+                  observer.next({ data: event } as MessageEvent);
+
+                  // Handle complete event
+                  if (event.type === 'complete') {
+                    this.logger.log('🎉 Received complete event from agent');
+
+                    // Save results to database
+                    const archive = new ArticleArchive();
+                    archive.title = event.title;
+                    archive.content = event.content;
+                    archive.versionNumber = 1;
+                    archive.article = article;
+
+                    article.generationStatus = 'completed';
+                    await this.em.persistAndFlush([archive, article]);
+
+                    // Send Slack notification
+                    try {
+                      await this.slackService.notifyArticleGeneration({
+                        articleId: article.articleId,
+                        title: event.title,
+                        topic: generateDto.topic,
+                        keyInsight: generateDto.keyInsight,
+                        userEmail: user.email,
+                        userName: user.name,
+                        userId: user.userId,
+                        contentLength: event.content?.length,
+                        version: 'V3-Stream',
+                        createdAt: article.createdAt,
+                      });
+                    } catch (slackError) {
+                      this.logger.warn(
+                        'Failed to send Slack notification:',
+                        slackError,
+                      );
+                    }
+                  }
+
+                  // Handle error event
+                  if (event.type === 'error') {
+                    this.logger.error('❌ Error event from agent:', event.message);
+                    if (article) {
+                      article.generationStatus = 'failed';
+                      await this.em.persistAndFlush(article);
+                    }
+                  }
+                } catch (parseError) {
+                  this.logger.warn('Failed to parse SSE event:', parseError);
+                }
+              }
+            }
+          }
+
+          // Complete the observable
+          observer.complete();
+        } catch (error) {
+          this.logger.error(
+            '❌ Streaming article generation failed:',
+            error,
+          );
+
+          // Update article status to failed
+          if (article) {
+            try {
+              article.generationStatus = 'failed';
+              await this.em.persistAndFlush(article);
+            } catch (updateError) {
+              this.logger.error('Failed to update article status:', updateError);
+            }
+          }
+
+          // Send error to client
+          observer.next({
+            data: {
+              type: 'error',
+              message: error.message || 'Streaming failed',
+            },
+          } as MessageEvent);
+
+          observer.error(error);
+        }
+      })();
+    });
   }
 }

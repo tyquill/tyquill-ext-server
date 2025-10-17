@@ -449,4 +449,58 @@ export class ScrapsController {
     const scrapIds = scraps.map((scrap) => scrap.scrapId);
     return await this.scrapsService.findMany(scrapIds, userId);
   }
+
+  // ========== VERSION 3 API - Unified Scraps (webclip + upload) with Infinite Scroll ==========
+
+  /**
+   * GET /api/v3/scraps - 현재 사용자의 모든 스크랩 조회 (webclip + upload 통합, 무한스크롤 지원)
+   * Returns ScrapResponseDto with truncated content (100 chars) for list view
+   */
+  @Version('3')
+  @Get()
+  async findAllV3(
+    @Request() req: any,
+    @Query('type') type?: string, // 'webclip', 'upload', or undefined for all
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+    @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title',
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+  ): Promise<{
+    scraps: ScrapResponseDto[];
+    total: number;
+    hasMore: boolean;
+    page: number;
+    limit: number;
+  }> {
+    try {
+      const userId = parseInt(req.user.id);
+
+      // Get user's scraps with pagination (webclip + upload unified)
+      const result = await this.scrapsService.findByUserV2(
+        userId,
+        sortBy,
+        sortOrder,
+        type,
+        page,
+        limit,
+      );
+
+      // Fetch full metadata for each scrap with truncated content (100 chars)
+      const scrapIds = result.scraps.map((scrap) => scrap.scrapId);
+      const scrapsWithMetadata = await this.scrapsService.findMany(
+        scrapIds,
+        userId,
+      );
+
+      return {
+        scraps: scrapsWithMetadata,
+        total: result.total,
+        hasMore: result.hasMore,
+        page,
+        limit,
+      };
+    } catch (error: any) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
 }

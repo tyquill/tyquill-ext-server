@@ -8,6 +8,7 @@ import {
 import { Scrap } from '../../scraps/entities/scrap.entity';
 import { Tag } from '../../tags/entities/tag.entity';
 import { UserOAuth } from './user-oauth.entity';
+import { Folder } from '../../folders/entities/folder.entity';
 
 export enum UserRole {
   USER = 'USER',
@@ -47,4 +48,7 @@ export class User {
 
   @OneToMany(() => UserOAuth, (oauth) => oauth.user)
   oauthAccounts: Collection<UserOAuth> = new Collection<UserOAuth>(this);
+
+  @OneToMany(() => Folder, (folder) => folder.user)
+  folders: Collection<Folder> = new Collection<Folder>(this);
 }

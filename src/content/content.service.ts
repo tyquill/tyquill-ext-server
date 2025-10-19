@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { EntityManager, EntityRepository, QueryOrder } from '@mikro-orm/postgresql';
+import {
+  EntityManager,
+  EntityRepository,
+  QueryOrder,
+} from '@mikro-orm/postgresql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { Article } from '../articles/entities/article.entity';
@@ -15,6 +19,9 @@ import {
 
 @Injectable()
 export class ContentService {
+  // Safety limit to prevent OOM when fetching both content types
+  private readonly MAX_IN_MEMORY_ITEMS = 1000;
+
   constructor(
     private readonly em: EntityManager,
     @InjectRepository(Scrap)
@@ -39,8 +46,10 @@ export class ContentService {
     const sortOrder = query.sortOrder ?? 'DESC';
 
     // Determine which content types to fetch
-    const includeScraps = type === ContentType.ALL || type === ContentType.SCRAP;
-    const includeArticles = type === ContentType.ALL || type === ContentType.ARTICLE;
+    const includeScraps =
+      type === ContentType.ALL || type === ContentType.SCRAP;
+    const includeArticles =
+      type === ContentType.ALL || type === ContentType.ARTICLE;
 
     let scraps: Scrap[] = [];
     let scrapTotal = 0;
@@ -135,8 +144,17 @@ export class ContentService {
       includeArticles?: boolean;
     },
   ): Promise<{ items: Scrap[]; total: number }> {
-    const { folderId, scrapType, sortBy, sortOrder, search, tags, page, limit, includeArticles } =
-      options;
+    const {
+      folderId,
+      scrapType,
+      sortBy,
+      sortOrder,
+      search,
+      tags,
+      page,
+      limit,
+      includeArticles,
+    } = options;
 
     const where: any = {
       user: { userId },
@@ -178,10 +196,20 @@ export class ContentService {
     // Get total count
     const total = await this.scrapRepository.count(where);
 
-    // If we're fetching both scraps and articles, we need all items for proper sorting
-    // Otherwise, paginate at database level
+    // Set hard limit when fetching both types to prevent memory issues
+    // When includeArticles=true, we need more items for proper sorting, but not unlimited
     const offset = includeArticles ? 0 : (page - 1) * limit;
-    const fetchLimit = includeArticles ? undefined : limit;
+    const fetchLimit = includeArticles
+      ? Math.min(this.MAX_IN_MEMORY_ITEMS, limit * 2) // Fetch 2x limit for better merge results
+      : limit;
+
+    // Warn if we're hitting the safety limit
+    if (includeArticles && total > this.MAX_IN_MEMORY_ITEMS) {
+      console.warn(
+        `[ContentService] Scrap total (${total}) exceeds MAX_IN_MEMORY_ITEMS (${this.MAX_IN_MEMORY_ITEMS}). ` +
+          `Results may be incomplete for unified content view. Consider adding folder filters.`,
+      );
+    }
 
     // Determine sort field and order
     const orderBy = this.getSortField(sortBy, 'scrap');
@@ -213,7 +241,8 @@ export class ContentService {
       includeScraps?: boolean;
     },
   ): Promise<{ items: Article[]; total: number }> {
-    const { folderId, sortBy, sortOrder, search, page, limit, includeScraps } = options;
+    const { folderId, sortBy, sortOrder, search, page, limit, includeScraps } =
+      options;
 
     const where: any = {
       user: { userId },
@@ -242,10 +271,20 @@ export class ContentService {
     // Get total count
     const total = await this.articleRepository.count(where);
 
-    // If we're fetching both scraps and articles, we need all items for proper sorting
-    // Otherwise, paginate at database level
+    // Set hard limit when fetching both types to prevent memory issues
+    // When includeScraps=true, we need more items for proper sorting, but not unlimited
     const offset = includeScraps ? 0 : (page - 1) * limit;
-    const fetchLimit = includeScraps ? undefined : limit;
+    const fetchLimit = includeScraps
+      ? Math.min(this.MAX_IN_MEMORY_ITEMS, limit * 2) // Fetch 2x limit for better merge results
+      : limit;
+
+    // Warn if we're hitting the safety limit
+    if (includeScraps && total > this.MAX_IN_MEMORY_ITEMS) {
+      console.warn(
+        `[ContentService] Article total (${total}) exceeds MAX_IN_MEMORY_ITEMS (${this.MAX_IN_MEMORY_ITEMS}). ` +
+          `Results may be incomplete for unified content view. Consider adding folder filters.`,
+      );
+    }
 
     // Determine sort field and order
     const orderBy = this.getSortField(sortBy, 'article');
@@ -414,7 +453,10 @@ export class ContentService {
   /**
    * Get database field name for sorting
    */
-  private getSortField(sortBy: SortByField, entityType: 'scrap' | 'article'): string {
+  private getSortField(
+    sortBy: SortByField,
+    entityType: 'scrap' | 'article',
+  ): string {
     if (sortBy === SortByField.CREATED_AT) {
       return 'createdAt';
     } else if (sortBy === SortByField.UPDATED_AT) {

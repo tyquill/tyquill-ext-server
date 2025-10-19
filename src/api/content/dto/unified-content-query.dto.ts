@@ -1,4 +1,12 @@
-import { IsOptional, IsString, IsInt, Min, Max, IsEnum, IsArray } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  IsEnum,
+  IsArray,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -26,7 +34,8 @@ export enum SortOrder {
 
 export class UnifiedContentQueryDto {
   @ApiPropertyOptional({
-    description: 'Filter by folder ID (null for root items, omit for all items)',
+    description:
+      'Filter by folder ID (null for root items, omit for all items)',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
   @IsOptional()
@@ -101,7 +110,8 @@ export class UnifiedContentQueryDto {
   search?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by tag names (OR logic - items with any of these tags)',
+    description:
+      'Filter by tag names (OR logic - items with any of these tags)',
     type: [String],
     example: ['javascript', 'tutorial'],
   })

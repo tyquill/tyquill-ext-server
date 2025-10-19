@@ -205,55 +205,67 @@ export class FoldersService {
 
   /**
    * Soft delete a folder
+   * CRITICAL FIX: Wrapped in transaction to prevent race conditions
    */
   async remove(folderId: string, userId: number): Promise<void> {
-    const folder = await this.folderRepository.findOne(
-      {
-        folderId,
-        user: { userId },
-        isDeleted: false,
-      },
-      {
-        populate: ['childFolders', 'scraps', 'articles'],
-      },
-    );
-
-    if (!folder) {
-      throw new NotFoundException('Folder not found');
-    }
-
-    // Check if folder has children
-    if (folder.childFolders.length > 0) {
-      throw new BadRequestException(
-        'Cannot delete folder with subfolders. Delete or move subfolders first.',
+    await this.em.transactional(async (em) => {
+      // Find folder within transaction
+      const folder = await em.findOne(
+        Folder,
+        {
+          folderId,
+          user: { userId },
+          isDeleted: false,
+        },
+        {
+          populate: ['childFolders', 'scraps', 'articles'],
+        },
       );
-    }
 
-    // Remove folder reference from all scraps and articles
-    const scraps = await this.scrapRepository.find({
-      folder: { folderId },
-      isDeleted: false,
-    });
-    scraps.forEach((scrap) => {
-      scrap.folder = undefined;
-    });
+      if (!folder) {
+        throw new NotFoundException('Folder not found');
+      }
 
-    const articles = await this.articleRepository.find({
-      folder: { folderId },
-      isDeleted: false,
-    });
-    articles.forEach((article) => {
-      article.folder = undefined;
-    });
+      // Re-check child count inside transaction to prevent race conditions
+      const childCount = await em.count(Folder, {
+        parentFolder: { folderId },
+        isDeleted: false,
+      });
 
-    // Soft delete the folder
-    folder.isDeleted = true;
+      if (childCount > 0) {
+        throw new BadRequestException(
+          'Cannot delete folder with subfolders. Delete or move subfolders first.',
+        );
+      }
 
-    await this.em.persistAndFlush([folder, ...scraps, ...articles]);
+      // Remove folder reference from all scraps and articles
+      const scraps = await em.find(Scrap, {
+        folder: { folderId },
+        isDeleted: false,
+      });
+      scraps.forEach((scrap) => {
+        scrap.folder = undefined;
+      });
+
+      const articles = await em.find(Article, {
+        folder: { folderId },
+        isDeleted: false,
+      });
+      articles.forEach((article) => {
+        article.folder = undefined;
+      });
+
+      // Soft delete the folder
+      folder.isDeleted = true;
+
+      // Persist all changes within transaction
+      await em.persistAndFlush([folder, ...scraps, ...articles]);
+    });
   }
 
   /**
    * Move scraps and/or articles to a folder
+   * CRITICAL FIX: Wrapped in transaction for atomicity
    */
   async moveItemsToFolder(
     folderId: string | null,
@@ -261,57 +273,59 @@ export class FoldersService {
     scrapIds?: number[],
     articleIds?: number[],
   ): Promise<{ movedScraps: number; movedArticles: number }> {
-    let targetFolder: Folder | null = null;
+    return await this.em.transactional(async (em) => {
+      let targetFolder: Folder | null = null;
 
-    // If folderId is provided, verify it exists and belongs to user
-    if (folderId) {
-      targetFolder = await this.folderRepository.findOne({
-        folderId,
-        user: { userId },
-        isDeleted: false,
-      });
+      // If folderId is provided, verify it exists and belongs to user
+      if (folderId) {
+        targetFolder = await em.findOne(Folder, {
+          folderId,
+          user: { userId },
+          isDeleted: false,
+        });
 
-      if (!targetFolder) {
-        throw new NotFoundException('Target folder not found');
+        if (!targetFolder) {
+          throw new NotFoundException('Target folder not found');
+        }
       }
-    }
 
-    let movedScraps = 0;
-    let movedArticles = 0;
+      let movedScraps = 0;
+      let movedArticles = 0;
 
-    // Move scraps
-    if (scrapIds && scrapIds.length > 0) {
-      const scraps = await this.scrapRepository.find({
-        scrapId: { $in: scrapIds },
-        user: { userId },
-        isDeleted: false,
-      });
+      // Move scraps
+      if (scrapIds && scrapIds.length > 0) {
+        const scraps = await em.find(Scrap, {
+          scrapId: { $in: scrapIds },
+          user: { userId },
+          isDeleted: false,
+        });
 
-      scraps.forEach((scrap) => {
-        scrap.folder = targetFolder || undefined;
-      });
+        scraps.forEach((scrap) => {
+          scrap.folder = targetFolder || undefined;
+        });
 
-      movedScraps = scraps.length;
-      await this.em.persistAndFlush(scraps);
-    }
+        movedScraps = scraps.length;
+        await em.persistAndFlush(scraps);
+      }
 
-    // Move articles
-    if (articleIds && articleIds.length > 0) {
-      const articles = await this.articleRepository.find({
-        articleId: { $in: articleIds },
-        user: { userId },
-        isDeleted: false,
-      });
+      // Move articles
+      if (articleIds && articleIds.length > 0) {
+        const articles = await em.find(Article, {
+          articleId: { $in: articleIds },
+          user: { userId },
+          isDeleted: false,
+        });
 
-      articles.forEach((article) => {
-        article.folder = targetFolder || undefined;
-      });
+        articles.forEach((article) => {
+          article.folder = targetFolder || undefined;
+        });
 
-      movedArticles = articles.length;
-      await this.em.persistAndFlush(articles);
-    }
+        movedArticles = articles.length;
+        await em.persistAndFlush(articles);
+      }
 
-    return { movedScraps, movedArticles };
+      return { movedScraps, movedArticles };
+    });
   }
 
   /**
@@ -409,14 +423,26 @@ export class FoldersService {
 
   /**
    * Convert Folder entity to FolderResponseDto
+   * CRITICAL FIX: Use count() instead of loadItems() to avoid N+1 queries
    */
   private async toFolderResponseDto(
     folder: Folder,
   ): Promise<FolderResponseDto> {
-    // Ensure collections are initialized
-    await folder.scraps.loadItems();
-    await folder.articles.loadItems();
-    await folder.childFolders.loadItems();
+    // Use count queries instead of loading all items (prevents N+1 and memory issues)
+    const scrapCount = await this.em.count(Scrap, {
+      folder: { folderId: folder.folderId },
+      isDeleted: false,
+    });
+
+    const articleCount = await this.em.count(Article, {
+      folder: { folderId: folder.folderId },
+      isDeleted: false,
+    });
+
+    const childFolderCount = await this.em.count(Folder, {
+      parentFolder: { folderId: folder.folderId },
+      isDeleted: false,
+    });
 
     return {
       folderId: folder.folderId,
@@ -428,12 +454,9 @@ export class FoldersService {
       isDeleted: folder.isDeleted,
       createdAt: folder.createdAt,
       updatedAt: folder.updatedAt,
-      scrapCount: folder.scraps.getItems().filter((s) => !s.isDeleted).length,
-      articleCount: folder.articles.getItems().filter((a) => !a.isDeleted)
-        .length,
-      childFolderCount: folder.childFolders
-        .getItems()
-        .filter((f) => !f.isDeleted).length,
+      scrapCount,
+      articleCount,
+      childFolderCount,
     };
   }
 }

@@ -79,8 +79,7 @@ export class FoldersController {
       const userId = parseInt(req.user.id);
 
       // Convert 'null' string to actual null for root folders
-      const parentFolderId =
-        parentId === 'null' ? null : parentId || undefined;
+      const parentFolderId = parentId === 'null' ? null : parentId || undefined;
 
       return await this.foldersService.findAll(userId, parentFolderId);
     } catch (error: any) {
@@ -154,7 +153,10 @@ export class FoldersController {
     status: 200,
     description: 'Folder deleted successfully',
   })
-  @ApiResponse({ status: 400, description: 'Cannot delete folder with children' })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot delete folder with children',
+  })
   @ApiResponse({ status: 404, description: 'Folder not found' })
   async remove(@Param('id') id: string, @Request() req: any) {
     try {

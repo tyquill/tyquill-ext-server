@@ -7,9 +7,7 @@ import { Article } from '../articles/entities/article.entity';
 import { User } from '../users/entities/user.entity';
 
 @Module({
-  imports: [
-    MikroOrmModule.forFeature([Scrap, Article, User]),
-  ],
+  imports: [MikroOrmModule.forFeature([Scrap, Article, User])],
   controllers: [ContentController],
   providers: [ContentService],
   exports: [ContentService],

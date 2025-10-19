@@ -159,10 +159,7 @@ export class ArticlesController {
   @ApiResponse({ status: 400, description: '잘못된 요청입니다' })
   @ApiResponse({ status: 403, description: '권한이 없습니다' })
   @ApiResponse({ status: 404, description: '아티클을 찾을 수 없습니다' })
-  getVersions(
-    @Request() req: any,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  getVersions(@Request() req: any, @Param('id', ParseIntPipe) id: number) {
     const userId = parseInt(req.user.id);
     return this.articlesService.getVersions(id, userId);
   }
@@ -177,7 +174,10 @@ export class ArticlesController {
   @ApiResponse({ status: 200, description: '버전 복원 성공' })
   @ApiResponse({ status: 400, description: '잘못된 요청입니다' })
   @ApiResponse({ status: 403, description: '권한이 없습니다' })
-  @ApiResponse({ status: 404, description: '아티클 또는 버전을 찾을 수 없습니다' })
+  @ApiResponse({
+    status: 404,
+    description: '아티클 또는 버전을 찾을 수 없습니다',
+  })
   restoreVersion(
     @Request() req: any,
     @Param('id', ParseIntPipe) id: number,

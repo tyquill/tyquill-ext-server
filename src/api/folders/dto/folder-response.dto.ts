@@ -16,7 +16,10 @@ export class FolderResponseDto {
   @ApiProperty({ example: 'folder', nullable: true })
   icon?: string;
 
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000', nullable: true })
+  @ApiProperty({
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    nullable: true,
+  })
   parentFolderId?: string;
 
   @ApiProperty({ example: false })

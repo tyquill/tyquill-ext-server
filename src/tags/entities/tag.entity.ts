@@ -7,6 +7,7 @@ import {
   Property,
 } from '@mikro-orm/core';
 import { Scrap } from '../../scraps/entities/scrap.entity';
+import { Article } from '../../articles/entities/article.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity({ tableName: 'tags' })
@@ -14,8 +15,14 @@ export class Tag {
   @BeforeCreate()
   validate() {
     const hasScrap = this.scrap !== null && this.scrap !== undefined;
-    if (!hasScrap) {
-      throw new Error('Tag must be associated with a scrap');
+    const hasArticle = this.article !== null && this.article !== undefined;
+
+    if (!hasScrap && !hasArticle) {
+      throw new Error('Tag must be associated with either a scrap or an article');
+    }
+
+    if (hasScrap && hasArticle) {
+      throw new Error('Tag cannot be associated with both a scrap and an article');
     }
   }
 
@@ -31,6 +38,9 @@ export class Tag {
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user: User;
 
-  @ManyToOne(() => Scrap, { fieldName: 'scrap_id', nullable: false })
+  @ManyToOne(() => Scrap, { fieldName: 'scrap_id', nullable: true })
   scrap?: Scrap;
+
+  @ManyToOne(() => Article, { fieldName: 'article_id', nullable: true })
+  article?: Article;
 }

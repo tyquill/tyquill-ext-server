@@ -7,7 +7,7 @@ import {
   IsEnum,
   IsArray,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum ContentType {
@@ -116,6 +116,13 @@ export class UnifiedContentQueryDto {
     example: ['javascript', 'tutorial'],
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    // Handle both single string and array
+    if (typeof value === 'string') {
+      return [value];
+    }
+    return value;
+  })
   @IsArray()
   @IsString({ each: true })
   tags?: string[];

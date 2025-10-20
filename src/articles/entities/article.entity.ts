@@ -11,6 +11,7 @@ import { ArticleArchive } from '../../article-archive/entities/article-archive.e
 import { User } from '../../users/entities/user.entity';
 import { Scrap } from '../../scraps/entities/scrap.entity';
 import { Folder } from '../../folders/entities/folder.entity';
+import { Tag } from '../../tags/entities/tag.entity';
 
 @Entity({ tableName: 'articles' })
 export class Article {
@@ -57,6 +58,9 @@ export class Article {
     nullable: true,
   })
   folder?: Folder;
+
+  @OneToMany(() => Tag, (tag) => tag.article)
+  tags = new Collection<Tag>(this);
 
   /**
    * CreateArticleDto로부터 Article 인스턴스를 생성합니다

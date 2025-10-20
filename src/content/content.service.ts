@@ -80,6 +80,7 @@ export class ContentService {
         sortBy,
         sortOrder,
         search,
+        tags,
         page,
         limit,
         includeScraps, // If both types, we need to merge and paginate later
@@ -236,12 +237,13 @@ export class ContentService {
       sortBy: SortByField;
       sortOrder: string;
       search?: string;
+      tags?: string[];
       page: number;
       limit: number;
       includeScraps?: boolean;
     },
   ): Promise<{ items: Article[]; total: number }> {
-    const { folderId, sortBy, sortOrder, search, page, limit, includeScraps } =
+    const { folderId, sortBy, sortOrder, search, tags, page, limit, includeScraps } =
       options;
 
     const where: any = {
@@ -268,6 +270,13 @@ export class ContentService {
       ];
     }
 
+    // Tag filter (OR logic - match any of the provided tags)
+    if (tags && tags.length > 0) {
+      where.tags = {
+        name: { $in: tags },
+      };
+    }
+
     // Get total count
     const total = await this.articleRepository.count(where);
 
@@ -290,9 +299,9 @@ export class ContentService {
     const orderBy = this.getSortField(sortBy, 'article');
     const order = sortOrder === 'ASC' ? QueryOrder.ASC : QueryOrder.DESC;
 
-    // Fetch articles with archives populated
+    // Fetch articles with archives and tags populated
     const items = await this.articleRepository.find(where, {
-      populate: ['archives'],
+      populate: ['archives', 'tags'],
       orderBy: { [orderBy]: order },
       offset,
       limit: fetchLimit,
@@ -426,6 +435,10 @@ export class ContentService {
       topic: article.topic,
       keyInsight: article.keyInsight,
       generationStatus: article.generationStatus,
+      tags: article.tags?.getItems().map((tag) => ({
+        tagId: tag.tagId,
+        name: tag.name,
+      })),
     };
   }
 

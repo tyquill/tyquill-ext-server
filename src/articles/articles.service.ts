@@ -543,12 +543,11 @@ export class ArticlesService {
 
     // 트랜잭션 및 락을 사용하여 동시성 문제 방지
     return await this.em.transactional(async (em) => {
-      // PESSIMISTIC_WRITE 락으로 아티클 조회
+      // Article만 PESSIMISTIC_WRITE 락으로 조회 (populate 없이)
       const article = await em.findOne(
         Article,
         { articleId, isDeleted: false },
         {
-          populate: ['archives', 'user'],
           lockMode: LockMode.PESSIMISTIC_WRITE,
         },
       );
@@ -557,10 +556,15 @@ export class ArticlesService {
         throw new NotFoundException('아티클을 찾을 수 없습니다.');
       }
 
-      // 권한 검증
+      // 권한 검증을 위해 user 별도 조회
+      await em.populate(article, ['user']);
+
       if (article.user.userId !== userId) {
         throw new ForbiddenException('이 아티클을 수정할 권한이 없습니다.');
       }
+
+      // archives 별도 조회
+      await em.populate(article, ['archives']);
 
       // 복원할 버전 찾기
       const targetVersion = article.archives
@@ -1229,7 +1233,9 @@ export class ArticlesService {
     generateDto: GenerateArticleV3Dto,
   ): Observable<MessageEvent> {
     return new Observable((observer) => {
-      const agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL');
+      const agentApiUrl = this.configService.get<string>(
+        'TYQUILL_AGENT_API_URL',
+      );
 
       // Main async function
       (async () => {
@@ -1328,8 +1334,11 @@ export class ArticlesService {
               .filter(
                 (
                   x,
-                ): x is { url: string; usagePrompt: string; aiContent: string } =>
-                  x !== null,
+                ): x is {
+                  url: string;
+                  usagePrompt: string;
+                  aiContent: string;
+                } => x !== null,
               );
           }
 
@@ -1462,7 +1471,10 @@ export class ArticlesService {
 
                   // Handle error event
                   if (event.type === 'error') {
-                    this.logger.error('❌ Error event from agent:', event.message);
+                    this.logger.error(
+                      '❌ Error event from agent:',
+                      event.message,
+                    );
                     if (article) {
                       article.generationStatus = 'failed';
                       await this.em.persistAndFlush(article);
@@ -1478,10 +1490,7 @@ export class ArticlesService {
           // Complete the observable
           observer.complete();
         } catch (error) {
-          this.logger.error(
-            '❌ Streaming article generation failed:',
-            error,
-          );
+          this.logger.error('❌ Streaming article generation failed:', error);
 
           // Update article status to failed
           if (article) {
@@ -1489,7 +1498,10 @@ export class ArticlesService {
               article.generationStatus = 'failed';
               await this.em.persistAndFlush(article);
             } catch (updateError) {
-              this.logger.error('Failed to update article status:', updateError);
+              this.logger.error(
+                'Failed to update article status:',
+                updateError,
+              );
             }
           }
 

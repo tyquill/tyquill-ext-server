@@ -12,7 +12,12 @@ export class ArticleArchive {
   @Property({ fieldName: 'content', type: 'text' })
   content!: string;
 
-  @Property({ fieldName: 'content_format', type: 'varchar', length: 20, default: 'markdown' })
+  @Property({
+    fieldName: 'content_format',
+    type: 'varchar',
+    length: 20,
+    default: 'markdown',
+  })
   contentFormat: 'markdown' | 'tiptap-json' = 'markdown';
 
   @Property({ fieldName: 'version_number', type: 'int', nullable: true })

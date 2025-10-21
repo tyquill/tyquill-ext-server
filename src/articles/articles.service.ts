@@ -21,6 +21,7 @@ import { UpdateArticleDto } from '../api/articles/dto/update-article.dto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
+import { ArticleScrap } from './entities/article-scrap.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository, LockMode } from '@mikro-orm/core';
@@ -43,6 +44,8 @@ export class ArticlesService {
     private readonly articleRepository: EntityRepository<Article>,
     @InjectRepository(ArticleArchive)
     private readonly articleArchiveRepository: EntityRepository<ArticleArchive>,
+    @InjectRepository(ArticleScrap)
+    private readonly articleScrapRepository: EntityRepository<ArticleScrap>,
     @InjectRepository(Scrap)
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(User)
@@ -893,10 +896,20 @@ export class ArticlesService {
       archive.versionNumber = 1;
       archive.article = article;
 
+      // 아티클-스크랩 관계 저장 (정션 테이블)
+      const articleScraps: ArticleScrap[] = [];
+      for (const item of scrapsWithComments) {
+        const articleScrap = new ArticleScrap();
+        articleScrap.article = article;
+        articleScrap.scrap = item.scrap;
+        articleScrap.userComment = item.userComment;
+        articleScraps.push(articleScrap);
+      }
+
       // 아티클 상태 업데이트
       article.generationStatus = 'completed';
 
-      await this.em.persistAndFlush([archive, article]);
+      await this.em.persistAndFlush([archive, article, ...articleScraps]);
 
       this.logger.log(
         `🎉 Background generation completed for articleId=${articleId}`,
@@ -1207,10 +1220,20 @@ export class ArticlesService {
       archive.versionNumber = 1;
       archive.article = article;
 
+      // 아티클-스크랩 관계 저장 (정션 테이블)
+      const articleScraps: ArticleScrap[] = [];
+      for (const item of scrapsWithComments) {
+        const articleScrap = new ArticleScrap();
+        articleScrap.article = article;
+        articleScrap.scrap = item.scrap;
+        articleScrap.userComment = item.userComment;
+        articleScraps.push(articleScrap);
+      }
+
       // 아티클 상태 업데이트
       article.generationStatus = 'completed';
 
-      await this.em.persistAndFlush([archive, article]);
+      await this.em.persistAndFlush([archive, article, ...articleScraps]);
 
       this.logger.log(
         `🎉 V3 Background generation completed for articleId=${articleId}`,
@@ -1481,8 +1504,22 @@ export class ArticlesService {
                     archive.versionNumber = 1;
                     archive.article = article;
 
+                    // 아티클-스크랩 관계 저장 (정션 테이블)
+                    const articleScraps: ArticleScrap[] = [];
+                    for (const item of scrapsWithComments) {
+                      const articleScrap = new ArticleScrap();
+                      articleScrap.article = article;
+                      articleScrap.scrap = item.scrap;
+                      articleScrap.userComment = item.userComment;
+                      articleScraps.push(articleScrap);
+                    }
+
                     article.generationStatus = 'completed';
-                    await this.em.persistAndFlush([archive, article]);
+                    await this.em.persistAndFlush([
+                      archive,
+                      article,
+                      ...articleScraps,
+                    ]);
 
                     // Send Slack notification
                     try {

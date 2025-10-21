@@ -1333,6 +1333,10 @@ export class ArticlesService {
           article.generationParams = generateDto.generationParams;
           article.generationStatus = 'processing';
           article.user = user;
+          article.writingStyle = await this.validateAndGetWritingStyle(
+            generateDto.writingStyleId,
+            userId,
+          );
 
           await this.em.persistAndFlush(article);
 

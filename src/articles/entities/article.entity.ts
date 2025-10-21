@@ -9,7 +9,7 @@ import {
 import { CreateArticleDto } from '../../api/articles/dto/create-article.dto';
 import { ArticleArchive } from '../../article-archive/entities/article-archive.entity';
 import { User } from '../../users/entities/user.entity';
-import { Scrap } from '../../scraps/entities/scrap.entity';
+import { ArticleScrap } from './article-scrap.entity';
 import { Folder } from '../../folders/entities/folder.entity';
 import { Tag } from '../../tags/entities/tag.entity';
 import { WritingStyle } from '../../writing-styles/entities/writing-style.entity';
@@ -51,8 +51,8 @@ export class Article {
   @OneToMany(() => ArticleArchive, (archive) => archive.article)
   archives = new Collection<ArticleArchive>(this);
 
-  @OneToMany(() => Scrap, (scrap) => scrap.article)
-  scraps = new Collection<Scrap>(this);
+  @OneToMany(() => ArticleScrap, (articleScrap) => articleScrap.article)
+  articleScraps = new Collection<ArticleScrap>(this);
 
   @ManyToOne(() => Folder, {
     fieldName: 'folder_id',

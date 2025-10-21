@@ -8,7 +8,6 @@ import {
 } from '@mikro-orm/core';
 import { Tag } from '../../tags/entities/tag.entity';
 import { User } from '../../users/entities/user.entity';
-import { Article } from '../../articles/entities/article.entity';
 import { Folder } from '../../folders/entities/folder.entity';
 
 @Entity({ tableName: 'scraps' })
@@ -127,9 +126,6 @@ export class Scrap {
 
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user: User;
-
-  @ManyToOne(() => Article, { fieldName: 'article_id', nullable: true })
-  article?: Article;
 
   @ManyToOne(() => Folder, {
     fieldName: 'folder_id',

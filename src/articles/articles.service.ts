@@ -268,7 +268,7 @@ export class ArticlesService {
     const article = await this.articleRepository.findOne(
       { articleId },
       {
-        populate: ['user', 'archives'],
+        populate: ['user', 'archives', 'writingStyle'],
         filters: { isDeleted: false },
       },
     );
@@ -295,6 +295,8 @@ export class ArticlesService {
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
       user: article.user,
+      writingStyleId: article.writingStyle?.id,
+      writingStyleName: article.writingStyle?.name,
       archives: sortedArchives.map((archive) => ({
         archiveId: archive.articleArchiveId,
         title: archive.title,

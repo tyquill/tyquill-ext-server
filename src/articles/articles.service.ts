@@ -26,6 +26,7 @@ import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository, LockMode } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { SlackService } from '../notifications/slack.service';
+import { WritingStyle } from '../writing-styles/entities/writing-style.entity';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
@@ -46,6 +47,8 @@ export class ArticlesService {
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
+    @InjectRepository(WritingStyle)
+    private readonly writingStyleRepository: EntityRepository<WritingStyle>,
     private readonly newsletterAgentService: NewsletterAgentService,
     private readonly slackService: SlackService,
     @InjectRepository(WritingStyleExample)
@@ -672,6 +675,18 @@ export class ArticlesService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
+    // WritingStyle 조회 (선택사항)
+    let writingStyle: WritingStyle | null = null;
+    if (generateDto.writingStyleId) {
+      writingStyle = await this.writingStyleRepository.findOne({
+        id: generateDto.writingStyleId,
+        user: { userId: userId },
+      });
+      if (!writingStyle) {
+        throw new NotFoundException('문체 스타일을 찾을 수 없습니다.');
+      }
+    }
+
     // 즉시 processing 상태로 아티클 생성
     const article = new Article();
     article.topic = generateDto.topic;
@@ -679,6 +694,7 @@ export class ArticlesService {
     article.generationParams = generateDto.generationParams;
     article.generationStatus = 'processing';
     article.user = user;
+    article.writingStyle = writingStyle || undefined;
 
     await this.em.persistAndFlush(article);
 
@@ -932,6 +948,18 @@ export class ArticlesService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
+    // WritingStyle 조회 (선택사항)
+    let writingStyle: WritingStyle | null = null;
+    if (generateDto.writingStyleId) {
+      writingStyle = await this.writingStyleRepository.findOne({
+        id: generateDto.writingStyleId,
+        user: { userId: userId },
+      });
+      if (!writingStyle) {
+        throw new NotFoundException('문체 스타일을 찾을 수 없습니다.');
+      }
+    }
+
     // 즉시 processing 상태로 아티클 생성
     const article = new Article();
     article.topic = generateDto.topic;
@@ -939,6 +967,7 @@ export class ArticlesService {
     article.generationParams = generateDto.generationParams;
     article.generationStatus = 'processing';
     article.user = user;
+    article.writingStyle = writingStyle || undefined;
 
     await this.em.persistAndFlush(article);
 

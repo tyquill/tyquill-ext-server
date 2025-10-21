@@ -8,6 +8,7 @@ import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
+import { WritingStyle } from '../writing-styles/entities/writing-style.entity';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 // Analytics tracking moved to client; module no longer required here.
 
@@ -18,6 +19,7 @@ import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-e
       ArticleArchive,
       Scrap,
       User,
+      WritingStyle,
       WritingStyleExample,
     ]),
     AgentsModule,

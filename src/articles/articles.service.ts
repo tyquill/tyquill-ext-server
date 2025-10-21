@@ -295,7 +295,7 @@ export class ArticlesService {
     const article = await this.articleRepository.findOne(
       { articleId },
       {
-        populate: ['user', 'archives', 'writingStyle'],
+        populate: ['user', 'archives', 'writingStyle', 'articleScraps.scrap'],
         filters: { isDeleted: false },
       },
     );
@@ -311,6 +311,19 @@ export class ArticlesService {
 
     const latestArchive = article.getLatestArchive();
 
+    // 아티클 생성에 사용된 스크랩 목록
+    const scraps = article.articleScraps
+      .getItems()
+      .filter((as) => !as.scrap.isDeleted)
+      .map((as) => ({
+        scrapId: as.scrap.scrapId,
+        title: as.scrap.title,
+        url: as.scrap.url,
+        content: as.scrap.content,
+        userComment: as.userComment || as.scrap.userComment,
+        createdAt: as.scrap.createdAt,
+      }));
+
     return {
       articleId: article.articleId,
       title: article.getLatestTitle() || article.topic,
@@ -324,6 +337,7 @@ export class ArticlesService {
       user: article.user,
       writingStyleId: article.writingStyle?.id,
       writingStyleName: article.writingStyle?.name,
+      scraps,
       archives: sortedArchives.map((archive) => ({
         archiveId: archive.articleArchiveId,
         title: archive.title,

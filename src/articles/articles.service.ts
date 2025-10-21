@@ -251,6 +251,30 @@ export class ArticlesService {
   // Event tracking moved to client
 
   /**
+   * WritingStyle 검증 및 조회 (선택사항)
+   * @private
+   */
+  private async validateAndGetWritingStyle(
+    writingStyleId: number | undefined,
+    userId: number,
+  ): Promise<WritingStyle | undefined> {
+    if (!writingStyleId) {
+      return undefined;
+    }
+
+    const writingStyle = await this.writingStyleRepository.findOne({
+      id: writingStyleId,
+      user: { userId: userId },
+    });
+
+    if (!writingStyle) {
+      throw new NotFoundException('문체 스타일을 찾을 수 없습니다.');
+    }
+
+    return writingStyle;
+  }
+
+  /**
    * 모든 아티클 조회
    */
   async findAll(): Promise<Article[]> {
@@ -677,18 +701,6 @@ export class ArticlesService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
-    // WritingStyle 조회 (선택사항)
-    let writingStyle: WritingStyle | null = null;
-    if (generateDto.writingStyleId) {
-      writingStyle = await this.writingStyleRepository.findOne({
-        id: generateDto.writingStyleId,
-        user: { userId: userId },
-      });
-      if (!writingStyle) {
-        throw new NotFoundException('문체 스타일을 찾을 수 없습니다.');
-      }
-    }
-
     // 즉시 processing 상태로 아티클 생성
     const article = new Article();
     article.topic = generateDto.topic;
@@ -696,7 +708,10 @@ export class ArticlesService {
     article.generationParams = generateDto.generationParams;
     article.generationStatus = 'processing';
     article.user = user;
-    article.writingStyle = writingStyle || undefined;
+    article.writingStyle = await this.validateAndGetWritingStyle(
+      generateDto.writingStyleId,
+      userId,
+    );
 
     await this.em.persistAndFlush(article);
 
@@ -950,18 +965,6 @@ export class ArticlesService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
-    // WritingStyle 조회 (선택사항)
-    let writingStyle: WritingStyle | null = null;
-    if (generateDto.writingStyleId) {
-      writingStyle = await this.writingStyleRepository.findOne({
-        id: generateDto.writingStyleId,
-        user: { userId: userId },
-      });
-      if (!writingStyle) {
-        throw new NotFoundException('문체 스타일을 찾을 수 없습니다.');
-      }
-    }
-
     // 즉시 processing 상태로 아티클 생성
     const article = new Article();
     article.topic = generateDto.topic;
@@ -969,7 +972,10 @@ export class ArticlesService {
     article.generationParams = generateDto.generationParams;
     article.generationStatus = 'processing';
     article.user = user;
-    article.writingStyle = writingStyle || undefined;
+    article.writingStyle = await this.validateAndGetWritingStyle(
+      generateDto.writingStyleId,
+      userId,
+    );
 
     await this.em.persistAndFlush(article);
 

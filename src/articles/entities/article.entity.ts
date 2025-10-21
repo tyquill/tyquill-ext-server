@@ -12,6 +12,7 @@ import { User } from '../../users/entities/user.entity';
 import { Scrap } from '../../scraps/entities/scrap.entity';
 import { Folder } from '../../folders/entities/folder.entity';
 import { Tag } from '../../tags/entities/tag.entity';
+import { WritingStyle } from '../../writing-styles/entities/writing-style.entity';
 
 @Entity({ tableName: 'articles' })
 export class Article {
@@ -58,6 +59,12 @@ export class Article {
     nullable: true,
   })
   folder?: Folder;
+
+  @ManyToOne(() => WritingStyle, {
+    fieldName: 'writing_style_id',
+    nullable: true,
+  })
+  writingStyle?: WritingStyle;
 
   @OneToMany(() => Tag, (tag) => tag.article)
   tags = new Collection<Tag>(this);

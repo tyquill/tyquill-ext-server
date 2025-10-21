@@ -10,6 +10,7 @@ import { Scrap } from './entities/scrap.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
+import { ArticleScrap } from '../articles/entities/article-scrap.entity';
 // Analytics tracking migrated to extension client (PostHog).
 
 export interface SearchOptions {
@@ -38,6 +39,8 @@ export class ScrapsService {
     private readonly userRepository: EntityRepository<User>,
     @InjectRepository(Article)
     private readonly articleRepository: EntityRepository<Article>,
+    @InjectRepository(ArticleScrap)
+    private readonly articleScrapRepository: EntityRepository<ArticleScrap>,
   ) {}
 
   async create(
@@ -92,9 +95,10 @@ export class ScrapsService {
     scrap.type = createScrapDto.type || 'webclip';
     scrap.from = createScrapDto.from || 'extension';
 
-    if (article) {
-      scrap.article = article;
-    }
+    // Note: article relationship removed - use ArticleScrap junction table instead
+    // if (article) {
+    //   scrap.article = article;
+    // }
 
     await this.em.persistAndFlush(scrap);
 
@@ -281,13 +285,16 @@ export class ScrapsService {
   }
 
   async findByArticle(articleId: number): Promise<Scrap[]> {
-    return await this.scrapRepository.find(
-      { article: { articleId }, isDeleted: false },
-      {
-        populate: ['tags'],
-        filters: { isDeleted: false },
-      },
+    // Find all ArticleScrap junction records for this article
+    const articleScraps = await this.articleScrapRepository.find(
+      { article: { articleId } },
+      { populate: ['scrap', 'scrap.tags'] },
     );
+
+    // Extract and return the scraps (filter out deleted ones)
+    return articleScraps
+      .map((as) => as.scrap)
+      .filter((scrap) => !scrap.isDeleted);
   }
 
   async update(
@@ -560,7 +567,7 @@ export class ScrapsService {
       isDeleted: scrap.isDeleted,
       createdAt: scrap.createdAt,
       updatedAt: scrap.updatedAt,
-      articleId: scrap.article?.articleId,
+      articleId: undefined, // Removed: use ArticleScrap junction to find related articles
       tags: scrap.tags?.getItems().map((tag) => ({
         tagId: tag.tagId,
         name: tag.name,
@@ -590,7 +597,7 @@ export class ScrapsService {
       isDeleted: scrap.isDeleted,
       createdAt: scrap.createdAt,
       updatedAt: scrap.updatedAt,
-      articleId: scrap.article?.articleId,
+      articleId: undefined, // Removed: use ArticleScrap junction to find related articles
       tags: scrap.tags?.getItems().map((tag) => ({
         tagId: tag.tagId,
         name: tag.name,

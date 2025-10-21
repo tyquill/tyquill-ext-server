@@ -197,7 +197,7 @@ export class AdminService {
         isDeleted: false,
       },
       {
-        populate: ['user', 'archives', 'scraps'],
+        populate: ['user', 'archives', 'articleScraps.scrap'],
       },
     );
 
@@ -218,12 +218,12 @@ export class AdminService {
       generationStatus: article.generationStatus,
       createdAt: article.createdAt.toISOString(),
       updatedAt: article.updatedAt.toISOString(),
-      scraps: article.scraps.getItems().map((scrap) => ({
-        scrapId: scrap.scrapId,
-        title: scrap.title,
-        url: scrap.url,
-        content: scrap.content,
-        createdAt: scrap.createdAt.toISOString(),
+      scraps: article.articleScraps.getItems().map((as) => ({
+        scrapId: as.scrap.scrapId,
+        title: as.scrap.title,
+        url: as.scrap.url,
+        content: as.scrap.content,
+        createdAt: as.scrap.createdAt.toISOString(),
       })),
       archives: article.archives
         .getItems()

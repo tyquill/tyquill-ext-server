@@ -6,6 +6,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
+import { ArticleScrap } from './entities/article-scrap.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { WritingStyle } from '../writing-styles/entities/writing-style.entity';
@@ -17,6 +18,7 @@ import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-e
     MikroOrmModule.forFeature([
       Article,
       ArticleArchive,
+      ArticleScrap,
       Scrap,
       User,
       WritingStyle,

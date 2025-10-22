@@ -51,7 +51,9 @@ export class Article {
   @OneToMany(() => ArticleArchive, (archive) => archive.article)
   archives = new Collection<ArticleArchive>(this);
 
-  @OneToMany(() => ArticleScrap, (articleScrap) => articleScrap.article)
+  @OneToMany(() => ArticleScrap, (articleScrap) => articleScrap.article, {
+    orphanRemoval: true,
+  })
   articleScraps = new Collection<ArticleScrap>(this);
 
   @ManyToOne(() => Folder, {

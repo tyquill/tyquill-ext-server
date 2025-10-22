@@ -27,6 +27,7 @@ import {
   ArticleStatusV2Response,
 } from './dto/generate-article-v2.dto';
 import { GenerateArticleV3Dto } from './dto/generate-article-v3.dto';
+import { RegenerateArticleV3Dto } from './dto/regenerate-article-v3.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -364,6 +365,63 @@ export class ArticlesController {
     return this.articlesService.generateArticleV3Stream(
       userId,
       generateArticleDto,
+    );
+  }
+
+  /**
+   * V3: 기존 아티클 재생성 (동기)
+   * POST /api/v3/articles/:id/regenerate
+   */
+  @ApiOperation({
+    summary: 'V3: 기존 아티클을 재생성합니다',
+    description:
+      '기존 아티클의 메타데이터를 수정하고 새로운 버전으로 재생성합니다. 모든 필드는 선택적이며, 제공된 필드만 업데이트됩니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '아티클이 성공적으로 재생성되었습니다.',
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
+  @ApiResponse({ status: 404, description: '아티클을 찾을 수 없습니다.' })
+  @Version('3')
+  @Post(':id/regenerate')
+  async regenerateArticleV3(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() regenerateDto: RegenerateArticleV3Dto,
+  ) {
+    const userId = parseInt(req.user.id);
+    return this.articlesService.regenerateArticleV3(id, userId, regenerateDto);
+  }
+
+  /**
+   * V3: 기존 아티클 재생성 (스트리밍)
+   * POST /api/v3/articles/:id/regenerate-stream
+   */
+  @ApiOperation({
+    summary: 'V3: 기존 아티클을 실시간 스트리밍으로 재생성합니다',
+    description:
+      'Server-Sent Events를 통해 실시간으로 재생성 진행 상황을 전송합니다. 기존 아티클의 메타데이터를 수정하고 새로운 버전으로 재생성합니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '스트리밍 연결이 성공적으로 설정되었습니다.',
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
+  @ApiResponse({ status: 404, description: '아티클을 찾을 수 없습니다.' })
+  @Version('3')
+  @Post(':id/regenerate-stream')
+  @Sse()
+  regenerateArticleV3Stream(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() regenerateDto: RegenerateArticleV3Dto,
+  ): Observable<MessageEvent> {
+    const userId = parseInt(req.user.id);
+    return this.articlesService.regenerateArticleV3Stream(
+      id,
+      userId,
+      regenerateDto,
     );
   }
 }

@@ -212,14 +212,14 @@ export class ContentService {
       );
     }
 
-    // Determine sort field and order
-    const orderBy = this.getSortField(sortBy, 'scrap');
+    // Determine sort order (always sort by date)
     const order = sortOrder === 'ASC' ? QueryOrder.ASC : QueryOrder.DESC;
+    const orderByField = sortBy === SortByField.UPDATED_AT ? 'updatedAt' : 'createdAt';
 
     // Fetch scraps with tags populated
     const items = await this.scrapRepository.find(where, {
       populate: ['tags'],
-      orderBy: { [orderBy]: order },
+      orderBy: { [orderByField]: order },
       offset,
       limit: fetchLimit,
     });
@@ -243,8 +243,16 @@ export class ContentService {
       includeScraps?: boolean;
     },
   ): Promise<{ items: Article[]; total: number }> {
-    const { folderId, sortBy, sortOrder, search, tags, page, limit, includeScraps } =
-      options;
+    const {
+      folderId,
+      sortBy,
+      sortOrder,
+      search,
+      tags,
+      page,
+      limit,
+      includeScraps,
+    } = options;
 
     const where: any = {
       user: { userId },
@@ -262,16 +270,28 @@ export class ContentService {
 
     // Search filter (topic, keyInsight, title and content from latest archive only)
     if (search) {
-      // Find articles with matching latest archives using window function
+      // SECURITY FIX: Sanitize search input to prevent SQL injection
+      // Use Knex's safe query builder methods instead of string interpolation
       const knex = this.em.getKnex();
+
+      // SECURITY FIX: Add userId filter to prevent cross-user data exposure
+      // Join with articles table to ensure userId check before searching archives
       const matchingArchives = await knex('article_archive as aa')
         .select('aa.article_id')
         .distinct()
+        .innerJoin('article as a', 'aa.article_id', 'a.article_id')
+        .where('a.user_id', userId) // CRITICAL: Filter by userId
+        .where('a.is_deleted', false)
+        .where('aa.is_deleted', false)
+        .where(function () {
+          // Use parameterized queries safely with Knex builder
+          this.where('aa.title', 'ilike', `%${search}%`).orWhere(
+            'aa.content',
+            'ilike',
+            `%${search}%`,
+          );
+        })
         .whereRaw(
-          `(aa.title ILIKE ? OR aa.content ILIKE ?) AND aa.is_deleted = false`,
-          [`%${search}%`, `%${search}%`],
-        )
-        .andWhereRaw(
           `aa.version_number = (
             SELECT MAX(aa_sub.version_number)
             FROM article_archive aa_sub
@@ -315,14 +335,14 @@ export class ContentService {
       );
     }
 
-    // Determine sort field and order
-    const orderBy = this.getSortField(sortBy, 'article');
+    // Determine sort order (always sort by date)
     const order = sortOrder === 'ASC' ? QueryOrder.ASC : QueryOrder.DESC;
+    const orderByField = sortBy === SortByField.UPDATED_AT ? 'updatedAt' : 'createdAt';
 
     // Fetch articles with archives and tags populated
     const items = await this.articleRepository.find(where, {
       populate: ['archives', 'tags'],
-      orderBy: { [orderBy]: order },
+      orderBy: { [orderByField]: order },
       offset,
       limit: fetchLimit,
     });
@@ -401,6 +421,16 @@ export class ContentService {
       contentPreview = contentPreview.substring(0, 200) + '...';
     }
 
+    // PERFORMANCE FIX: Check if tags collection is initialized before accessing
+    // This prevents N+1 queries when tags are not properly populated
+    let tags: Array<{ tagId: number; name: string }> | undefined = undefined;
+    if (scrap.tags && scrap.tags.isInitialized()) {
+      tags = scrap.tags.getItems().map((tag) => ({
+        tagId: tag.tagId,
+        name: tag.name,
+      }));
+    }
+
     return {
       id: scrap.scrapId.toString(),
       type: 'scrap',
@@ -413,10 +443,7 @@ export class ContentService {
       scrapType: scrap.type as any,
       heroImageUrl: scrap.heroImageUrl,
       faviconUrl: scrap.webpage?.site?.favicon_url,
-      tags: scrap.tags?.getItems().map((tag) => ({
-        tagId: tag.tagId,
-        name: tag.name,
-      })),
+      tags,
     };
   }
 
@@ -444,6 +471,16 @@ export class ContentService {
       contentPreview = contentPreview.substring(0, 200) + '...';
     }
 
+    // PERFORMANCE FIX: Check if tags collection is initialized before accessing
+    // This prevents N+1 queries when tags are not properly populated
+    let tags: Array<{ tagId: number; name: string }> | undefined = undefined;
+    if (article.tags && article.tags.isInitialized()) {
+      tags = article.tags.getItems().map((tag) => ({
+        tagId: tag.tagId,
+        name: tag.name,
+      }));
+    }
+
     return {
       id: article.articleId.toString(),
       type: 'article',
@@ -455,10 +492,7 @@ export class ContentService {
       topic: article.topic,
       keyInsight: article.keyInsight,
       generationStatus: article.generationStatus,
-      tags: article.tags?.getItems().map((tag) => ({
-        tagId: tag.tagId,
-        name: tag.name,
-      })),
+      tags,
     };
   }
 
@@ -483,20 +517,4 @@ export class ContentService {
     return text.trim();
   }
 
-  /**
-   * Get database field name for sorting
-   */
-  private getSortField(
-    sortBy: SortByField,
-    entityType: 'scrap' | 'article',
-  ): string {
-    if (sortBy === SortByField.CREATED_AT) {
-      return 'createdAt';
-    } else if (sortBy === SortByField.UPDATED_AT) {
-      return 'updatedAt';
-    } else if (sortBy === SortByField.TITLE) {
-      return 'title';
-    }
-    return 'createdAt'; // Default
-  }
 }

@@ -260,13 +260,13 @@ export class ContentService {
       }
     }
 
-    // Search filter (title or content from latest archive)
+    // Search filter (topic, keyInsight, title and content from archives)
     if (search) {
-      // Note: Searching article content requires joining with archives
-      // For simplicity, we'll search in topic and keyInsight
       where.$or = [
         { topic: { $ilike: `%${search}%` } },
         { keyInsight: { $ilike: `%${search}%` } },
+        { archives: { title: { $ilike: `%${search}%` } } },
+        { archives: { content: { $ilike: `%${search}%` } } },
       ];
     }
 

@@ -260,13 +260,33 @@ export class ContentService {
       }
     }
 
-    // Search filter (title or content from latest archive)
+    // Search filter (topic, keyInsight, title and content from latest archive only)
     if (search) {
-      // Note: Searching article content requires joining with archives
-      // For simplicity, we'll search in topic and keyInsight
+      // Find articles with matching latest archives using window function
+      const knex = this.em.getKnex();
+      const matchingArchives = await knex('article_archive as aa')
+        .select('aa.article_id')
+        .distinct()
+        .whereRaw(
+          `(aa.title ILIKE ? OR aa.content ILIKE ?) AND aa.is_deleted = false`,
+          [`%${search}%`, `%${search}%`],
+        )
+        .andWhereRaw(
+          `aa.version_number = (
+            SELECT MAX(aa_sub.version_number)
+            FROM article_archive aa_sub
+            WHERE aa_sub.article_id = aa.article_id
+          )`,
+        );
+
+      const matchingArticleIds = matchingArchives.map((r: any) => r.article_id);
+
       where.$or = [
         { topic: { $ilike: `%${search}%` } },
         { keyInsight: { $ilike: `%${search}%` } },
+        ...(matchingArticleIds.length > 0
+          ? [{ articleId: { $in: matchingArticleIds } }]
+          : []),
       ];
     }
 

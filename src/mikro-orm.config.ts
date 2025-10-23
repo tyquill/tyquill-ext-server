@@ -7,6 +7,7 @@ config();
 
 import { Article } from './articles/entities/article.entity';
 import { ArticleArchive } from './article-archive/entities/article-archive.entity';
+import { ArticleScrap } from './articles/entities/article-scrap.entity';
 import { Scrap } from './scraps/entities/scrap.entity';
 import { Tag } from './tags/entities/tag.entity';
 import { User } from './users/entities/user.entity';
@@ -26,6 +27,7 @@ export default defineConfig({
   entities: [
     Article,
     ArticleArchive,
+    ArticleScrap,
     Scrap,
     Tag,
     User,

@@ -9,9 +9,10 @@ import {
 import { CreateArticleDto } from '../../api/articles/dto/create-article.dto';
 import { ArticleArchive } from '../../article-archive/entities/article-archive.entity';
 import { User } from '../../users/entities/user.entity';
-import { Scrap } from '../../scraps/entities/scrap.entity';
+import { ArticleScrap } from './article-scrap.entity';
 import { Folder } from '../../folders/entities/folder.entity';
 import { Tag } from '../../tags/entities/tag.entity';
+import { WritingStyle } from '../../writing-styles/entities/writing-style.entity';
 
 @Entity({ tableName: 'articles' })
 export class Article {
@@ -50,14 +51,22 @@ export class Article {
   @OneToMany(() => ArticleArchive, (archive) => archive.article)
   archives = new Collection<ArticleArchive>(this);
 
-  @OneToMany(() => Scrap, (scrap) => scrap.article)
-  scraps = new Collection<Scrap>(this);
+  @OneToMany(() => ArticleScrap, (articleScrap) => articleScrap.article, {
+    orphanRemoval: true,
+  })
+  articleScraps = new Collection<ArticleScrap>(this);
 
   @ManyToOne(() => Folder, {
     fieldName: 'folder_id',
     nullable: true,
   })
   folder?: Folder;
+
+  @ManyToOne(() => WritingStyle, {
+    fieldName: 'writing_style_id',
+    nullable: true,
+  })
+  writingStyle?: WritingStyle;
 
   @OneToMany(() => Tag, (tag) => tag.article)
   tags = new Collection<Tag>(this);

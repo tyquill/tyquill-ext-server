@@ -17,15 +17,18 @@ import {
   ArticleStatusV2Response,
 } from '../api/articles/dto/generate-article-v2.dto';
 import { GenerateArticleV3Dto } from '../api/articles/dto/generate-article-v3.dto';
+import { RegenerateArticleV3Dto } from '../api/articles/dto/regenerate-article-v3.dto';
 import { UpdateArticleDto } from '../api/articles/dto/update-article.dto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Article } from './entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
+import { ArticleScrap } from './entities/article-scrap.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
 import { EntityManager, EntityRepository, LockMode } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { SlackService } from '../notifications/slack.service';
+import { WritingStyle } from '../writing-styles/entities/writing-style.entity';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
@@ -42,10 +45,14 @@ export class ArticlesService {
     private readonly articleRepository: EntityRepository<Article>,
     @InjectRepository(ArticleArchive)
     private readonly articleArchiveRepository: EntityRepository<ArticleArchive>,
+    @InjectRepository(ArticleScrap)
+    private readonly articleScrapRepository: EntityRepository<ArticleScrap>,
     @InjectRepository(Scrap)
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
+    @InjectRepository(WritingStyle)
+    private readonly writingStyleRepository: EntityRepository<WritingStyle>,
     private readonly newsletterAgentService: NewsletterAgentService,
     private readonly slackService: SlackService,
     @InjectRepository(WritingStyleExample)
@@ -248,6 +255,30 @@ export class ArticlesService {
   // Event tracking moved to client
 
   /**
+   * WritingStyle 검증 및 조회 (선택사항)
+   * @private
+   */
+  private async validateAndGetWritingStyle(
+    writingStyleId: number | undefined,
+    userId: number,
+  ): Promise<WritingStyle | undefined> {
+    if (!writingStyleId) {
+      return undefined;
+    }
+
+    const writingStyle = await this.writingStyleRepository.findOne({
+      id: writingStyleId,
+      user: { userId: userId },
+    });
+
+    if (!writingStyle) {
+      throw new NotFoundException('문체 스타일을 찾을 수 없습니다.');
+    }
+
+    return writingStyle;
+  }
+
+  /**
    * 모든 아티클 조회
    */
   async findAll(): Promise<Article[]> {
@@ -265,7 +296,7 @@ export class ArticlesService {
     const article = await this.articleRepository.findOne(
       { articleId },
       {
-        populate: ['user', 'archives'],
+        populate: ['user', 'archives', 'writingStyle', 'articleScraps.scrap'],
         filters: { isDeleted: false },
       },
     );
@@ -281,6 +312,19 @@ export class ArticlesService {
 
     const latestArchive = article.getLatestArchive();
 
+    // 아티클 생성에 사용된 스크랩 목록
+    const scraps = article.articleScraps
+      .getItems()
+      .filter((as) => !as.scrap.isDeleted)
+      .map((as) => ({
+        scrapId: as.scrap.scrapId,
+        title: as.scrap.title,
+        url: as.scrap.url,
+        content: as.scrap.content,
+        userComment: as.userComment || as.scrap.userComment,
+        createdAt: as.scrap.createdAt,
+      }));
+
     return {
       articleId: article.articleId,
       title: article.getLatestTitle() || article.topic,
@@ -292,6 +336,9 @@ export class ArticlesService {
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
       user: article.user,
+      writingStyleId: article.writingStyle?.id,
+      writingStyleName: article.writingStyle?.name,
+      scraps,
       archives: sortedArchives.map((archive) => ({
         archiveId: archive.articleArchiveId,
         title: archive.title,
@@ -679,6 +726,10 @@ export class ArticlesService {
     article.generationParams = generateDto.generationParams;
     article.generationStatus = 'processing';
     article.user = user;
+    article.writingStyle = await this.validateAndGetWritingStyle(
+      generateDto.writingStyleId,
+      userId,
+    );
 
     await this.em.persistAndFlush(article);
 
@@ -860,10 +911,20 @@ export class ArticlesService {
       archive.versionNumber = 1;
       archive.article = article;
 
+      // 아티클-스크랩 관계 저장 (정션 테이블)
+      const articleScraps: ArticleScrap[] = [];
+      for (const item of scrapsWithComments) {
+        const articleScrap = new ArticleScrap();
+        articleScrap.article = article;
+        articleScrap.scrap = item.scrap;
+        articleScrap.userComment = item.userComment;
+        articleScraps.push(articleScrap);
+      }
+
       // 아티클 상태 업데이트
       article.generationStatus = 'completed';
 
-      await this.em.persistAndFlush([archive, article]);
+      await this.em.persistAndFlush([archive, article, ...articleScraps]);
 
       this.logger.log(
         `🎉 Background generation completed for articleId=${articleId}`,
@@ -939,6 +1000,10 @@ export class ArticlesService {
     article.generationParams = generateDto.generationParams;
     article.generationStatus = 'processing';
     article.user = user;
+    article.writingStyle = await this.validateAndGetWritingStyle(
+      generateDto.writingStyleId,
+      userId,
+    );
 
     await this.em.persistAndFlush(article);
 
@@ -1170,10 +1235,20 @@ export class ArticlesService {
       archive.versionNumber = 1;
       archive.article = article;
 
+      // 아티클-스크랩 관계 저장 (정션 테이블)
+      const articleScraps: ArticleScrap[] = [];
+      for (const item of scrapsWithComments) {
+        const articleScrap = new ArticleScrap();
+        articleScrap.article = article;
+        articleScrap.scrap = item.scrap;
+        articleScrap.userComment = item.userComment;
+        articleScraps.push(articleScrap);
+      }
+
       // 아티클 상태 업데이트
       article.generationStatus = 'completed';
 
-      await this.em.persistAndFlush([archive, article]);
+      await this.em.persistAndFlush([archive, article, ...articleScraps]);
 
       this.logger.log(
         `🎉 V3 Background generation completed for articleId=${articleId}`,
@@ -1259,6 +1334,10 @@ export class ArticlesService {
           article.generationParams = generateDto.generationParams;
           article.generationStatus = 'processing';
           article.user = user;
+          article.writingStyle = await this.validateAndGetWritingStyle(
+            generateDto.writingStyleId,
+            userId,
+          );
 
           await this.em.persistAndFlush(article);
 
@@ -1444,8 +1523,22 @@ export class ArticlesService {
                     archive.versionNumber = 1;
                     archive.article = article;
 
+                    // 아티클-스크랩 관계 저장 (정션 테이블)
+                    const articleScraps: ArticleScrap[] = [];
+                    for (const item of scrapsWithComments) {
+                      const articleScrap = new ArticleScrap();
+                      articleScrap.article = article;
+                      articleScrap.scrap = item.scrap;
+                      articleScrap.userComment = item.userComment;
+                      articleScraps.push(articleScrap);
+                    }
+
                     article.generationStatus = 'completed';
-                    await this.em.persistAndFlush([archive, article]);
+                    await this.em.persistAndFlush([
+                      archive,
+                      article,
+                      ...articleScraps,
+                    ]);
 
                     // Send Slack notification
                     try {
@@ -1510,6 +1603,823 @@ export class ArticlesService {
             data: {
               type: 'error',
               message: error.message || 'Streaming failed',
+            },
+          } as MessageEvent);
+
+          observer.error(error);
+        }
+      })();
+    });
+  }
+
+  // ========== Article Regeneration API ==========
+
+  /**
+   * V3: 기존 아티클 재생성 (동기)
+   */
+  async regenerateArticleV3(
+    articleId: number,
+    userId: number,
+    dto: RegenerateArticleV3Dto,
+  ): Promise<any> {
+    this.logger.log(
+      `🔄 Starting article regeneration for articleId=${articleId}, userId=${userId}`,
+    );
+
+    const startTime = Date.now();
+
+    return await this.em.transactional(async (trx) => {
+      // Step 1: Fetch and validate article ownership
+      const article = await trx.findOne(
+        Article,
+        { articleId, user: { userId } },
+        {
+          populate: [
+            'user',
+            'writingStyle',
+            'articleScraps.scrap',
+            'archives',
+          ],
+        },
+      );
+
+      if (!article) {
+        throw new NotFoundException(
+          `Article with ID ${articleId} not found`,
+        );
+      }
+
+      // Step 2: Validate scraps if provided
+      let addedScraps: Scrap[] = [];
+      if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
+        addedScraps = await trx.find(Scrap, {
+          scrapId: { $in: dto.addedScrapIds },
+          user: { userId },
+          isDeleted: false,
+        });
+
+        if (addedScraps.length !== dto.addedScrapIds.length) {
+          const foundIds = addedScraps.map((s) => s.scrapId);
+          const missingIds = dto.addedScrapIds.filter((id) => !foundIds.includes(id));
+          throw new BadRequestException(
+            `Scrap IDs not found or not accessible: [${missingIds.join(', ')}]`,
+          );
+        }
+      }
+
+      // Validate scraps to be removed
+      if (dto.removedScrapIds && dto.removedScrapIds.length > 0) {
+        const existingArticleScraps = await trx.find(ArticleScrap, {
+          article: { articleId: article.articleId },
+          scrap: { scrapId: { $in: dto.removedScrapIds } },
+        });
+
+        if (existingArticleScraps.length !== dto.removedScrapIds.length) {
+          const foundIds = existingArticleScraps.map((as) => as.scrap.scrapId);
+          const missingIds = dto.removedScrapIds.filter((id) => !foundIds.includes(id));
+          throw new BadRequestException(
+            `Scrap IDs not associated with this article: [${missingIds.join(', ')}]`,
+          );
+        }
+      }
+
+      // Step 3: Validate writing style if provided
+      let writingStyle: WritingStyle | null | undefined = undefined;
+      if (dto.writingStyleId !== undefined) {
+        if (dto.writingStyleId === null) {
+          writingStyle = null; // Explicit removal
+        } else {
+          writingStyle = await trx.findOne(WritingStyle, {
+            id: dto.writingStyleId,
+            user: { userId },
+          });
+
+          if (!writingStyle) {
+            throw new BadRequestException(
+              `Writing style with ID ${dto.writingStyleId} not found or not accessible`,
+            );
+          }
+        }
+      }
+
+      // Step 4: Update article metadata
+      if (dto.topic !== undefined) {
+        article.topic = dto.topic;
+      }
+      if (dto.keyInsight !== undefined) {
+        article.keyInsight = dto.keyInsight;
+      }
+      if (dto.generationParams !== undefined) {
+        article.generationParams = dto.generationParams;
+      }
+      if (writingStyle !== undefined) {
+        article.writingStyle = writingStyle === null ? undefined : writingStyle;
+      }
+
+      // Step 5: Synchronize ArticleScrap associations (incremental)
+      // Remove specified scraps
+      if (dto.removedScrapIds && dto.removedScrapIds.length > 0) {
+        // With orphanRemoval: true, just remove from collection
+        // MikroORM will handle database deletion automatically on flush
+        const itemsToRemove = article.articleScraps
+          .getItems()
+          .filter((as) => dto.removedScrapIds!.includes(as.scrap.scrapId));
+        itemsToRemove.forEach((as) => article.articleScraps.remove(as));
+      }
+
+      // Add new scraps
+      if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
+        const newArticleScraps = addedScraps.map((scrap) => {
+          const articleScrap = new ArticleScrap();
+          articleScrap.article = article;
+          articleScrap.scrap = scrap;
+          articleScrap.userComment = scrap.userComment; // Use scrap's default comment
+          return articleScrap;
+        });
+
+        // Add new items to the collection
+        newArticleScraps.forEach((as) => article.articleScraps.add(as));
+      }
+
+      // Step 6: Calculate next version number
+      const maxVersion = await trx.findOne(
+        ArticleArchive,
+        { article: { articleId: article.articleId } },
+        { orderBy: { versionNumber: 'DESC' } },
+      );
+      const nextVersion = (maxVersion?.versionNumber || 0) + 1;
+
+      // Step 7: Prepare scraps for AI generation
+      // Use current article scraps (already updated with add/remove in Step 5)
+      const currentArticleScraps = await trx.find(
+        ArticleScrap,
+        { article: { articleId: article.articleId } },
+        { populate: ['scrap'] },
+      );
+      const scrapsWithComments = currentArticleScraps.map((as) => ({
+        scrap: as.scrap,
+        userComment: as.userComment,
+      }));
+
+      // Step 8: Prepare writing style examples
+      let writingStyleExampleContents: string[] = [];
+      const finalWritingStyle =
+        writingStyle !== undefined ? writingStyle : article.writingStyle;
+
+      if (finalWritingStyle) {
+        const writingStyleExamples =
+          await this.writingStyleExampleRepository.find(
+            {
+              writingStyle: { id: finalWritingStyle.id, user: { userId } },
+            },
+            { populate: ['writingStyle'] },
+          );
+        writingStyleExampleContents = writingStyleExamples.map(
+          (example) => example.content,
+        );
+      }
+
+      // Step 9: Get previous content and title
+      const latestArchive = article.archives
+        .getItems()
+        .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))[0];
+
+      if (!latestArchive) {
+        throw new NotFoundException(
+          'No previous version found for regeneration',
+        );
+      }
+
+      const previousTitle = latestArchive.title || article.topic;
+      const previousContent = latestArchive.content || '';
+
+      // Step 10: Build user prompt from changes
+      let userPromptParts: string[] = [];
+
+      if (dto.topic && dto.topic !== article.topic) {
+        userPromptParts.push(`주제를 "${dto.topic}"로 변경해주세요.`);
+      }
+      if (dto.keyInsight && dto.keyInsight !== article.keyInsight) {
+        userPromptParts.push(`핵심 인사이트를 "${dto.keyInsight}"로 반영해주세요.`);
+      }
+      if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
+        userPromptParts.push(
+          `추가된 ${dto.addedScrapIds.length}개의 스크랩 자료를 본문에 통합해주세요.`,
+        );
+      }
+      if (dto.removedScrapIds && dto.removedScrapIds.length > 0) {
+        userPromptParts.push(
+          `${dto.removedScrapIds.length}개의 스크랩 자료를 제거한 내용으로 조정해주세요.`,
+        );
+      }
+      if (!userPromptParts.length) {
+        userPromptParts.push('아티클을 개선하고 업데이트해주세요.');
+      }
+
+      const userPrompt = userPromptParts.join(' ');
+
+      // Step 11: Format additional scraps for gRPC
+      const additionalScraps = scrapsWithComments.map((item) => ({
+        id: item.scrap.scrapId,
+        title: item.scrap.title,
+        url: item.scrap.url,
+        content: item.scrap.content,
+        userComment: item.userComment || item.scrap.userComment || '',
+      }));
+
+      // Step 12: Call Python Agent regeneration API
+      this.logger.log(
+        `🤖 Calling regeneration API: articleId=${articleId}, version=${nextVersion}`,
+      );
+
+      const agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL');
+      const regenerationUrl = `${agentApiUrl}/api/v1/article/regenerate`;
+
+      const response = await fetch(regenerationUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          previousTitle,
+          previousContent,
+          topic: dto.topic,
+          keyInsight: dto.keyInsight,
+          userPrompt,
+          additionalScraps,
+          writingStyleExamples: writingStyleExampleContents,
+          generationParams: dto.generationParams,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Regeneration API failed: ${response.status} - ${errorText}`);
+      }
+
+      const regenerationResult = await response.json();
+
+      if (!regenerationResult.success) {
+        throw new Error(
+          regenerationResult.errorMessage || 'Regeneration failed',
+        );
+      }
+
+      // Step 13: Create new ArticleArchive version
+      const newArchive = new ArticleArchive();
+      newArchive.title = regenerationResult.title;
+      newArchive.content = regenerationResult.content;
+      newArchive.versionNumber = nextVersion;
+      newArchive.article = article;
+
+      await trx.persistAndFlush([article, newArchive]);
+
+      this.logger.log(
+        `✅ Article regeneration completed: articleId=${articleId}, version=${nextVersion}, duration=${Date.now() - startTime}ms`,
+      );
+
+      // Step 12: Refresh and return
+      await trx.refresh(article, {
+        populate: ['user', 'writingStyle', 'articleScraps.scrap', 'archives'],
+      });
+
+      // Return formatted response
+      const sortedArchives = article.archives
+        .getItems()
+        .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0));
+
+      const latestVersion = sortedArchives[0];
+
+      return {
+        articleId: article.articleId,
+        title: latestVersion?.title || article.topic,
+        content: latestVersion?.content || '',
+        contentFormat: latestVersion?.contentFormat || 'markdown',
+        topic: article.topic,
+        keyInsight: article.keyInsight,
+        generationParams: article.generationParams,
+        createdAt: article.createdAt,
+        updatedAt: article.updatedAt,
+        user: article.user,
+        writingStyleId: article.writingStyle?.id,
+        writingStyleName: article.writingStyle?.name,
+        scraps: article.articleScraps.getItems().map((as) => ({
+          scrapId: as.scrap.scrapId,
+          title: as.scrap.title,
+          url: as.scrap.url,
+          content: as.scrap.content,
+          userComment: as.userComment || as.scrap.userComment,
+          createdAt: as.scrap.createdAt,
+        })),
+        archives: sortedArchives.map((archive) => ({
+          archiveId: archive.articleArchiveId,
+          title: archive.title,
+          content: archive.content,
+          contentFormat: archive.contentFormat || 'markdown',
+          versionNumber: archive.versionNumber,
+          createdAt: archive.createdAt,
+        })),
+      };
+    });
+  }
+
+  /**
+   * V3: 기존 아티클 재생성 (스트리밍)
+   */
+  regenerateArticleV3Stream(
+    articleId: number,
+    userId: number,
+    dto: RegenerateArticleV3Dto,
+  ): Observable<MessageEvent> {
+    return new Observable((observer) => {
+      // Main async function
+      (async () => {
+        let article: Article | null = null;
+
+        try {
+          this.logger.log(
+            `📡 Starting streaming article regeneration for articleId=${articleId}, userId=${userId}`,
+          );
+
+          // Variables to capture scrap changes for AI context
+          let removedScrapsData: Array<{
+            id: number;
+            title: string;
+            url: string;
+            content: string;
+            userComment: string;
+          }> = [];
+
+          // Transaction for validation and update
+          await this.em.transactional(async (trx) => {
+            // Step 1: Fetch and validate article ownership
+            article = await trx.findOne(
+              Article,
+              { articleId, user: { userId } },
+              {
+                populate: [
+                  'user',
+                  'writingStyle',
+                  'articleScraps.scrap',
+                  'archives',
+                ],
+              },
+            );
+
+            if (!article) {
+              throw new NotFoundException(
+                `Article with ID ${articleId} not found or you don't have access`,
+              );
+            }
+
+            // Step 2: Validate scraps if provided
+            let addedScraps: Scrap[] = [];
+            if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
+              addedScraps = await trx.find(Scrap, {
+                scrapId: { $in: dto.addedScrapIds },
+                user: { userId },
+                isDeleted: false,
+              });
+
+              if (addedScraps.length !== dto.addedScrapIds.length) {
+                const foundIds = addedScraps.map((s) => s.scrapId);
+                const missingIds = dto.addedScrapIds.filter(
+                  (id) => !foundIds.includes(id),
+                );
+                throw new BadRequestException(
+                  `Scraps not found or inaccessible: ${missingIds.join(', ')}`,
+                );
+              }
+            }
+
+            // Validate scraps to be removed AND capture their data for AI
+            if (dto.removedScrapIds && dto.removedScrapIds.length > 0) {
+              const existingArticleScraps = await trx.find(
+                ArticleScrap,
+                {
+                  article: { articleId: article.articleId },
+                  scrap: { scrapId: { $in: dto.removedScrapIds } },
+                },
+                {
+                  populate: ['scrap'], // Important: populate scrap details
+                },
+              );
+
+              if (existingArticleScraps.length !== dto.removedScrapIds.length) {
+                const foundIds = existingArticleScraps.map((as) => as.scrap.scrapId);
+                const missingIds = dto.removedScrapIds.filter(
+                  (id) => !foundIds.includes(id),
+                );
+                throw new BadRequestException(
+                  `Scrap IDs not associated with this article: [${missingIds.join(', ')}]`,
+                );
+              }
+
+              // Capture removed scrap data before deletion
+              removedScrapsData = existingArticleScraps.map((as) => ({
+                id: as.scrap.scrapId,
+                title: as.scrap.title,
+                url: as.scrap.url,
+                content: as.scrap.content,
+                userComment: as.userComment || as.scrap.userComment || '',
+              }));
+            }
+
+            // Step 3: Validate and update WritingStyle
+            if (dto.writingStyleId !== undefined) {
+              if (dto.writingStyleId === null) {
+                article.writingStyle = undefined;
+              } else {
+                const writingStyle = await trx.findOne(WritingStyle, {
+                  id: dto.writingStyleId,
+                  user: { userId },
+                });
+                if (!writingStyle) {
+                  throw new NotFoundException(
+                    `WritingStyle with ID ${dto.writingStyleId} not found`,
+                  );
+                }
+                article.writingStyle = writingStyle;
+              }
+            }
+
+            // Step 4: Update article metadata
+            if (dto.topic !== undefined) {
+              article.topic = dto.topic;
+            }
+            if (dto.keyInsight !== undefined) {
+              article.keyInsight = dto.keyInsight;
+            }
+            if (dto.generationParams !== undefined) {
+              article.generationParams = dto.generationParams;
+            }
+
+            // Step 5: Synchronize ArticleScrap associations (incremental)
+            // Remove specified scraps
+            if (dto.removedScrapIds && dto.removedScrapIds.length > 0 && article) {
+              // With orphanRemoval: true, just remove from collection
+              // MikroORM will handle database deletion automatically on flush
+              const itemsToRemove = article.articleScraps
+                .getItems()
+                .filter((as) => dto.removedScrapIds!.includes(as.scrap.scrapId));
+              itemsToRemove.forEach((as) => article!.articleScraps.remove(as));
+            }
+
+            // Add new scraps
+            if (dto.addedScrapIds && dto.addedScrapIds.length > 0 && article) {
+              const newArticleScraps = addedScraps.map((scrap) => {
+                const articleScrap = new ArticleScrap();
+                articleScrap.article = article!;
+                articleScrap.scrap = scrap;
+                articleScrap.userComment = scrap.userComment; // Use scrap's default comment
+                return articleScrap;
+              });
+
+              // Add new items to the collection
+              newArticleScraps.forEach((as) => article!.articleScraps.add(as));
+            }
+
+            // Update status to processing
+            article.generationStatus = 'processing';
+            await trx.persistAndFlush(article);
+          });
+
+          // Reload article with fresh data
+          article = await this.articleRepository.findOne(
+            { articleId },
+            {
+              populate: [
+                'user',
+                'writingStyle',
+                'articleScraps.scrap',
+                'archives',
+              ],
+            },
+          );
+
+          if (!article) {
+            throw new Error('Failed to reload article after update');
+          }
+
+          this.logger.log(
+            `✅ Article updated, starting regeneration stream for ID: ${article.articleId}`,
+          );
+
+          // Prepare scrap data with distinction between added, existing, and removed
+          const allCurrentScraps = article.articleScraps.getItems();
+
+          // Scraps that were newly added in this regeneration
+          const addedScrapsData =
+            dto.addedScrapIds && dto.addedScrapIds.length > 0
+              ? allCurrentScraps
+                  .filter((as) => dto.addedScrapIds!.includes(as.scrap.scrapId))
+                  .map((as) => ({
+                    id: as.scrap.scrapId,
+                    title: as.scrap.title,
+                    url: as.scrap.url,
+                    content: as.scrap.content,
+                    userComment: as.userComment || as.scrap.userComment || '',
+                  }))
+              : [];
+
+          // Scraps that existed before this regeneration
+          const existingScrapsData = allCurrentScraps
+            .filter((as) => !dto.addedScrapIds?.includes(as.scrap.scrapId))
+            .map((as) => ({
+              id: as.scrap.scrapId,
+              title: as.scrap.title,
+              url: as.scrap.url,
+              content: as.scrap.content,
+              userComment: as.userComment || as.scrap.userComment || '',
+            }));
+
+          // Keep for backward compatibility and general processing
+          const scrapsWithComments = allCurrentScraps.map((as) => ({
+            scrap: as.scrap,
+            userComment: as.userComment,
+          }));
+
+          // Prepare PDF uploads if provided
+          let pdfUploadsWithPrompts: Array<{
+            url: string;
+            usagePrompt: string;
+            aiContent: string;
+          }> = [];
+
+          if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
+            const uploads = dto.uploadWithUsagePrompt;
+            const scrapIds = uploads.map((u) => u.uploadedFileId);
+
+            const usagePromptById = new Map<number, string>();
+            for (const u of uploads)
+              usagePromptById.set(u.uploadedFileId, u.usagePrompt || '');
+
+            const uploadScraps = await this.scrapRepository.find({
+              scrapId: { $in: scrapIds },
+              user: article.user,
+              isDeleted: false,
+            });
+
+            pdfUploadsWithPrompts = uploadScraps
+              .map((scrap) => {
+                const url = scrap.filePath || scrap.url;
+                if (!url) return null;
+                return {
+                  url,
+                  usagePrompt: usagePromptById.get(scrap.scrapId) || '',
+                  aiContent: scrap.aiContent || '',
+                };
+              })
+              .filter(
+                (
+                  x,
+                ): x is {
+                  url: string;
+                  usagePrompt: string;
+                  aiContent: string;
+                } => x !== null,
+              );
+          }
+
+          // Prepare writing style examples
+          let writingStyleExampleContents: string[] = [];
+          if (article.writingStyle) {
+            const writingStyleExamples =
+              await this.writingStyleExampleRepository.find(
+                {
+                  writingStyle: {
+                    id: article.writingStyle.id,
+                    user: article.user,
+                  },
+                },
+                { populate: ['writingStyle'] },
+              );
+            writingStyleExampleContents = writingStyleExamples.map(
+              (example) => example.content,
+            );
+          }
+
+          // Get previous content and title for regeneration
+          const latestArchiveForStream = article.archives
+            .getItems()
+            .sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))[0];
+
+          if (!latestArchiveForStream) {
+            throw new NotFoundException(
+              'No previous version found for regeneration',
+            );
+          }
+
+          const previousTitle = latestArchiveForStream.title || article.topic;
+          const previousContent = latestArchiveForStream.content || '';
+
+          // Build user prompt from changes
+          const userPromptParts: string[] = [];
+          if (dto.topic && dto.topic !== article.topic) {
+            userPromptParts.push(`주제를 "${dto.topic}"로 변경해주세요.`);
+          }
+          if (dto.keyInsight && dto.keyInsight !== article.keyInsight) {
+            userPromptParts.push(
+              `핵심 인사이트를 "${dto.keyInsight}"로 반영해주세요.`,
+            );
+          }
+          if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
+            userPromptParts.push(
+              `추가된 ${dto.addedScrapIds.length}개의 스크랩 자료를 본문에 통합해주세요.`,
+            );
+          }
+          if (dto.removedScrapIds && dto.removedScrapIds.length > 0) {
+            userPromptParts.push(
+              `${dto.removedScrapIds.length}개의 스크랩 자료를 제거한 내용으로 조정해주세요.`,
+            );
+          }
+          if (!userPromptParts.length) {
+            userPromptParts.push('아티클을 개선하고 업데이트해주세요.');
+          }
+
+          const userPrompt = userPromptParts.join(' ');
+
+          // Format additional scraps for gRPC
+          const additionalScraps = scrapsWithComments.map((item) => ({
+            id: item.scrap.scrapId,
+            title: item.scrap.title,
+            url: item.scrap.url,
+            content: item.scrap.content,
+            userComment: item.userComment || item.scrap.userComment || '',
+          }));
+
+          // Call Python Agent regeneration API (non-streaming for now)
+          this.logger.log(
+            `🤖 Calling regeneration API: articleId=${article.articleId}`,
+          );
+
+          const agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL');
+          const regenerationUrl = `${agentApiUrl}/api/v1/article/regenerate`;
+
+          // Send progress start event
+          observer.next({
+            data: {
+              type: 'progress',
+              message: 'Starting article regeneration...',
+              progress: 10,
+            },
+          } as MessageEvent);
+
+          const response = await fetch(regenerationUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              previousTitle,
+              previousContent,
+              topic: dto.topic,
+              keyInsight: dto.keyInsight,
+              userPrompt,
+              // NEW: Separate scrap categories for better AI context
+              existingScraps: existingScrapsData, // Scraps from original article
+              addedScraps: addedScrapsData, // NEW scraps to integrate
+              removedScraps: removedScrapsData, // Scraps that were removed
+              // Keep for backward compatibility
+              additionalScraps,
+              additionalPdfs: pdfUploadsWithPrompts,
+              writingStyleExamples: writingStyleExampleContents,
+              generationParams: dto.generationParams,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            observer.next({
+              data: {
+                type: 'error',
+                message: `Regeneration failed: ${response.status} - ${errorText}`,
+              },
+            } as MessageEvent);
+            throw new Error(`Regeneration API failed: ${response.status} - ${errorText}`);
+          }
+
+          const regenerationResult = await response.json();
+
+          if (!regenerationResult.success) {
+            observer.next({
+              data: {
+                type: 'error',
+                message: regenerationResult.errorMessage || 'Regeneration failed',
+              },
+            } as MessageEvent);
+            throw new Error(
+              regenerationResult.errorMessage || 'Regeneration failed',
+            );
+          }
+
+          // Send progress event
+          observer.next({
+            data: {
+              type: 'progress',
+              message: 'Saving regenerated content...',
+              progress: 90,
+            },
+          } as MessageEvent);
+
+          // Handle completion - save to database
+          if (regenerationResult.title && regenerationResult.content && article) {
+            try {
+              // Calculate next version number
+              const existingVersions = article.archives
+                .getItems()
+                .map((a) => a.versionNumber || 0);
+              const maxVersion =
+                existingVersions.length > 0
+                  ? Math.max(...existingVersions)
+                  : 0;
+              const nextVersion = maxVersion + 1;
+
+              // Save results to database
+              const archive = new ArticleArchive();
+              archive.title = regenerationResult.title;
+              archive.content = regenerationResult.content;
+              archive.versionNumber = nextVersion;
+              archive.article = article;
+
+              article.generationStatus = 'completed';
+              await this.em.persistAndFlush([archive, article]);
+
+              this.logger.log(
+                `✅ Regeneration complete: articleId=${article.articleId}, version=${nextVersion}`,
+              );
+
+              // Send Slack notification
+              try {
+                await this.slackService.notifyArticleGeneration({
+                  articleId: article.articleId,
+                  title: regenerationResult.title,
+                  topic: article.topic,
+                  keyInsight: article.keyInsight,
+                  userEmail: article.user.email,
+                  userName: article.user.name,
+                  userId: article.user.userId,
+                  contentLength: regenerationResult.content.length,
+                  version: `V3-Regenerate-v${nextVersion}`,
+                  createdAt: article.createdAt,
+                });
+              } catch (slackError) {
+                this.logger.warn(
+                  'Failed to send Slack notification:',
+                  slackError,
+                );
+              }
+
+              // Send final complete event to client
+              observer.next({
+                data: {
+                  type: 'complete',
+                  title: regenerationResult.title,
+                  content: regenerationResult.content,
+                  changesSummary: regenerationResult.changesSummary,
+                },
+              } as MessageEvent);
+            } catch (error) {
+              this.logger.error('Error saving regeneration result:', error);
+              if (article) {
+                article.generationStatus = 'failed';
+                await this.em.persistAndFlush(article);
+              }
+              observer.next({
+                data: {
+                  type: 'error',
+                  message: error.message || 'Failed to save result',
+                },
+              } as MessageEvent);
+            }
+          }
+
+          // Complete the observable
+          observer.complete();
+        } catch (error) {
+          this.logger.error(
+            '❌ Streaming article regeneration failed:',
+            error,
+          );
+
+          // Update article status to failed
+          if (article) {
+            try {
+              article.generationStatus = 'failed';
+              await this.em.persistAndFlush(article);
+            } catch (updateError) {
+              this.logger.error(
+                'Failed to update article status:',
+                updateError,
+              );
+            }
+          }
+
+          // Send error to client
+          observer.next({
+            data: {
+              type: 'error',
+              message: error.message || 'Regeneration streaming failed',
             },
           } as MessageEvent);
 

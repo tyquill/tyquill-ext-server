@@ -15,6 +15,8 @@ import { UploadedFilesModule } from './uploaded-files/uploaded-files.module';
 import { LibraryItemsModule } from './library-items/library-items.module';
 import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './api/admin/admin.module';
+import { FoldersModule } from './folders/folders.module';
+import { ContentModule } from './content/content.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { AdminModule } from './api/admin/admin.module';
     WritingStylesModule,
     UploadedFilesModule,
     LibraryItemsModule,
+    FoldersModule, // 폴더 모듈 추가
+    ContentModule, // 통합 콘텐츠 모듈 추가
     QueueModule, // SQS 큐 모듈 추가
     AdminModule, // 관리자 모듈 추가
   ],

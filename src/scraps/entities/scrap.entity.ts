@@ -9,6 +9,7 @@ import {
 import { Tag } from '../../tags/entities/tag.entity';
 import { User } from '../../users/entities/user.entity';
 import { Article } from '../../articles/entities/article.entity';
+import { Folder } from '../../folders/entities/folder.entity';
 
 @Entity({ tableName: 'scraps' })
 export class Scrap {
@@ -129,6 +130,12 @@ export class Scrap {
 
   @ManyToOne(() => Article, { fieldName: 'article_id', nullable: true })
   article?: Article;
+
+  @ManyToOne(() => Folder, {
+    fieldName: 'folder_id',
+    nullable: true,
+  })
+  folder?: Folder;
 
   @OneToMany(() => Tag, (tag) => tag.scrap)
   tags: Collection<Tag> = new Collection<Tag>(this);

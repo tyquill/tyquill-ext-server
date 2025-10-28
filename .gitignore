@@ -50,6 +50,9 @@ lerna-debug.log*
 .temp
 .tmp
 
+# Credentials
+credentials.json
+
 # Runtime data
 pids
 *.pid

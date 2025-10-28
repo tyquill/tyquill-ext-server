@@ -33,14 +33,15 @@ npm install
 # 데이터베이스 설정
 DATABASE_URL=postgresql://username:password@localhost:5432/tyquill_db
 
-# AI 서비스 설정
-GOOGLE_API_KEY=your_google_gemini_api_key_here
-
-# Tyquill Agent API URL (AI 에이전트 서비스)
-# Development: http://localhost:8001
-# Production (VPC private): http://tyquill-agent-service.tyquill.local:8001
-# Note: Production URL is only accessible within the same VPC (AWS Service Discovery)
-TYQUILL_AGENT_API_URL=http://localhost:8001
+# AI 서비스 설정 (Vertex AI)
+# 서비스 계정 JSON 문자열 (환경 변수에 JSON 전체를 설정)
+GOOGLE_APPLICATION_CREDENTIALS_JSON={"type":"service_account","project_id":"your-project-id", ...}
+# 또는 JSON 파일 경로를 지정 (예: tyquill-agent/credentials.json 복사본)
+GOOGLE_APPLICATION_CREDENTIALS_PATH=./credentials.json
+GOOGLE_VERTEX_PROJECT_ID=your-project-id
+GOOGLE_VERTEX_LOCATION=us-central1
+# 기본값은 v1, 필요 시 변경
+GOOGLE_VERTEX_API_VERSION=v1
 
 # 애플리케이션 설정
 NODE_ENV=development
@@ -130,14 +131,14 @@ npm run test:production
 ```
 
 **주의**: 프로덕션 테스트를 실행하기 전에 다음 사항을 확인하세요:
-- ✅ `.env` 파일에 유효한 `GOOGLE_API_KEY` 설정
+- ✅ `.env` 파일에 Vertex 인증 정보(`GOOGLE_APPLICATION_CREDENTIALS_JSON`, `GOOGLE_VERTEX_PROJECT_ID`, `GOOGLE_VERTEX_LOCATION`) 설정
 - ✅ 데이터베이스 연결 정상 작동
 - ✅ 필요한 테이블 생성 완료
 
 #### 프로덕션 테스트 내용
 
 1. **🤖 기본 AI 생성 테스트**
-   - 실제 Gemini API를 사용한 아티클 생성
+   - 실제 Vertex AI Gemini 모델을 사용한 아티클 생성 (tyquill-agent/credentials.json을 복사했다면 동일 파일을 `tyquill-ext-server/credentials.json` 위치에 두고 사용)
    - 응답 시간 및 품질 검증
 
 2. **🧠 복잡한 콘텐츠 생성 테스트**

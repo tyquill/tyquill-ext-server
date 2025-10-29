@@ -18,11 +18,15 @@ export class Tag {
     const hasArticle = this.article !== null && this.article !== undefined;
 
     if (!hasScrap && !hasArticle) {
-      throw new Error('Tag must be associated with either a scrap or an article');
+      throw new Error(
+        'Tag must be associated with either a scrap or an article',
+      );
     }
 
     if (hasScrap && hasArticle) {
-      throw new Error('Tag cannot be associated with both a scrap and an article');
+      throw new Error(
+        'Tag cannot be associated with both a scrap and an article',
+      );
     }
   }
 

@@ -7,8 +7,9 @@ import { AIMessage, BaseMessage } from '@langchain/core/messages';
 import { isBaseMessage } from '@langchain/core/messages';
 import type { ZodTypeAny } from 'zod';
 import type { GoogleAuthOptions } from 'google-auth-library';
+import type { BasePromptValue } from '@langchain/core/prompt_values';
 
-type MessageInput = string | BaseMessage | BaseMessage[];
+type MessageInput = string | BaseMessage | BaseMessage[] | BasePromptValue;
 
 interface GenerationOverrides {
   temperature?: number;
@@ -109,6 +110,20 @@ export class ChatVertexAI {
 
     if (isBaseMessage(input)) {
       return [this.messageToContent(input)];
+    }
+
+    // Handle PromptValue input (from PromptTemplate)
+    if (input && typeof input === 'object' && 'toString' in input) {
+      // PromptValue has toString() and toMessages() methods
+      if (typeof input.toString === 'function') {
+        const stringValue = input.toString();
+        return [
+          {
+            role: 'user',
+            parts: [{ text: stringValue }],
+          },
+        ];
+      }
     }
 
     throw new Error('Unsupported message input type for Vertex Chat model.');

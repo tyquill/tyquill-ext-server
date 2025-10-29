@@ -66,11 +66,15 @@ Original Content:
 {user_comment_criteria}
 </quality_criteria>`);
 
-    const llmRunnable = RunnableLambda.from<string, string>(async (prompt) => {
-      const response = await this.summaryModel.invoke(prompt);
-      return this.summaryModelExtractText(response);
+    // Create a RunnableLambda wrapper to handle the PromptValue -> string conversion
+    // and invoke the ChatVertexAI model
+    const llmRunnable = RunnableLambda.from(async (input: any) => {
+      // The PromptTemplate outputs a BasePromptValue, which our ChatVertexAI can now handle
+      const response = await this.summaryModel.invoke(input);
+      return response;
     });
 
+    // Chain: PromptTemplate -> LLM wrapper -> StringOutputParser
     this.summaryChain = RunnableSequence.from([
       this.contentSummaryTemplate,
       llmRunnable,

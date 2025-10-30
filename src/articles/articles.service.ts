@@ -1148,6 +1148,10 @@ export class ArticlesService {
         aiContent: string;
       }> = [];
 
+      // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 생성용)
+      let uploadScraps: Scrap[] = [];
+      const usagePromptById = new Map<number, string>();
+
       if (
         generateDto.uploadWithUsagePrompt &&
         generateDto.uploadWithUsagePrompt.length > 0
@@ -1157,12 +1161,11 @@ export class ArticlesService {
         const scrapIds = uploads.map((u) => u.uploadedFileId);
 
         // Build usagePrompt lookup for O(1)
-        const usagePromptById = new Map<number, string>();
         for (const u of uploads)
           usagePromptById.set(u.uploadedFileId, u.usagePrompt);
 
         // Fetch only non-deleted scraps for the user
-        const uploadScraps = await this.scrapRepository.find({
+        uploadScraps = await this.scrapRepository.find({
           scrapId: { $in: scrapIds },
           user: article.user,
           isDeleted: false,
@@ -1237,12 +1240,25 @@ export class ArticlesService {
 
       // 아티클-스크랩 관계 저장 (정션 테이블)
       const articleScraps: ArticleScrap[] = [];
+
+      // 웹 스크랩 관계 추가
       for (const item of scrapsWithComments) {
         const articleScrap = new ArticleScrap();
         articleScrap.article = article;
         articleScrap.scrap = item.scrap;
         articleScrap.userComment = item.userComment;
         articleScraps.push(articleScrap);
+      }
+
+      // PDF 스크랩 관계 추가
+      if (uploadScraps && uploadScraps.length > 0) {
+        for (const scrap of uploadScraps) {
+          const articleScrap = new ArticleScrap();
+          articleScrap.article = article;
+          articleScrap.scrap = scrap;
+          articleScrap.userComment = usagePromptById.get(scrap.scrapId);
+          articleScraps.push(articleScrap);
+        }
       }
 
       // 아티클 상태 업데이트
@@ -1371,6 +1387,10 @@ export class ArticlesService {
             aiContent: string;
           }> = [];
 
+          // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 생성용)
+          let uploadScraps: Scrap[] = [];
+          const usagePromptById = new Map<number, string>();
+
           if (
             generateDto.uploadWithUsagePrompt &&
             generateDto.uploadWithUsagePrompt.length > 0
@@ -1378,12 +1398,11 @@ export class ArticlesService {
             const uploads = generateDto.uploadWithUsagePrompt;
             const scrapIds = uploads.map((u) => u.uploadedFileId);
 
-            const usagePromptById = new Map<number, string>();
             uploads.forEach((u) =>
               usagePromptById.set(u.uploadedFileId, u.usagePrompt),
             );
 
-            const uploadScraps = await this.scrapRepository.find({
+            uploadScraps = await this.scrapRepository.find({
               scrapId: { $in: scrapIds },
               user,
               isDeleted: false,
@@ -1462,6 +1481,8 @@ export class ArticlesService {
               archive.article = article;
 
               const articleScraps: ArticleScrap[] = [];
+
+              // 웹 스크랩 관계 추가
               scrapsWithComments.forEach((item) => {
                 const articleScrap = new ArticleScrap();
                 articleScrap.article = article as Article;
@@ -1469,6 +1490,17 @@ export class ArticlesService {
                 articleScrap.userComment = item.userComment;
                 articleScraps.push(articleScrap);
               });
+
+              // PDF 스크랩 관계 추가
+              if (uploadScraps && uploadScraps.length > 0) {
+                uploadScraps.forEach((scrap) => {
+                  const articleScrap = new ArticleScrap();
+                  articleScrap.article = article as Article;
+                  articleScrap.scrap = scrap;
+                  articleScrap.userComment = usagePromptById.get(scrap.scrapId);
+                  articleScraps.push(articleScrap);
+                });
+              }
 
               article.generationStatus = 'completed';
               await this.em.persistAndFlush([archive, article, ...articleScraps]);
@@ -1672,6 +1704,49 @@ export class ArticlesService {
         article.writingStyle = writingStyle === null ? undefined : writingStyle;
       }
 
+      // Step 4.5: Prepare PDF uploads (before Step 5 so uploadScraps is available)
+      let pdfUploadsWithPrompts: Array<{
+        url: string;
+        usagePrompt: string;
+        aiContent: string;
+      }> = [];
+
+      // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 동기화용)
+      let uploadScraps: Scrap[] = [];
+      const usagePromptByIdForPdf = new Map<number, string>();
+
+      if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
+        const uploads = dto.uploadWithUsagePrompt;
+        const scrapIds = uploads.map((u) => u.uploadedFileId);
+
+        uploads.forEach((u) =>
+          usagePromptByIdForPdf.set(u.uploadedFileId, u.usagePrompt ?? ''),
+        );
+
+        uploadScraps = await this.scrapRepository.find({
+          scrapId: { $in: scrapIds },
+          user: { userId },
+          isDeleted: false,
+        });
+
+        pdfUploadsWithPrompts = uploadScraps
+          .map((scrap) => {
+            const url = scrap.filePath || scrap.url;
+            if (!url) return null;
+            return {
+              url,
+              usagePrompt: usagePromptByIdForPdf.get(scrap.scrapId) || '',
+              aiContent: scrap.aiContent || '',
+            };
+          })
+          .filter(
+            (
+              item,
+            ): item is { url: string; usagePrompt: string; aiContent: string } =>
+              item !== null,
+          );
+      }
+
       // Step 5: Synchronize ArticleScrap associations (incremental)
       // Remove specified scraps
       if (dto.removedScrapIds && dto.removedScrapIds.length > 0) {
@@ -1683,7 +1758,7 @@ export class ArticlesService {
         itemsToRemove.forEach((as) => article.articleScraps.remove(as));
       }
 
-      // Add new scraps
+      // Add new web scraps
       if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
         const newArticleScraps = addedScraps.map((scrap) => {
           const articleScrap = new ArticleScrap();
@@ -1695,6 +1770,31 @@ export class ArticlesService {
 
         // Add new items to the collection
         newArticleScraps.forEach((as) => article.articleScraps.add(as));
+      }
+
+      // Add PDF scraps (새로 추가된 PDF)
+      if (uploadScraps && uploadScraps.length > 0) {
+        // 기존에 이미 연결된 PDF scrap ID들
+        const existingScrapIds = new Set(
+          article.articleScraps.getItems().map((as) => as.scrap.scrapId),
+        );
+
+        // 새로 추가할 PDF scraps (중복 제외)
+        const newPdfScraps = uploadScraps.filter(
+          (scrap) => !existingScrapIds.has(scrap.scrapId),
+        );
+
+        if (newPdfScraps.length > 0) {
+          const newPdfArticleScraps = newPdfScraps.map((scrap) => {
+            const articleScrap = new ArticleScrap();
+            articleScrap.article = article;
+            articleScrap.scrap = scrap;
+            articleScrap.userComment = usagePromptByIdForPdf.get(scrap.scrapId);
+            return articleScrap;
+          });
+
+          newPdfArticleScraps.forEach((as) => article.articleScraps.add(as));
+        }
       }
 
       // Step 6: Calculate next version number
@@ -1803,45 +1903,6 @@ export class ArticlesService {
         userComment: scrap.userComment || '',
       }));
 
-      let pdfUploadsWithPrompts: Array<{
-        url: string;
-        usagePrompt: string;
-        aiContent: string;
-      }> = [];
-
-      if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
-        const uploads = dto.uploadWithUsagePrompt;
-        const scrapIds = uploads.map((u) => u.uploadedFileId);
-
-        const usagePromptById = new Map<number, string>();
-        uploads.forEach((u) =>
-          usagePromptById.set(u.uploadedFileId, u.usagePrompt ?? ''),
-        );
-
-        const uploadScraps = await this.scrapRepository.find({
-          scrapId: { $in: scrapIds },
-          user: { userId },
-          isDeleted: false,
-        });
-
-        pdfUploadsWithPrompts = uploadScraps
-          .map((scrap) => {
-            const url = scrap.filePath || scrap.url;
-            if (!url) return null;
-            return {
-              url,
-              usagePrompt: usagePromptById.get(scrap.scrapId) || '',
-              aiContent: scrap.aiContent || '',
-            };
-          })
-          .filter(
-            (
-              item,
-            ): item is { url: string; usagePrompt: string; aiContent: string } =>
-              item !== null,
-          );
-      }
-
       const regenerationResult =
         await this.newsletterAgentService.regenerateArticle({
           previousTitle,
@@ -1942,6 +2003,15 @@ export class ArticlesService {
             content: string;
             userComment: string;
           }> = [];
+
+          // PDF uploads variables (declared outside transaction for later use)
+          let pdfUploadsWithPrompts: Array<{
+            url: string;
+            usagePrompt: string;
+            aiContent: string;
+          }> = [];
+          let uploadScraps: Scrap[] = [];
+          const usagePromptByIdForPdf = new Map<number, string>();
 
           // Transaction for validation and update
           await this.em.transactional(async (trx) => {
@@ -2047,6 +2117,39 @@ export class ArticlesService {
               article.generationParams = dto.generationParams;
             }
 
+            // Step 4.5: Prepare PDF uploads (before Step 5 so uploadScraps is available)
+            if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
+              const uploads = dto.uploadWithUsagePrompt;
+              const scrapIds = uploads.map((u) => u.uploadedFileId);
+
+              uploads.forEach((u) =>
+                usagePromptByIdForPdf.set(u.uploadedFileId, u.usagePrompt ?? ''),
+              );
+
+              uploadScraps = await trx.find(Scrap, {
+                scrapId: { $in: scrapIds },
+                user: { userId },
+                isDeleted: false,
+              });
+
+              pdfUploadsWithPrompts = uploadScraps
+                .map((scrap) => {
+                  const url = scrap.filePath || scrap.url;
+                  if (!url) return null;
+                  return {
+                    url,
+                    usagePrompt: usagePromptByIdForPdf.get(scrap.scrapId) || '',
+                    aiContent: scrap.aiContent || '',
+                  };
+                })
+                .filter(
+                  (
+                    item,
+                  ): item is { url: string; usagePrompt: string; aiContent: string } =>
+                    item !== null,
+                );
+            }
+
             // Step 5: Synchronize ArticleScrap associations (incremental)
             // Remove specified scraps
             if (dto.removedScrapIds && dto.removedScrapIds.length > 0 && article) {
@@ -2058,7 +2161,7 @@ export class ArticlesService {
               itemsToRemove.forEach((as) => article!.articleScraps.remove(as));
             }
 
-            // Add new scraps
+            // Add new web scraps
             if (dto.addedScrapIds && dto.addedScrapIds.length > 0 && article) {
               const newArticleScraps = addedScraps.map((scrap) => {
                 const articleScrap = new ArticleScrap();
@@ -2070,6 +2173,29 @@ export class ArticlesService {
 
               // Add new items to the collection
               newArticleScraps.forEach((as) => article!.articleScraps.add(as));
+            }
+
+            // Add PDF scraps (새로 추가된 PDF)
+            if (uploadScraps && uploadScraps.length > 0 && article) {
+              const existingScrapIds = new Set(
+                article.articleScraps.getItems().map((as) => as.scrap.scrapId),
+              );
+
+              const newPdfScraps = uploadScraps.filter(
+                (scrap) => !existingScrapIds.has(scrap.scrapId),
+              );
+
+              if (newPdfScraps.length > 0) {
+                const newPdfArticleScraps = newPdfScraps.map((scrap) => {
+                  const articleScrap = new ArticleScrap();
+                  articleScrap.article = article!;
+                  articleScrap.scrap = scrap;
+                  articleScrap.userComment = usagePromptByIdForPdf.get(scrap.scrapId);
+                  return articleScrap;
+                });
+
+                newPdfArticleScraps.forEach((as) => article!.articleScraps.add(as));
+              }
             }
 
             // Update status to processing
@@ -2131,48 +2257,6 @@ export class ArticlesService {
             scrap: as.scrap,
             userComment: as.userComment,
           }));
-
-          // Prepare PDF uploads if provided
-          let pdfUploadsWithPrompts: Array<{
-            url: string;
-            usagePrompt: string;
-            aiContent: string;
-          }> = [];
-
-          if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
-            const uploads = dto.uploadWithUsagePrompt;
-            const scrapIds = uploads.map((u) => u.uploadedFileId);
-
-            const usagePromptById = new Map<number, string>();
-            for (const u of uploads)
-              usagePromptById.set(u.uploadedFileId, u.usagePrompt || '');
-
-            const uploadScraps = await this.scrapRepository.find({
-              scrapId: { $in: scrapIds },
-              user: article.user,
-              isDeleted: false,
-            });
-
-            pdfUploadsWithPrompts = uploadScraps
-              .map((scrap) => {
-                const url = scrap.filePath || scrap.url;
-                if (!url) return null;
-                return {
-                  url,
-                  usagePrompt: usagePromptById.get(scrap.scrapId) || '',
-                  aiContent: scrap.aiContent || '',
-                };
-              })
-              .filter(
-                (
-                  x,
-                ): x is {
-                  url: string;
-                  usagePrompt: string;
-                  aiContent: string;
-                } => x !== null,
-              );
-          }
 
           // Prepare writing style examples
           let writingStyleExampleContents: string[] = [];

@@ -24,20 +24,31 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
-      useFactory: () => ({
-        secret: process.env.JWT_SECRET || 'your-fallback-secret-key',
-        signOptions: {
-          expiresIn: '1h',
-          algorithm: 'HS256',
-          issuer: 'tyquill-ext-server',
-          audience: 'tyquill-ext-client',
-        },
-        verifyOptions: {
-          algorithms: ['HS256'],
-          issuer: 'tyquill-ext-server',
-          audience: 'tyquill-ext-client',
-        },
-      }),
+      useFactory: () => {
+        const jwtSecret = process.env.JWT_SECRET;
+
+        if (!jwtSecret) {
+          throw new Error(
+            'FATAL: JWT_SECRET environment variable is required for security. ' +
+            'Please set JWT_SECRET in your .env file.'
+          );
+        }
+
+        return {
+          secret: jwtSecret,
+          signOptions: {
+            expiresIn: '1h',
+            algorithm: 'HS256',
+            issuer: 'tyquill-ext-server',
+            audience: 'tyquill-ext-client',
+          },
+          verifyOptions: {
+            algorithms: ['HS256'],
+            issuer: 'tyquill-ext-server',
+            audience: 'tyquill-ext-client',
+          },
+        };
+      },
     }),
     UsersModule,
     NotificationsModule,

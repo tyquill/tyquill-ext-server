@@ -32,7 +32,8 @@ import { WritingStyle } from '../writing-styles/entities/writing-style.entity';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { EventType } from '../ai-workflows/models/streaming';
+import { RegenerateArticleOutput } from '../ai-workflows/dto/regenerate.dto';
 // Analytics tracking migrated to extension client (PostHog).
 
 @Injectable()
@@ -57,7 +58,6 @@ export class ArticlesService {
     private readonly slackService: SlackService,
     @InjectRepository(WritingStyleExample)
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
-    private readonly configService: ConfigService,
     // Uploaded files are represented as scraps with file metadata
   ) {}
 
@@ -1148,6 +1148,10 @@ export class ArticlesService {
         aiContent: string;
       }> = [];
 
+      // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 생성용)
+      let uploadScraps: Scrap[] = [];
+      const usagePromptById = new Map<number, string>();
+
       if (
         generateDto.uploadWithUsagePrompt &&
         generateDto.uploadWithUsagePrompt.length > 0
@@ -1157,12 +1161,11 @@ export class ArticlesService {
         const scrapIds = uploads.map((u) => u.uploadedFileId);
 
         // Build usagePrompt lookup for O(1)
-        const usagePromptById = new Map<number, string>();
         for (const u of uploads)
           usagePromptById.set(u.uploadedFileId, u.usagePrompt);
 
         // Fetch only non-deleted scraps for the user
-        const uploadScraps = await this.scrapRepository.find({
+        uploadScraps = await this.scrapRepository.find({
           scrapId: { $in: scrapIds },
           user: article.user,
           isDeleted: false,
@@ -1237,12 +1240,25 @@ export class ArticlesService {
 
       // 아티클-스크랩 관계 저장 (정션 테이블)
       const articleScraps: ArticleScrap[] = [];
+
+      // 웹 스크랩 관계 추가
       for (const item of scrapsWithComments) {
         const articleScrap = new ArticleScrap();
         articleScrap.article = article;
         articleScrap.scrap = item.scrap;
         articleScrap.userComment = item.userComment;
         articleScraps.push(articleScrap);
+      }
+
+      // PDF 스크랩 관계 추가
+      if (uploadScraps && uploadScraps.length > 0) {
+        for (const scrap of uploadScraps) {
+          const articleScrap = new ArticleScrap();
+          articleScrap.article = article;
+          articleScrap.scrap = scrap;
+          articleScrap.userComment = usagePromptById.get(scrap.scrapId);
+          articleScraps.push(articleScrap);
+        }
       }
 
       // 아티클 상태 업데이트
@@ -1308,26 +1324,20 @@ export class ArticlesService {
     generateDto: GenerateArticleV3Dto,
   ): Observable<MessageEvent> {
     return new Observable((observer) => {
-      const agentApiUrl = this.configService.get<string>(
-        'TYQUILL_AGENT_API_URL',
-      );
-
-      // Main async function
       (async () => {
         let article: Article | null = null;
+        let saved = false;
 
         try {
           this.logger.log(
             `📡 Starting V3 streaming article generation for user ${userId}`,
           );
 
-          // 사용자 검증
-          const user = await this.userRepository.findOne({ userId: userId });
+          const user = await this.userRepository.findOne({ userId });
           if (!user) {
             throw new NotFoundException('사용자를 찾을 수 없습니다.');
           }
 
-          // 즉시 processing 상태로 아티클 생성
           article = new Article();
           article.topic = generateDto.topic;
           article.keyInsight = generateDto.keyInsight;
@@ -1341,11 +1351,6 @@ export class ArticlesService {
 
           await this.em.persistAndFlush(article);
 
-          this.logger.log(
-            `✅ Article created with ID: ${article.articleId}, starting stream`,
-          );
-
-          // Prepare scrap data
           let scrapsWithComments: Array<{
             scrap: Scrap;
             userComment?: string;
@@ -1361,7 +1366,7 @@ export class ArticlesService {
                   (comment) => comment.scrapId,
                 ),
               },
-              user: user,
+              user,
               isDeleted: false,
             });
 
@@ -1376,12 +1381,15 @@ export class ArticlesService {
             });
           }
 
-          // Prepare PDF uploads
           let pdfUploadsWithPrompts: Array<{
             url: string;
             usagePrompt: string;
             aiContent: string;
           }> = [];
+
+          // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 생성용)
+          let uploadScraps: Scrap[] = [];
+          const usagePromptById = new Map<number, string>();
 
           if (
             generateDto.uploadWithUsagePrompt &&
@@ -1390,13 +1398,13 @@ export class ArticlesService {
             const uploads = generateDto.uploadWithUsagePrompt;
             const scrapIds = uploads.map((u) => u.uploadedFileId);
 
-            const usagePromptById = new Map<number, string>();
-            for (const u of uploads)
-              usagePromptById.set(u.uploadedFileId, u.usagePrompt);
+            uploads.forEach((u) =>
+              usagePromptById.set(u.uploadedFileId, u.usagePrompt),
+            );
 
-            const uploadScraps = await this.scrapRepository.find({
+            uploadScraps = await this.scrapRepository.find({
               scrapId: { $in: scrapIds },
-              user: user,
+              user,
               isDeleted: false,
             });
 
@@ -1412,34 +1420,28 @@ export class ArticlesService {
               })
               .filter(
                 (
-                  x,
-                ): x is {
-                  url: string;
-                  usagePrompt: string;
-                  aiContent: string;
-                } => x !== null,
+                  item,
+                ): item is { url: string; usagePrompt: string; aiContent: string } =>
+                  item !== null,
               );
           }
 
-          // Prepare writing style examples
           let writingStyleExampleContents: string[] = [];
           if (generateDto.writingStyleId) {
-            const writingStyleExamples =
-              await this.writingStyleExampleRepository.find(
-                {
-                  writingStyle: {
-                    id: generateDto.writingStyleId,
-                    user: user,
-                  },
+            const examples = await this.writingStyleExampleRepository.find(
+              {
+                writingStyle: {
+                  id: generateDto.writingStyleId,
+                  user,
                 },
-                { populate: ['writingStyle'] },
-              );
-            writingStyleExampleContents = writingStyleExamples.map(
+              },
+              { populate: ['writingStyle'] },
+            );
+            writingStyleExampleContents = examples.map(
               (example) => example.content,
             );
           }
 
-          // Format scraps for API
           const formattedScrapsWithComments = scrapsWithComments.map(
             (item) => ({
               scrap: {
@@ -1453,139 +1455,104 @@ export class ArticlesService {
             }),
           );
 
-          // Call Python agent streaming endpoint
-          const response = await fetch(
-            `${agentApiUrl}/api/v1/newsletter/generate-stream`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                topic: generateDto.topic,
-                keyInsight: generateDto.keyInsight,
-                scrapsWithComments: formattedScrapsWithComments,
-                generationParams: generateDto.generationParams,
-                articleStructureTemplate: generateDto.articleStructureTemplate,
-                writingStyleExampleContents,
-                pdfUrlsWithPrompts: pdfUploadsWithPrompts,
-              }),
-            },
+          const newsletterInput = {
+            topic: generateDto.topic,
+            keyInsight: generateDto.keyInsight,
+            scrapsWithComments: formattedScrapsWithComments,
+            generationParams: generateDto.generationParams,
+            articleStructureTemplate: generateDto.articleStructureTemplate,
+            writingStyleExampleContents,
+            pdfUrlsWithPrompts: pdfUploadsWithPrompts,
+          };
+
+          const stream = this.newsletterAgentService.generateNewsletterStream(
+            newsletterInput,
           );
 
-          if (!response.ok) {
-            throw new Error(
-              `Python agent returned ${response.status}: ${response.statusText}`,
-            );
-          }
+          for await (const event of stream) {
+            observer.next({ data: event } as MessageEvent);
 
-          if (!response.body) {
-            throw new Error('Response body is null');
-          }
+            if (event.type === EventType.COMPLETE && article && !saved) {
+              saved = true;
+              const archive = new ArticleArchive();
+              archive.title = event.title;
+              archive.content = event.content;
+              archive.versionNumber = 1;
+              archive.article = article;
 
-          // Read the stream
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
+              const articleScraps: ArticleScrap[] = [];
 
-          while (true) {
-            const { done, value } = await reader.read();
+              // 웹 스크랩 관계 추가
+              scrapsWithComments.forEach((item) => {
+                const articleScrap = new ArticleScrap();
+                articleScrap.article = article as Article;
+                articleScrap.scrap = item.scrap;
+                articleScrap.userComment = item.userComment;
+                articleScraps.push(articleScrap);
+              });
 
-            if (done) {
-              this.logger.log('📡 Stream ended');
-              break;
-            }
-
-            // Decode chunk
-            buffer += decoder.decode(value, { stream: true });
-
-            // Process complete SSE messages
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop() || ''; // Keep incomplete message in buffer
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const jsonData = line.slice(6); // Remove 'data: ' prefix
-                try {
-                  const event = JSON.parse(jsonData);
-
-                  // Forward to client
-                  observer.next({ data: event } as MessageEvent);
-
-                  // Handle complete event
-                  if (event.type === 'complete') {
-                    this.logger.log('🎉 Received complete event from agent');
-
-                    // Save results to database
-                    const archive = new ArticleArchive();
-                    archive.title = event.title;
-                    archive.content = event.content;
-                    archive.versionNumber = 1;
-                    archive.article = article;
-
-                    // 아티클-스크랩 관계 저장 (정션 테이블)
-                    const articleScraps: ArticleScrap[] = [];
-                    for (const item of scrapsWithComments) {
-                      const articleScrap = new ArticleScrap();
-                      articleScrap.article = article;
-                      articleScrap.scrap = item.scrap;
-                      articleScrap.userComment = item.userComment;
-                      articleScraps.push(articleScrap);
-                    }
-
-                    article.generationStatus = 'completed';
-                    await this.em.persistAndFlush([
-                      archive,
-                      article,
-                      ...articleScraps,
-                    ]);
-
-                    // Send Slack notification
-                    try {
-                      await this.slackService.notifyArticleGeneration({
-                        articleId: article.articleId,
-                        title: event.title,
-                        topic: generateDto.topic,
-                        keyInsight: generateDto.keyInsight,
-                        userEmail: user.email,
-                        userName: user.name,
-                        userId: user.userId,
-                        contentLength: event.content?.length,
-                        version: 'V3-Stream',
-                        createdAt: article.createdAt,
-                      });
-                    } catch (slackError) {
-                      this.logger.warn(
-                        'Failed to send Slack notification:',
-                        slackError,
-                      );
-                    }
-                  }
-
-                  // Handle error event
-                  if (event.type === 'error') {
-                    this.logger.error(
-                      '❌ Error event from agent:',
-                      event.message,
-                    );
-                    if (article) {
-                      article.generationStatus = 'failed';
-                      await this.em.persistAndFlush(article);
-                    }
-                  }
-                } catch (parseError) {
-                  this.logger.warn('Failed to parse SSE event:', parseError);
-                }
+              // PDF 스크랩 관계 추가
+              if (uploadScraps && uploadScraps.length > 0) {
+                uploadScraps.forEach((scrap) => {
+                  const articleScrap = new ArticleScrap();
+                  articleScrap.article = article as Article;
+                  articleScrap.scrap = scrap;
+                  articleScrap.userComment = usagePromptById.get(scrap.scrapId);
+                  articleScraps.push(articleScrap);
+                });
               }
+
+              article.generationStatus = 'completed';
+              await this.em.persistAndFlush([archive, article, ...articleScraps]);
+
+              try {
+                await this.slackService.notifyArticleGeneration({
+                  articleId: article.articleId,
+                  title: event.title,
+                  topic: generateDto.topic,
+                  keyInsight: generateDto.keyInsight,
+                  userEmail: user.email,
+                  userName: user.name,
+                  userId: user.userId,
+                  contentLength: event.content.length,
+                  version: 'V3-Stream',
+                  createdAt: article.createdAt,
+                });
+              } catch (slackError) {
+                this.logger.warn(
+                  'Failed to send Slack notification:',
+                  slackError,
+                );
+              }
+
+              observer.next({
+                data: {
+                  type: EventType.PROGRESS,
+                  timestamp: Date.now(),
+                  node: 'database',
+                  message_ko: '생성된 콘텐츠를 저장했습니다.',
+                  message_en: 'Saved generated content.',
+                  progress: 100,
+                  metadata: { articleId: article.articleId },
+                },
+              } as MessageEvent);
+            }
+
+            if (event.type === EventType.ERROR && article) {
+              article.generationStatus = 'failed';
+              await this.em.persistAndFlush(article);
             }
           }
 
-          // Complete the observable
+          if (!saved && article) {
+            article.generationStatus = 'failed';
+            await this.em.persistAndFlush(article);
+          }
+
           observer.complete();
         } catch (error) {
           this.logger.error('❌ Streaming article generation failed:', error);
 
-          // Update article status to failed
           if (article) {
             try {
               article.generationStatus = 'failed';
@@ -1598,11 +1565,12 @@ export class ArticlesService {
             }
           }
 
-          // Send error to client
           observer.next({
             data: {
-              type: 'error',
-              message: error.message || 'Streaming failed',
+              type: EventType.ERROR,
+              timestamp: Date.now(),
+              message: (error as Error)?.message || 'Streaming failed',
+              error_type: (error as Error)?.name ?? 'Error',
             },
           } as MessageEvent);
 
@@ -1667,12 +1635,24 @@ export class ArticlesService {
         }
       }
 
+      let removedScrapsData: Array<{
+        id: number;
+        title: string;
+        url: string;
+        content: string;
+        userComment: string;
+      }> = [];
+
       // Validate scraps to be removed
       if (dto.removedScrapIds && dto.removedScrapIds.length > 0) {
-        const existingArticleScraps = await trx.find(ArticleScrap, {
-          article: { articleId: article.articleId },
-          scrap: { scrapId: { $in: dto.removedScrapIds } },
-        });
+        const existingArticleScraps = await trx.find(
+          ArticleScrap,
+          {
+            article: { articleId: article.articleId },
+            scrap: { scrapId: { $in: dto.removedScrapIds } },
+          },
+          { populate: ['scrap'] },
+        );
 
         if (existingArticleScraps.length !== dto.removedScrapIds.length) {
           const foundIds = existingArticleScraps.map((as) => as.scrap.scrapId);
@@ -1681,6 +1661,14 @@ export class ArticlesService {
             `Scrap IDs not associated with this article: [${missingIds.join(', ')}]`,
           );
         }
+
+        removedScrapsData = existingArticleScraps.map((as) => ({
+          id: as.scrap.scrapId,
+          title: as.scrap.title,
+          url: as.scrap.url,
+          content: as.scrap.content,
+          userComment: as.userComment || as.scrap.userComment || '',
+        }));
       }
 
       // Step 3: Validate writing style if provided
@@ -1716,6 +1704,49 @@ export class ArticlesService {
         article.writingStyle = writingStyle === null ? undefined : writingStyle;
       }
 
+      // Step 4.5: Prepare PDF uploads (before Step 5 so uploadScraps is available)
+      let pdfUploadsWithPrompts: Array<{
+        url: string;
+        usagePrompt: string;
+        aiContent: string;
+      }> = [];
+
+      // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 동기화용)
+      let uploadScraps: Scrap[] = [];
+      const usagePromptByIdForPdf = new Map<number, string>();
+
+      if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
+        const uploads = dto.uploadWithUsagePrompt;
+        const scrapIds = uploads.map((u) => u.uploadedFileId);
+
+        uploads.forEach((u) =>
+          usagePromptByIdForPdf.set(u.uploadedFileId, u.usagePrompt ?? ''),
+        );
+
+        uploadScraps = await this.scrapRepository.find({
+          scrapId: { $in: scrapIds },
+          user: { userId },
+          isDeleted: false,
+        });
+
+        pdfUploadsWithPrompts = uploadScraps
+          .map((scrap) => {
+            const url = scrap.filePath || scrap.url;
+            if (!url) return null;
+            return {
+              url,
+              usagePrompt: usagePromptByIdForPdf.get(scrap.scrapId) || '',
+              aiContent: scrap.aiContent || '',
+            };
+          })
+          .filter(
+            (
+              item,
+            ): item is { url: string; usagePrompt: string; aiContent: string } =>
+              item !== null,
+          );
+      }
+
       // Step 5: Synchronize ArticleScrap associations (incremental)
       // Remove specified scraps
       if (dto.removedScrapIds && dto.removedScrapIds.length > 0) {
@@ -1727,7 +1758,7 @@ export class ArticlesService {
         itemsToRemove.forEach((as) => article.articleScraps.remove(as));
       }
 
-      // Add new scraps
+      // Add new web scraps
       if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
         const newArticleScraps = addedScraps.map((scrap) => {
           const articleScrap = new ArticleScrap();
@@ -1739,6 +1770,31 @@ export class ArticlesService {
 
         // Add new items to the collection
         newArticleScraps.forEach((as) => article.articleScraps.add(as));
+      }
+
+      // Add PDF scraps (새로 추가된 PDF)
+      if (uploadScraps && uploadScraps.length > 0) {
+        // 기존에 이미 연결된 PDF scrap ID들
+        const existingScrapIds = new Set(
+          article.articleScraps.getItems().map((as) => as.scrap.scrapId),
+        );
+
+        // 새로 추가할 PDF scraps (중복 제외)
+        const newPdfScraps = uploadScraps.filter(
+          (scrap) => !existingScrapIds.has(scrap.scrapId),
+        );
+
+        if (newPdfScraps.length > 0) {
+          const newPdfArticleScraps = newPdfScraps.map((scrap) => {
+            const articleScrap = new ArticleScrap();
+            articleScrap.article = article;
+            articleScrap.scrap = scrap;
+            articleScrap.userComment = usagePromptByIdForPdf.get(scrap.scrapId);
+            return articleScrap;
+          });
+
+          newPdfArticleScraps.forEach((as) => article.articleScraps.add(as));
+        }
       }
 
       // Step 6: Calculate next version number
@@ -1827,43 +1883,41 @@ export class ArticlesService {
         userComment: item.userComment || item.scrap.userComment || '',
       }));
 
-      // Step 12: Call Python Agent regeneration API
       this.logger.log(
-        `🤖 Calling regeneration API: articleId=${articleId}, version=${nextVersion}`,
+        `🤖 Executing local regeneration workflow: articleId=${articleId}, version=${nextVersion}`,
       );
 
-      const agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL');
-      const regenerationUrl = `${agentApiUrl}/api/v1/article/regenerate`;
+      const existingScrapsData = article.articleScraps.getItems().map((as) => ({
+        id: as.scrap.scrapId,
+        title: as.scrap.title,
+        url: as.scrap.url,
+        content: as.scrap.content,
+        userComment: as.userComment || as.scrap.userComment || '',
+      }));
 
-      const response = await fetch(regenerationUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const addedScrapsData = addedScraps.map((scrap) => ({
+        id: scrap.scrapId,
+        title: scrap.title,
+        url: scrap.url,
+        content: scrap.content,
+        userComment: scrap.userComment || '',
+      }));
+
+      const regenerationResult =
+        await this.newsletterAgentService.regenerateArticle({
           previousTitle,
           previousContent,
           topic: dto.topic,
           keyInsight: dto.keyInsight,
           userPrompt,
+          existingScraps: existingScrapsData,
+          addedScraps: addedScrapsData,
+          removedScraps: removedScrapsData,
           additionalScraps,
+          additionalPdfs: pdfUploadsWithPrompts,
           writingStyleExamples: writingStyleExampleContents,
           generationParams: dto.generationParams,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Regeneration API failed: ${response.status} - ${errorText}`);
-      }
-
-      const regenerationResult = await response.json();
-
-      if (!regenerationResult.success) {
-        throw new Error(
-          regenerationResult.errorMessage || 'Regeneration failed',
-        );
-      }
+        });
 
       // Step 13: Create new ArticleArchive version
       const newArchive = new ArticleArchive();
@@ -1949,6 +2003,15 @@ export class ArticlesService {
             content: string;
             userComment: string;
           }> = [];
+
+          // PDF uploads variables (declared outside transaction for later use)
+          let pdfUploadsWithPrompts: Array<{
+            url: string;
+            usagePrompt: string;
+            aiContent: string;
+          }> = [];
+          let uploadScraps: Scrap[] = [];
+          const usagePromptByIdForPdf = new Map<number, string>();
 
           // Transaction for validation and update
           await this.em.transactional(async (trx) => {
@@ -2054,6 +2117,39 @@ export class ArticlesService {
               article.generationParams = dto.generationParams;
             }
 
+            // Step 4.5: Prepare PDF uploads (before Step 5 so uploadScraps is available)
+            if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
+              const uploads = dto.uploadWithUsagePrompt;
+              const scrapIds = uploads.map((u) => u.uploadedFileId);
+
+              uploads.forEach((u) =>
+                usagePromptByIdForPdf.set(u.uploadedFileId, u.usagePrompt ?? ''),
+              );
+
+              uploadScraps = await trx.find(Scrap, {
+                scrapId: { $in: scrapIds },
+                user: { userId },
+                isDeleted: false,
+              });
+
+              pdfUploadsWithPrompts = uploadScraps
+                .map((scrap) => {
+                  const url = scrap.filePath || scrap.url;
+                  if (!url) return null;
+                  return {
+                    url,
+                    usagePrompt: usagePromptByIdForPdf.get(scrap.scrapId) || '',
+                    aiContent: scrap.aiContent || '',
+                  };
+                })
+                .filter(
+                  (
+                    item,
+                  ): item is { url: string; usagePrompt: string; aiContent: string } =>
+                    item !== null,
+                );
+            }
+
             // Step 5: Synchronize ArticleScrap associations (incremental)
             // Remove specified scraps
             if (dto.removedScrapIds && dto.removedScrapIds.length > 0 && article) {
@@ -2065,7 +2161,7 @@ export class ArticlesService {
               itemsToRemove.forEach((as) => article!.articleScraps.remove(as));
             }
 
-            // Add new scraps
+            // Add new web scraps
             if (dto.addedScrapIds && dto.addedScrapIds.length > 0 && article) {
               const newArticleScraps = addedScraps.map((scrap) => {
                 const articleScrap = new ArticleScrap();
@@ -2077,6 +2173,29 @@ export class ArticlesService {
 
               // Add new items to the collection
               newArticleScraps.forEach((as) => article!.articleScraps.add(as));
+            }
+
+            // Add PDF scraps (새로 추가된 PDF)
+            if (uploadScraps && uploadScraps.length > 0 && article) {
+              const existingScrapIds = new Set(
+                article.articleScraps.getItems().map((as) => as.scrap.scrapId),
+              );
+
+              const newPdfScraps = uploadScraps.filter(
+                (scrap) => !existingScrapIds.has(scrap.scrapId),
+              );
+
+              if (newPdfScraps.length > 0) {
+                const newPdfArticleScraps = newPdfScraps.map((scrap) => {
+                  const articleScrap = new ArticleScrap();
+                  articleScrap.article = article!;
+                  articleScrap.scrap = scrap;
+                  articleScrap.userComment = usagePromptByIdForPdf.get(scrap.scrapId);
+                  return articleScrap;
+                });
+
+                newPdfArticleScraps.forEach((as) => article!.articleScraps.add(as));
+              }
             }
 
             // Update status to processing
@@ -2138,48 +2257,6 @@ export class ArticlesService {
             scrap: as.scrap,
             userComment: as.userComment,
           }));
-
-          // Prepare PDF uploads if provided
-          let pdfUploadsWithPrompts: Array<{
-            url: string;
-            usagePrompt: string;
-            aiContent: string;
-          }> = [];
-
-          if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
-            const uploads = dto.uploadWithUsagePrompt;
-            const scrapIds = uploads.map((u) => u.uploadedFileId);
-
-            const usagePromptById = new Map<number, string>();
-            for (const u of uploads)
-              usagePromptById.set(u.uploadedFileId, u.usagePrompt || '');
-
-            const uploadScraps = await this.scrapRepository.find({
-              scrapId: { $in: scrapIds },
-              user: article.user,
-              isDeleted: false,
-            });
-
-            pdfUploadsWithPrompts = uploadScraps
-              .map((scrap) => {
-                const url = scrap.filePath || scrap.url;
-                if (!url) return null;
-                return {
-                  url,
-                  usagePrompt: usagePromptById.get(scrap.scrapId) || '',
-                  aiContent: scrap.aiContent || '',
-                };
-              })
-              .filter(
-                (
-                  x,
-                ): x is {
-                  url: string;
-                  usagePrompt: string;
-                  aiContent: string;
-                } => x !== null,
-              );
-          }
 
           // Prepare writing style examples
           let writingStyleExampleContents: string[] = [];
@@ -2248,76 +2325,56 @@ export class ArticlesService {
             userComment: item.userComment || item.scrap.userComment || '',
           }));
 
-          // Call Python Agent regeneration API (non-streaming for now)
-          this.logger.log(
-            `🤖 Calling regeneration API: articleId=${article.articleId}`,
-          );
-
-          const agentApiUrl = this.configService.get<string>('TYQUILL_AGENT_API_URL');
-          const regenerationUrl = `${agentApiUrl}/api/v1/article/regenerate`;
-
           // Send progress start event
           observer.next({
             data: {
-              type: 'progress',
-              message: 'Starting article regeneration...',
+              type: EventType.PROGRESS,
+              timestamp: Date.now(),
+              node: 'workflow',
+              message_ko: '아티클 재생성을 시작합니다.',
+              message_en: 'Starting article regeneration...',
               progress: 10,
             },
           } as MessageEvent);
 
-          const response = await fetch(regenerationUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              previousTitle,
-              previousContent,
-              topic: dto.topic,
-              keyInsight: dto.keyInsight,
-              userPrompt,
-              // NEW: Separate scrap categories for better AI context
-              existingScraps: existingScrapsData, // Scraps from original article
-              addedScraps: addedScrapsData, // NEW scraps to integrate
-              removedScraps: removedScrapsData, // Scraps that were removed
-              // Keep for backward compatibility
-              additionalScraps,
-              additionalPdfs: pdfUploadsWithPrompts,
-              writingStyleExamples: writingStyleExampleContents,
-              generationParams: dto.generationParams,
-            }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
+          let regenerationResult: RegenerateArticleOutput;
+          try {
+            regenerationResult =
+              await this.newsletterAgentService.regenerateArticle({
+                previousTitle,
+                previousContent,
+                topic: dto.topic,
+                keyInsight: dto.keyInsight,
+                userPrompt,
+                existingScraps: existingScrapsData,
+                addedScraps: addedScrapsData,
+                removedScraps: removedScrapsData,
+                additionalScraps,
+                additionalPdfs: pdfUploadsWithPrompts,
+                writingStyleExamples: writingStyleExampleContents,
+                generationParams: dto.generationParams,
+              });
+          } catch (error) {
             observer.next({
               data: {
-                type: 'error',
-                message: `Regeneration failed: ${response.status} - ${errorText}`,
+                type: EventType.ERROR,
+                message:
+                  (error as Error)?.message || 'Regeneration failed',
+                error_type: (error as Error)?.name ?? 'Error',
+                timestamp: Date.now(),
               },
             } as MessageEvent);
-            throw new Error(`Regeneration API failed: ${response.status} - ${errorText}`);
-          }
-
-          const regenerationResult = await response.json();
-
-          if (!regenerationResult.success) {
-            observer.next({
-              data: {
-                type: 'error',
-                message: regenerationResult.errorMessage || 'Regeneration failed',
-              },
-            } as MessageEvent);
-            throw new Error(
-              regenerationResult.errorMessage || 'Regeneration failed',
-            );
+            throw error;
           }
 
           // Send progress event
           observer.next({
             data: {
-              type: 'progress',
-              message: 'Saving regenerated content...',
+              type: EventType.PROGRESS,
+              timestamp: Date.now(),
+              node: 'database',
+              message_ko: '재생성된 내용을 저장합니다.',
+              message_en: 'Saving regenerated content...',
               progress: 90,
             },
           } as MessageEvent);
@@ -2373,10 +2430,13 @@ export class ArticlesService {
               // Send final complete event to client
               observer.next({
                 data: {
-                  type: 'complete',
+                  type: EventType.COMPLETE,
+                  timestamp: Date.now(),
                   title: regenerationResult.title,
                   content: regenerationResult.content,
                   changesSummary: regenerationResult.changesSummary,
+                  analysis_reason: 'Article regenerated successfully.',
+                  warnings: [],
                 },
               } as MessageEvent);
             } catch (error) {
@@ -2418,8 +2478,10 @@ export class ArticlesService {
           // Send error to client
           observer.next({
             data: {
-              type: 'error',
+              type: EventType.ERROR,
+              timestamp: Date.now(),
               message: error.message || 'Regeneration streaming failed',
+              error_type: (error as Error)?.name ?? 'Error',
             },
           } as MessageEvent);
 

@@ -5,6 +5,7 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { Article } from '../articles/entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
 import { User } from '../users/entities/user.entity';
+import { UserOAuth, OAuthProvider } from '../users/entities/user-oauth.entity';
 import {
   GenerateReportDto,
   SlackMessageDto,
@@ -29,6 +30,8 @@ export class SlackBotService {
     private readonly articleRepository: EntityRepository<Article>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
+    @InjectRepository(UserOAuth)
+    private readonly userOAuthRepository: EntityRepository<UserOAuth>,
     private readonly configService: ConfigService,
     private readonly reportGenerator: SlackReportGeneratorService,
   ) {}
@@ -48,15 +51,12 @@ export class SlackBotService {
     const startTime = Date.now();
 
     try {
-      // 1. 서비스 계정 가져오기
-      const serviceAccountId = this.getServiceAccountId();
-      const user = await this.userRepository.findOne({ userId: serviceAccountId });
-
-      if (!user) {
-        throw new NotFoundException(
-          `Service account not found: ${serviceAccountId}`
-        );
-      }
+      // 1. Slack 사용자로 Tyquill User 매핑 (자동 생성)
+      const user = await this.findOrCreateUserBySlackId(
+        dto.slackUserId,
+        dto.slackTeamId,
+        dto.slackUserName,
+      );
 
       // 2. Slack 메시지를 프롬프트 형식으로 변환
       const formattedMessages = this.formatMessagesForPrompt(
@@ -188,6 +188,77 @@ export class SlackBotService {
     }
 
     return parseInt(serviceAccountId, 10);
+  }
+
+  /**
+   * Slack User ID로 사용자 찾기 또는 생성
+   *
+   * UserOAuth 테이블을 사용하여 Slack 사용자를 Tyquill User와 매핑합니다.
+   * 기존 매핑이 없으면 새로운 User와 UserOAuth 레코드를 자동 생성합니다.
+   */
+  async findOrCreateUserBySlackId(
+    slackUserId: string,
+    slackTeamId: string,
+    slackUserName?: string,
+  ): Promise<User> {
+    this.logger.debug('Finding or creating user by Slack ID', {
+      slackUserId,
+      slackTeamId,
+      slackUserName,
+    });
+
+    // 1. Slack OAuth 레코드 찾기
+    let userOAuth = await this.userOAuthRepository.findOne(
+      {
+        oauthProvider: OAuthProvider.SLACK,
+        oauthId: slackUserId,
+      },
+      { populate: ['user'] },
+    );
+
+    // 2. 기존 OAuth 레코드가 있으면 User 반환
+    if (userOAuth) {
+      this.logger.debug('Found existing Slack user', {
+        userId: userOAuth.user.userId,
+        slackUserId,
+      });
+      return userOAuth.user;
+    }
+
+    // 3. 새로운 User와 UserOAuth 생성
+    this.logger.log('Creating new user for Slack ID', {
+      slackUserId,
+      slackTeamId,
+      slackUserName,
+    });
+
+    // 3-1. User 생성
+    const user = new User();
+    user.email = `slack_${slackUserId}@tyquill-slack-bot.local`; // 임시 이메일
+    user.name = slackUserName || `Slack User ${slackUserId.substring(0, 8)}`;
+
+    await this.em.persistAndFlush(user);
+
+    // 3-2. UserOAuth 생성
+    userOAuth = new UserOAuth({
+      oauthProvider: OAuthProvider.SLACK,
+      oauthId: slackUserId,
+      user,
+      profileData: {
+        slack_user_id: slackUserId,
+        slack_team_id: slackTeamId,
+        slack_user_name: slackUserName,
+      },
+    });
+
+    await this.em.persistAndFlush(userOAuth);
+
+    this.logger.log('Created new user and OAuth mapping', {
+      userId: user.userId,
+      slackUserId,
+    });
+
+    return user;
   }
 
   /**

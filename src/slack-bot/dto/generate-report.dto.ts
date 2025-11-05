@@ -103,4 +103,27 @@ export class GenerateReportDto {
   })
   @IsNumber()
   messageCount: number;
+
+  @ApiProperty({
+    description: 'Slack User ID',
+    example: 'U08N8PYDQ3B',
+  })
+  @IsString()
+  slackUserId: string;
+
+  @ApiProperty({
+    description: 'Slack Team/Workspace ID',
+    example: 'T08N8PYCC3T',
+  })
+  @IsString()
+  slackTeamId: string;
+
+  @ApiProperty({
+    description: 'Slack 사용자 이름 (선택사항)',
+    example: 'qusseun',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  slackUserName?: string;
 }

@@ -7,6 +7,7 @@ import { AgentsModule } from '../agents/agents.module';
 import { Article } from '../articles/entities/article.entity';
 import { ArticleArchive } from '../article-archive/entities/article-archive.entity';
 import { User } from '../users/entities/user.entity';
+import { UserOAuth } from '../users/entities/user-oauth.entity';
 
 /**
  * Slack Bot 모듈
@@ -16,7 +17,7 @@ import { User } from '../users/entities/user.entity';
  */
 @Module({
   imports: [
-    MikroOrmModule.forFeature([Article, ArticleArchive, User]),
+    MikroOrmModule.forFeature([Article, ArticleArchive, User, UserOAuth]),
     AgentsModule, // VertexAiFactory 사용
   ],
   controllers: [SlackBotController],

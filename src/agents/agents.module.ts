@@ -21,6 +21,10 @@ import { ArticleRegeneratorService } from '../ai-workflows/services/article-rege
     FileAnalysisAgentService,
     NewsletterAgentService,
   ],
-  exports: [FileAnalysisAgentService, NewsletterAgentService],
+  exports: [
+    VertexAiFactory, // Export for use in other modules
+    FileAnalysisAgentService,
+    NewsletterAgentService,
+  ],
 })
 export class AgentsModule {}

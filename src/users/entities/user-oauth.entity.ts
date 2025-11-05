@@ -22,6 +22,7 @@ export enum OAuthProvider {
   GITHUB = 'github',
   FACEBOOK = 'facebook',
   APPLE = 'apple',
+  SLACK = 'slack',
 }
 
 @Entity({ tableName: 'user_oauth' })

@@ -17,6 +17,7 @@ import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './api/admin/admin.module';
 import { FoldersModule } from './folders/folders.module';
 import { ContentModule } from './content/content.module';
+import { SlackBotModule } from './slack-bot/slack-bot.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ContentModule } from './content/content.module';
     ContentModule, // 통합 콘텐츠 모듈 추가
     QueueModule, // SQS 큐 모듈 추가
     AdminModule, // 관리자 모듈 추가
+    SlackBotModule, // Slack Bot API 모듈 추가
   ],
   controllers: [AppController],
   providers: [AppService],

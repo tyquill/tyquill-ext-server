@@ -1470,9 +1470,8 @@ export class ArticlesService {
           );
 
           for await (const event of stream) {
-            observer.next({ data: event } as MessageEvent);
-
             if (event.type === EventType.COMPLETE && article && !saved) {
+              // Don't send the COMPLETE event yet - we'll send it after saving with articleId
               saved = true;
               const archive = new ArticleArchive();
               archive.title = event.title;
@@ -1536,6 +1535,17 @@ export class ArticlesService {
                   metadata: { articleId: article.articleId },
                 },
               } as MessageEvent);
+
+              // Now send the COMPLETE event with articleId
+              observer.next({
+                data: {
+                  ...event,
+                  metadata: { articleId: article.articleId },
+                },
+              } as MessageEvent);
+            } else {
+              // For non-COMPLETE events, just forward them
+              observer.next({ data: event } as MessageEvent);
             }
 
             if (event.type === EventType.ERROR && article) {

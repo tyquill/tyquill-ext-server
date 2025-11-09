@@ -6,6 +6,11 @@ import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { Tag } from './entities/tag.entity';
 import { User } from '../users/entities/user.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
+import {
+  UserIdentifierLike,
+  buildUserFilterFromInput,
+  normalizeUserIdentifier,
+} from '../users/utils/user-identifier.util';
 
 @Injectable()
 export class TagsService {
@@ -21,10 +26,12 @@ export class TagsService {
 
   async create(
     createTagDto: CreateTagDto,
-    userId: number,
+    userId: UserIdentifierLike,
     scrapId?: number,
   ): Promise<Tag> {
-    const user = await this.userRepository.findOne({ userId });
+    const user = await this.userRepository.findOne(
+      buildUserFilterFromInput(userId),
+    );
     if (!user) {
       throw new Error('User not found');
     }
@@ -47,8 +54,12 @@ export class TagsService {
     return tag;
   }
 
-  async findAll(userId?: number): Promise<Tag[]> {
-    const query = userId ? { user: { userId }, isDeleted: false } : {};
+  async findAll(userId?: UserIdentifierLike): Promise<Tag[]> {
+    const normalized = normalizeUserIdentifier(userId);
+    const query =
+      normalized !== undefined
+        ? { user: buildUserFilterFromInput(normalized), isDeleted: false }
+        : {};
 
     return await this.tagRepository.find(query, {
       populate: ['user', 'scrap'],
@@ -65,9 +76,9 @@ export class TagsService {
     );
   }
 
-  async findByUser(userId: number): Promise<Tag[]> {
+  async findByUser(userId: UserIdentifierLike): Promise<Tag[]> {
     return await this.tagRepository.find(
-      { user: { userId } },
+      { user: buildUserFilterFromInput(userId) },
       { populate: ['user', 'scrap'] },
     );
   }
@@ -79,10 +90,13 @@ export class TagsService {
     );
   }
 
-  async findByUserAndScrap(userId: number, scrapId: number): Promise<Tag[]> {
+  async findByUserAndScrap(
+    userId: UserIdentifierLike,
+    scrapId: number,
+  ): Promise<Tag[]> {
     return await this.tagRepository.find(
       {
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
         scrap: { scrapId },
       },
       { populate: ['user', 'scrap'], filters: { isDeleted: false } },
@@ -108,15 +122,19 @@ export class TagsService {
   /**
    * 태그명으로 검색
    */
-  async searchByName(name: string, userId?: number): Promise<Tag[]> {
+  async searchByName(
+    name: string,
+    userId?: UserIdentifierLike,
+  ): Promise<Tag[]> {
     interface TagSearchQuery {
       name: { $ilike: string };
-      user?: { userId: number };
+      user?: ReturnType<typeof buildUserFilterFromInput>;
       isDeleted?: boolean;
     }
     const query: TagSearchQuery = { name: { $ilike: `%${name}%` } };
-    if (userId) {
-      query.user = { userId };
+    const normalized = normalizeUserIdentifier(userId);
+    if (normalized !== undefined) {
+      query.user = buildUserFilterFromInput(normalized);
     }
 
     return await this.tagRepository.find(query, {
@@ -127,23 +145,26 @@ export class TagsService {
   /**
    * 사용자별 고유 태그명 목록
    */
-  async getUserTagNames(userId: number): Promise<string[]> {
+  async getUserTagNames(userId: UserIdentifierLike): Promise<string[]> {
     const qb = this.em.createQueryBuilder(Tag, 't');
 
     const result = await qb
       .select('DISTINCT t.name')
-      .where({ user: { userId } })
+      .where({ user: buildUserFilterFromInput(userId) })
       .getResult();
 
     return result.map((r) => r.name);
   }
 
   // Legacy method names for backward compatibility
-  async getTagsByName(userId: number, name: string): Promise<Tag[]> {
+  async getTagsByName(
+    userId: UserIdentifierLike,
+    name: string,
+  ): Promise<Tag[]> {
     return this.searchByName(name, userId);
   }
 
-  async getUniqueTagNames(userId: number): Promise<string[]> {
+  async getUniqueTagNames(userId: UserIdentifierLike): Promise<string[]> {
     return this.getUserTagNames(userId);
   }
 }

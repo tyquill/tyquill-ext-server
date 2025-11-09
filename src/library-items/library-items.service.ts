@@ -8,6 +8,10 @@ import { ScrapsService } from '../scraps/scraps.service';
 import { UploadedFilesService } from '../uploaded-files/uploaded-files.service';
 import { CreateScrapDto } from '../api/scraps/dto/create-scrap.dto';
 import { Express } from 'express';
+import {
+  UserIdentifierLike,
+  buildUserFilterFromInput,
+} from '../users/utils/user-identifier.util';
 
 export type LibraryItemType = 'SCRAP' | 'UPLOAD';
 
@@ -42,14 +46,15 @@ export class LibraryItemsService {
   ) {}
 
   async list(
-    userId: number,
+    userId: UserIdentifierLike,
     type?: LibraryItemType,
   ): Promise<LibraryItemDto[]> {
     const items: LibraryItemDto[] = [];
+    const userFilter = buildUserFilterFromInput(userId);
 
     if (!type || type === 'SCRAP') {
       const scraps = await this.scrapRepository.find(
-        { user: { userId }, isDeleted: false },
+        { user: userFilter, isDeleted: false },
         { populate: ['tags'], orderBy: { createdAt: 'DESC' } },
       );
       items.push(...scraps.map(this.mapScrapToDto));
@@ -58,7 +63,7 @@ export class LibraryItemsService {
     if (!type || type === 'UPLOAD') {
       const uploads = await this.scrapRepository.find(
         {
-          user: { userId },
+          user: userFilter,
           filePath: { $ne: null },
           isDeleted: false,
           mimeType: { $ne: null },
@@ -72,14 +77,17 @@ export class LibraryItemsService {
     return items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async createScrap(createScrapDto: CreateScrapDto, userId: number) {
+  async createScrap(
+    createScrapDto: CreateScrapDto,
+    userId: UserIdentifierLike,
+  ) {
     return this.scrapsService.create(createScrapDto, userId);
   }
 
   async uploadViaS3(
     file: Express.Multer.File,
     body: { title?: string; description?: string },
-    userId: number,
+    userId: UserIdentifierLike,
   ) {
     return this.uploadedFilesService.uploadToS3AndSave(
       file,
@@ -125,10 +133,10 @@ export class LibraryItemsService {
     itemId: number,
     itemType: LibraryItemType,
     tagName: string,
-    userId: number,
+    userId: UserIdentifierLike,
   ): Promise<Tag | null> {
     const criteria: any = {
-      user: { userId },
+      user: buildUserFilterFromInput(userId),
       name: tagName,
     };
 
@@ -146,10 +154,10 @@ export class LibraryItemsService {
     itemId: number,
     itemType: LibraryItemType,
     tagName: string,
-    userId: number,
+    userId: UserIdentifierLike,
   ): Promise<Tag> {
     return this.em.transactional(async (em) => {
-      const user = await em.findOne(User, { userId });
+      const user = await em.findOne(User, buildUserFilterFromInput(userId));
       if (!user) {
         throw new NotFoundException('User not found');
       }
@@ -160,7 +168,7 @@ export class LibraryItemsService {
         itemId,
         itemType,
         tagName,
-        userId,
+        userId as number, // legacy support; findExistingTag expects number
       );
 
       if (existingTag) {
@@ -175,7 +183,7 @@ export class LibraryItemsService {
       if (itemType === 'SCRAP') {
         const scrap = await em.findOne(Scrap, {
           scrapId: itemId,
-          user: { userId },
+          user: buildUserFilterFromInput(userId),
         });
         if (!scrap) {
           throw new NotFoundException('Scrap not found');
@@ -184,7 +192,7 @@ export class LibraryItemsService {
       } else {
         const uploadScrap = await em.findOne(Scrap, {
           scrapId: itemId,
-          user: { userId },
+          user: buildUserFilterFromInput(userId),
         });
         if (!uploadScrap) {
           throw new NotFoundException('Uploaded file (as scrap) not found');
@@ -201,12 +209,12 @@ export class LibraryItemsService {
     itemId: number,
     itemType: LibraryItemType,
     tagId: number,
-    userId: number,
+    userId: UserIdentifierLike,
   ): Promise<void> {
     if (itemType === 'SCRAP') {
       const scrap = await this.scrapRepository.findOne({
         scrapId: itemId,
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
       });
       if (!scrap) {
         throw new NotFoundException('Scrap not found or access denied');
@@ -214,7 +222,7 @@ export class LibraryItemsService {
     } else {
       const uploadedScrap = await this.scrapRepository.findOne({
         scrapId: itemId,
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
       });
       if (!uploadedScrap) {
         throw new NotFoundException('Uploaded file not found or access denied');
@@ -225,13 +233,13 @@ export class LibraryItemsService {
     if (itemType === 'SCRAP') {
       tag = await this.tagRepository.findOne({
         tagId,
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
         scrap: { scrapId: itemId },
       });
     } else {
       tag = await this.tagRepository.findOne({
         tagId,
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
         scrap: { scrapId: itemId },
       });
     }
@@ -246,12 +254,12 @@ export class LibraryItemsService {
   async getTags(
     itemId: number,
     itemType: LibraryItemType,
-    userId: number,
+    userId: UserIdentifierLike,
   ): Promise<Tag[]> {
     if (itemType === 'SCRAP') {
       return this.tagRepository.find(
         {
-          user: { userId },
+          user: buildUserFilterFromInput(userId),
           scrap: { scrapId: itemId },
         },
         {
@@ -262,7 +270,7 @@ export class LibraryItemsService {
     } else {
       return this.tagRepository.find(
         {
-          user: { userId },
+          user: buildUserFilterFromInput(userId),
           scrap: { scrapId: itemId },
         },
         {

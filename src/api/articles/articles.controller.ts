@@ -44,7 +44,7 @@ export class ArticlesController {
   @Version('1')
   @Post()
   create(@Request() req: any, @Body() createArticleDto: CreateArticleDto) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.create(userId, createArticleDto);
   }
   /**
@@ -79,7 +79,7 @@ export class ArticlesController {
     @Request() req: any,
     @Body() generateArticleDto: GenerateArticleDto,
   ): Promise<GenerateArticleResponse> {
-    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    const userId = req.user.id; // JWT에서 사용자 ID 추출
     return this.articlesService.generateArticle(userId, generateArticleDto);
   }
 
@@ -94,7 +94,7 @@ export class ArticlesController {
     @Query('sortBy') sortBy?: 'created_at' | 'updated_at' | 'title',
     @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
   ) {
-    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    const userId = req.user.id; // JWT에서 사용자 ID 추출
     return this.articlesService.findByUser(userId);
   }
 
@@ -115,7 +115,7 @@ export class ArticlesController {
   @Version('1')
   @Get('search')
   search(@Request() req: any, @Query('q') query: string) {
-    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    const userId = req.user.id; // JWT에서 사용자 ID 추출
     return this.articlesService.search(query, userId);
   }
 
@@ -162,7 +162,7 @@ export class ArticlesController {
   @ApiResponse({ status: 403, description: '권한이 없습니다' })
   @ApiResponse({ status: 404, description: '아티클을 찾을 수 없습니다' })
   getVersions(@Request() req: any, @Param('id', ParseIntPipe) id: number) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.getVersions(id, userId);
   }
 
@@ -185,7 +185,7 @@ export class ArticlesController {
     @Param('id', ParseIntPipe) id: number,
     @Param('versionNumber', ParseIntPipe) versionNumber: number,
   ) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.restoreVersion(id, versionNumber, userId);
   }
 
@@ -226,7 +226,7 @@ export class ArticlesController {
     @Request() req: any,
     @Body() generateArticleDto: GenerateArticleV2Dto,
   ): Promise<GenerateArticleV2Response> {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.generateArticleV2(userId, generateArticleDto);
   }
 
@@ -264,7 +264,7 @@ export class ArticlesController {
   @Version('2')
   @Get()
   findAllV2(@Request() req: any) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.findByUserV2(userId);
   }
 
@@ -295,7 +295,7 @@ export class ArticlesController {
     @Request() req: any,
     @Body() generateArticleDto: GenerateArticleV3Dto,
   ): Promise<GenerateArticleV2Response> {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.generateArticleV3(userId, generateArticleDto);
   }
 
@@ -332,7 +332,7 @@ export class ArticlesController {
   @Version('3')
   @Get()
   findAllV3(@Request() req: any) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.findByUserV3(userId);
   }
 
@@ -362,7 +362,7 @@ export class ArticlesController {
     @Request() req: any,
     @Body() generateArticleDto: GenerateArticleV3Dto,
   ): Observable<MessageEvent> {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.generateArticleV3Stream(
       userId,
       generateArticleDto,
@@ -391,7 +391,7 @@ export class ArticlesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() regenerateDto: RegenerateArticleV3Dto,
   ) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.regenerateArticleV3(id, userId, regenerateDto);
   }
 
@@ -418,7 +418,7 @@ export class ArticlesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() regenerateDto: RegenerateArticleV3Dto,
   ): Observable<MessageEvent> {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.articlesService.regenerateArticleV3Stream(
       id,
       userId,

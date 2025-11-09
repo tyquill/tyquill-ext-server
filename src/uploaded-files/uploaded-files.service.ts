@@ -11,6 +11,12 @@ import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
+import {
+  UserIdentifierLike,
+  buildUserFilterFromInput,
+  ensureUserIdentifier,
+  normalizeUserIdentifier,
+} from '../users/utils/user-identifier.util';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -51,15 +57,19 @@ export class UploadedFilesService {
 
   // metadata-only create() was removed in favor of server-proxy upload flow
 
-  async findAll(userId?: number): Promise<Scrap[]> {
-    const where = userId ? { user: { userId } } : {};
+  async findAll(userId?: UserIdentifierLike): Promise<Scrap[]> {
+    const normalized = normalizeUserIdentifier(userId);
+    const where =
+      normalized !== undefined
+        ? { user: buildUserFilterFromInput(normalized), isDeleted: false }
+        : {};
     return this.scrapRepository.find(where, {
       populate: ['user', 'tags'],
       orderBy: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(id: number, userId: number): Promise<Scrap> {
+  async findOne(id: number, userId: UserIdentifierLike): Promise<Scrap> {
     const uploadedFile = await this.scrapRepository.findOne(
       { scrapId: id },
       { populate: ['user', 'tags'] },
@@ -69,7 +79,13 @@ export class UploadedFilesService {
       throw new NotFoundException(`Uploaded item #${id} not found`);
     }
 
-    if (uploadedFile.user.userId !== userId) {
+    const normalizedUserId = ensureUserIdentifier(userId);
+    if (
+      (typeof normalizedUserId === 'string' &&
+        uploadedFile.user.userId !== normalizedUserId) ||
+      (typeof normalizedUserId === 'number' &&
+        uploadedFile.user.legacyUserId !== normalizedUserId)
+    ) {
       throw new ForbiddenException(
         'You are not allowed to access this uploaded file',
       );
@@ -81,7 +97,7 @@ export class UploadedFilesService {
   async update(
     id: number,
     updateUploadedFileDto: UpdateUploadedFileDto,
-    userId: number,
+    userId: UserIdentifierLike,
   ): Promise<Scrap> {
     const uploadedFile = await this.findOne(id, userId);
 
@@ -96,7 +112,7 @@ export class UploadedFilesService {
     return uploadedFile;
   }
 
-  async remove(id: number, userId: number): Promise<void> {
+  async remove(id: number, userId: UserIdentifierLike): Promise<void> {
     const uploadedFile = await this.findOne(id, userId);
     await this.em.removeAndFlush(uploadedFile);
   }
@@ -105,17 +121,19 @@ export class UploadedFilesService {
     file: Express.Multer.File,
     title: string,
     description: string,
-    userId: number,
+    userId: UserIdentifierLike,
   ): Promise<Scrap> {
     try {
-      const user = await this.userRepository.findOne({ userId });
+      const user = await this.userRepository.findOne(
+        buildUserFilterFromInput(userId),
+      );
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
       // S3 업로드를 위한 키 생성
       const hashDirectory = createHash('sha512')
-        .update(userId.toString())
+        .update(String(user.userId))
         .digest('hex')
         .substring(0, 8);
       const fileKey = `uploads/${hashDirectory}/${uuidv4()}`;

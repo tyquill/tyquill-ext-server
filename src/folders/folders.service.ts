@@ -8,6 +8,10 @@ import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Folder } from './entities/folder.entity';
 import { User } from '../users/entities/user.entity';
+import {
+  UserIdentifierLike,
+  buildUserFilterFromInput,
+} from '../users/utils/user-identifier.util';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { Article } from '../articles/entities/article.entity';
 import { CreateFolderDto } from '../api/folders/dto/create-folder.dto';
@@ -35,10 +39,12 @@ export class FoldersService {
    * Create a new folder
    */
   async create(
-    userId: number,
+    userId: UserIdentifierLike,
     createFolderDto: CreateFolderDto,
   ): Promise<FolderResponseDto> {
-    const user = await this.userRepository.findOne({ userId });
+    const user = await this.userRepository.findOne(
+      buildUserFilterFromInput(userId),
+    );
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -47,7 +53,7 @@ export class FoldersService {
     if (createFolderDto.parentFolderId) {
       const parentFolder = await this.folderRepository.findOne({
         folderId: createFolderDto.parentFolderId,
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
         isDeleted: false,
       });
 
@@ -82,11 +88,11 @@ export class FoldersService {
    * Optionally filter by parent folder (for nested structure)
    */
   async findAll(
-    userId: number,
+    userId: UserIdentifierLike,
     parentFolderId?: string | null,
   ): Promise<FolderResponseDto[]> {
     const query: any = {
-      user: { userId },
+      user: buildUserFilterFromInput(userId),
       isDeleted: false,
     };
 
@@ -112,11 +118,14 @@ export class FoldersService {
   /**
    * Find a single folder by ID
    */
-  async findOne(folderId: string, userId: number): Promise<FolderResponseDto> {
+  async findOne(
+    folderId: string,
+    userId: UserIdentifierLike,
+  ): Promise<FolderResponseDto> {
     const folder = await this.folderRepository.findOne(
       {
         folderId,
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
         isDeleted: false,
       },
       {
@@ -136,13 +145,13 @@ export class FoldersService {
    */
   async update(
     folderId: string,
-    userId: number,
+    userId: UserIdentifierLike,
     updateFolderDto: UpdateFolderDto,
   ): Promise<FolderResponseDto> {
     const folder = await this.folderRepository.findOne(
       {
         folderId,
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
         isDeleted: false,
       },
       {
@@ -165,7 +174,7 @@ export class FoldersService {
         // Check if parent folder exists and belongs to user
         const parentFolder = await this.folderRepository.findOne({
           folderId: updateFolderDto.parentFolderId,
-          user: { userId },
+          user: buildUserFilterFromInput(userId),
           isDeleted: false,
         });
 
@@ -207,14 +216,14 @@ export class FoldersService {
    * Soft delete a folder
    * CRITICAL FIX: Wrapped in transaction to prevent race conditions
    */
-  async remove(folderId: string, userId: number): Promise<void> {
+  async remove(folderId: string, userId: UserIdentifierLike): Promise<void> {
     await this.em.transactional(async (em) => {
       // Find folder within transaction
       const folder = await em.findOne(
         Folder,
         {
           folderId,
-          user: { userId },
+          user: buildUserFilterFromInput(userId),
           isDeleted: false,
         },
         {
@@ -269,18 +278,19 @@ export class FoldersService {
    */
   async moveItemsToFolder(
     folderId: string | null,
-    userId: number,
+    userId: UserIdentifierLike,
     scrapIds?: number[],
     articleIds?: number[],
   ): Promise<{ movedScraps: number; movedArticles: number }> {
     return await this.em.transactional(async (em) => {
       let targetFolder: Folder | null = null;
+      const userFilter = buildUserFilterFromInput(userId);
 
       // If folderId is provided, verify it exists and belongs to user
       if (folderId) {
         targetFolder = await em.findOne(Folder, {
           folderId,
-          user: { userId },
+          user: userFilter,
           isDeleted: false,
         });
 
@@ -296,7 +306,7 @@ export class FoldersService {
       if (scrapIds && scrapIds.length > 0) {
         const scraps = await em.find(Scrap, {
           scrapId: { $in: scrapIds },
-          user: { userId },
+          user: userFilter,
           isDeleted: false,
         });
 
@@ -312,7 +322,7 @@ export class FoldersService {
       if (articleIds && articleIds.length > 0) {
         const articles = await em.find(Article, {
           articleId: { $in: articleIds },
-          user: { userId },
+          user: userFilter,
           isDeleted: false,
         });
 
@@ -333,12 +343,12 @@ export class FoldersService {
    */
   async getFolderContents(
     folderId: string,
-    userId: number,
+    userId: UserIdentifierLike,
   ): Promise<FolderContentsDto> {
     const folder = await this.folderRepository.findOne(
       {
         folderId,
-        user: { userId },
+        user: buildUserFilterFromInput(userId),
         isDeleted: false,
       },
       {
@@ -378,6 +388,7 @@ export class FoldersService {
     const childFolders = await this.folderRepository.find(
       {
         parentFolder: { folderId },
+        user: buildUserFilterFromInput(userId),
         isDeleted: false,
       },
       {

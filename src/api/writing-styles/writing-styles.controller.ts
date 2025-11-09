@@ -24,25 +24,25 @@ export class WritingStylesController {
     @Body() createWritingStyleDto: CreateWritingStyleDto,
     @Req() req: any,
   ) {
-    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    const userId = req.user.id; // JWT에서 사용자 ID 추출
     return this.writingStylesService.create(createWritingStyleDto, userId);
   }
 
   @Get()
   findAll(@Req() req: any) {
-    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    const userId = req.user.id; // JWT에서 사용자 ID 추출
     return this.writingStylesService.findAll(userId);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
-    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    const userId = req.user.id; // JWT에서 사용자 ID 추출
     return this.writingStylesService.findOne(+id, userId);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+    const userId = req.user.id; // JWT에서 사용자 ID 추출
     return this.writingStylesService.remove(+id, userId);
   }
 }

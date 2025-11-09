@@ -11,11 +11,16 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
 import { ArticleScrap } from '../articles/entities/article-scrap.entity';
+import {
+  UserIdentifierLike,
+  buildUserFilterFromInput,
+  normalizeUserIdentifier,
+} from '../users/utils/user-identifier.util';
 // Analytics tracking migrated to extension client (PostHog).
 
 export interface SearchOptions {
   query?: string;
-  userId?: number;
+  userId?: UserIdentifierLike;
   articleId?: number;
   tags?: string[];
   dateFrom?: Date;
@@ -45,10 +50,12 @@ export class ScrapsService {
 
   async create(
     createScrapDto: CreateScrapDto,
-    userId: number,
+    userId: UserIdentifierLike,
     articleId?: number,
   ): Promise<ScrapSummaryDto> {
-    const user = await this.userRepository.findOne({ userId });
+    const user = await this.userRepository.findOne(
+      buildUserFilterFromInput(userId),
+    );
     if (!user) {
       throw new Error('User not found');
     }
@@ -107,10 +114,15 @@ export class ScrapsService {
     return this.toScrapSummaryDto(scrap);
   }
 
-  async findAll(userId?: number): Promise<Scrap[]> {
-    const query: any = userId
-      ? { user: { userId }, isDeleted: false, filePath: null }
-      : { isDeleted: false, mimeType: null };
+  async findAll(userId?: UserIdentifierLike): Promise<Scrap[]> {
+    const query: any = { isDeleted: false };
+
+    if (normalizeUserIdentifier(userId) !== undefined) {
+      query.user = buildUserFilterFromInput(userId as UserIdentifierLike);
+      query.filePath = null;
+    } else {
+      query.mimeType = null;
+    }
 
     return await this.scrapRepository.find(query, {
       populate: ['tags'],
@@ -120,13 +132,13 @@ export class ScrapsService {
 
   async findOne(
     scrapId: number,
-    userId?: number,
+    userId?: UserIdentifierLike,
   ): Promise<ScrapResponseDto | null> {
     const query: any = { scrapId, isDeleted: false };
 
     // Add user authorization if userId is provided
-    if (userId !== undefined) {
-      query.user = { userId };
+    if (normalizeUserIdentifier(userId) !== undefined) {
+      query.user = buildUserFilterFromInput(userId as UserIdentifierLike);
     }
 
     const scrap = await this.scrapRepository.findOne(query, {
@@ -145,7 +157,7 @@ export class ScrapsService {
    */
   async findMany(
     scrapIds: number[],
-    userId?: number,
+    userId?: UserIdentifierLike,
   ): Promise<ScrapResponseDto[]> {
     if (!scrapIds || scrapIds.length === 0) {
       return [];
@@ -157,8 +169,8 @@ export class ScrapsService {
     };
 
     // Add user authorization if userId is provided
-    if (userId !== undefined) {
-      query.user = { userId };
+    if (normalizeUserIdentifier(userId) !== undefined) {
+      query.user = buildUserFilterFromInput(userId as UserIdentifierLike);
     }
 
     const scraps = await this.scrapRepository.find(query, {
@@ -201,11 +213,15 @@ export class ScrapsService {
   }
 
   async findByUser(
-    userId: number,
+    userId: UserIdentifierLike,
     sortBy?: 'created_at' | 'updated_at' | 'title',
     sortOrder?: 'ASC' | 'DESC',
   ): Promise<ScrapSummaryDto[]> {
-    const query = { user: { userId }, isDeleted: false, mimeType: null };
+    const query = {
+      user: buildUserFilterFromInput(userId),
+      isDeleted: false,
+      mimeType: null,
+    };
     let orderBy: any = { createdAt: 'DESC' };
 
     switch (sortBy) {
@@ -234,14 +250,17 @@ export class ScrapsService {
    * V2: Find all scraps by user with pagination (webclip + upload unified)
    */
   async findByUserV2(
-    userId: number,
+    userId: UserIdentifierLike,
     sortBy?: 'created_at' | 'updated_at' | 'title',
     sortOrder?: 'ASC' | 'DESC',
     type?: string, // 'webclip', 'upload', or undefined for all
     page: number = 1,
     limit: number = 20,
   ): Promise<{ scraps: ScrapSummaryDto[]; total: number; hasMore: boolean }> {
-    const query: any = { user: { userId }, isDeleted: false };
+    const query: any = {
+      user: buildUserFilterFromInput(userId),
+      isDeleted: false,
+    };
 
     // Filter by type if specified
     if (type === 'webclip') {
@@ -300,13 +319,13 @@ export class ScrapsService {
   async update(
     scrapId: number,
     updateScrapDto: UpdateScrapDto,
-    userId?: number,
+    userId?: UserIdentifierLike,
   ): Promise<Scrap | null> {
     const query: any = { scrapId, isDeleted: false };
 
     // Add user authorization if userId is provided
-    if (userId !== undefined) {
-      query.user = { userId };
+    if (normalizeUserIdentifier(userId) !== undefined) {
+      query.user = buildUserFilterFromInput(userId as UserIdentifierLike);
     }
 
     const scrap = await this.scrapRepository.findOne(query);
@@ -331,12 +350,12 @@ export class ScrapsService {
     return scrap;
   }
 
-  async remove(scrapId: number, userId?: number): Promise<void> {
+  async remove(scrapId: number, userId?: UserIdentifierLike): Promise<void> {
     const query: any = { scrapId };
 
     // Add user authorization if userId is provided
-    if (userId !== undefined) {
-      query.user = { userId };
+    if (normalizeUserIdentifier(userId) !== undefined) {
+      query.user = buildUserFilterFromInput(userId as UserIdentifierLike);
     }
 
     const scrap = await this.scrapRepository.findOne(query, {
@@ -355,7 +374,7 @@ export class ScrapsService {
     }
   }
 
-  async search(query: string, userId?: number): Promise<Scrap[]> {
+  async search(query: string, userId?: UserIdentifierLike): Promise<Scrap[]> {
     const qb = this.em.createQueryBuilder(Scrap, 's');
 
     qb.where({
@@ -367,8 +386,11 @@ export class ScrapsService {
       isDeleted: false,
     });
 
-    if (userId) {
-      qb.andWhere({ user: { userId }, isDeleted: false });
+    if (normalizeUserIdentifier(userId) !== undefined) {
+      qb.andWhere({
+        user: buildUserFilterFromInput(userId as UserIdentifierLike),
+        isDeleted: false,
+      });
     }
 
     qb.leftJoinAndSelect('s.user', 'u')
@@ -408,8 +430,13 @@ export class ScrapsService {
     }
 
     // 사용자 필터
-    if (searchOptions.userId) {
-      qb.andWhere({ user: { userId: searchOptions.userId }, isDeleted: false });
+    if (normalizeUserIdentifier(searchOptions.userId) !== undefined) {
+      qb.andWhere({
+        user: buildUserFilterFromInput(
+          searchOptions.userId as UserIdentifierLike,
+        ),
+        isDeleted: false,
+      });
     }
 
     // 기사 필터

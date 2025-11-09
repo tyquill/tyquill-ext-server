@@ -48,7 +48,7 @@ export class FoldersController {
     @Request() req: any,
   ): Promise<FolderResponseDto> {
     try {
-      const userId = parseInt(req.user.id);
+      const userId = req.user.id;
       return await this.foldersService.create(userId, createFolderDto);
     } catch (error: any) {
       if (error instanceof HttpException) {
@@ -76,7 +76,7 @@ export class FoldersController {
     @Query('parentId') parentId?: string,
   ): Promise<FolderResponseDto[]> {
     try {
-      const userId = parseInt(req.user.id);
+      const userId = req.user.id;
 
       // Convert 'null' string to actual null for root folders
       const parentFolderId = parentId === 'null' ? null : parentId || undefined;
@@ -104,7 +104,7 @@ export class FoldersController {
     @Request() req: any,
   ): Promise<FolderResponseDto> {
     try {
-      const userId = parseInt(req.user.id);
+      const userId = req.user.id;
       return await this.foldersService.findOne(id, userId);
     } catch (error: any) {
       if (error instanceof HttpException) {
@@ -133,7 +133,7 @@ export class FoldersController {
     @Request() req: any,
   ): Promise<FolderResponseDto> {
     try {
-      const userId = parseInt(req.user.id);
+      const userId = req.user.id;
       return await this.foldersService.update(id, userId, updateFolderDto);
     } catch (error: any) {
       if (error instanceof HttpException) {
@@ -160,7 +160,7 @@ export class FoldersController {
   @ApiResponse({ status: 404, description: 'Folder not found' })
   async remove(@Param('id') id: string, @Request() req: any) {
     try {
-      const userId = parseInt(req.user.id);
+      const userId = req.user.id;
       await this.foldersService.remove(id, userId);
       return { message: 'Folder deleted successfully' };
     } catch (error: any) {
@@ -189,7 +189,7 @@ export class FoldersController {
     @Request() req: any,
   ) {
     try {
-      const userId = parseInt(req.user.id);
+      const userId = req.user.id;
 
       // Use targetFolderId from DTO if provided, otherwise use URL param
       const targetFolderId =
@@ -233,7 +233,7 @@ export class FoldersController {
     @Request() req: any,
   ): Promise<FolderContentsDto> {
     try {
-      const userId = parseInt(req.user.id);
+      const userId = req.user.id;
       return await this.foldersService.getFolderContents(id, userId);
     } catch (error: any) {
       if (error instanceof HttpException) {

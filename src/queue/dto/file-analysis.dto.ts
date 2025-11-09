@@ -11,7 +11,7 @@ export interface FileAnalysisMessage {
   fileUrl: string;
   fileName: string;
   mimeType: string;
-  userId: number;
+  userId: string | number;
   timestamp: string;
 }
 
@@ -36,8 +36,8 @@ export class FileAnalysisRequestDto {
   @IsMimeType()
   mimeType: string;
 
-  @IsNumber()
-  userId: number;
+  @IsString()
+  userId: string;
 
   @IsDateString()
   timestamp: string;
@@ -47,7 +47,7 @@ export class FileAnalysisRequestDto {
     this.fileUrl = data.fileUrl;
     this.fileName = data.fileName;
     this.mimeType = data.mimeType;
-    this.userId = data.userId;
+    this.userId = String(data.userId);
     this.timestamp = data.timestamp;
   }
 }

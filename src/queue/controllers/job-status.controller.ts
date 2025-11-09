@@ -35,8 +35,8 @@ export class JobStatusController {
       throw new BadRequestException('Invalid limit parameter');
     }
 
-    const userId = parseInt(req.user.id);
-    if (isNaN(userId)) {
+    const userId = req.user.id;
+    if (!userId) {
       throw new BadRequestException('Invalid user ID');
     }
     return this.jobStatusService.getJobsByUser(userId, limitNum);

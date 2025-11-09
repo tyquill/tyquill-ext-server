@@ -4,9 +4,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { AdminService } from './admin.service';
+import { UserIdParamPipe } from '../../users/pipes/user-id.pipe';
 
 export type AdminUserDashboardResponse = {
-  userId: number;
+  userId: string;
   email: string;
   name: string;
   scrapCount: number;
@@ -15,7 +16,7 @@ export type AdminUserDashboardResponse = {
 }[];
 
 export type AdminUserDetailResponse = {
-  userId: number;
+  userId: string;
   email: string;
   name: string;
   createdAt: string;
@@ -37,7 +38,7 @@ export type AdminUserDetailResponse = {
 };
 
 export type AdminArticleGenerationResultsResponse = {
-  userId: number;
+  userId: string;
   email: string;
   name: string;
   articleId: number;
@@ -51,7 +52,7 @@ export type AdminArticleGenerationResultsResponse = {
 
 export type AdminActivitiesResponse = {
   activityType: string;
-  userId: number;
+  userId: string;
   email: string;
   name: string;
   resourceId: number;
@@ -60,7 +61,7 @@ export type AdminActivitiesResponse = {
 }[];
 
 export type AdminArticleDetailResponse = {
-  userId: number;
+  userId: string;
   email: string;
   name: string;
   articleId: number;
@@ -193,7 +194,7 @@ export class AdminController {
   })
   @Get('users/detail')
   async getUserDetail(
-    @Query('userId') userId: number,
+    @Query('userId', UserIdParamPipe) userId: string,
   ): Promise<AdminUserDetailResponse> {
     return this.adminService.getUserDetail(userId);
   }
@@ -281,7 +282,7 @@ export class AdminController {
   })
   @Get('activities')
   async getActivities(
-    @Query('userId') userId?: number,
+    @Query('userId', UserIdParamPipe) userId?: string,
   ): Promise<AdminActivitiesResponse> {
     return this.adminService.getActivities(userId);
   }
@@ -367,7 +368,7 @@ export class AdminController {
   })
   @Get('articles/detail')
   async getArticleDetail(
-    @Query('userId') userId: number,
+    @Query('userId', UserIdParamPipe) userId: string,
     @Query('articleId') articleId: number,
   ): Promise<AdminArticleDetailResponse> {
     return this.adminService.getArticleDetail(userId, articleId);

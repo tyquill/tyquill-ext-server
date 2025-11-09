@@ -9,11 +9,13 @@ import { AiCallbacksController } from './controllers/ai-callbacks.controller';
 import { QUEUE_NAMES } from './constants/queue.constants';
 import { Job } from './entities/job-status.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     ConfigModule,
     MikroOrmModule.forFeature([Job, Scrap]),
+    UsersModule,
     SqsModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {

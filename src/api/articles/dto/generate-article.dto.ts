@@ -73,6 +73,6 @@ export class GenerateArticleResponse {
   createdAt: Date;
 
   @ApiProperty()
-  @IsNumber()
-  userId: number;
+  @IsString()
+  userId: string;
 }

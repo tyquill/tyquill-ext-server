@@ -7,6 +7,8 @@ import {
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { Article } from '../articles/entities/article.entity';
+import { UsersService } from '../users/users.service';
+import { UserIdentifierLike } from '../users/utils/user-identifier.util';
 import {
   UnifiedContentQueryDto,
   ContentType,
@@ -28,15 +30,22 @@ export class ContentService {
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(Article)
     private readonly articleRepository: EntityRepository<Article>,
+    private readonly usersService: UsersService,
   ) {}
 
   /**
    * Get unified content (scraps and articles) with pagination, filtering, and search
    */
   async getUnifiedContent(
-    userId: number,
+    userId: UserIdentifierLike,
     query: UnifiedContentQueryDto,
   ): Promise<UnifiedContentResponseDto> {
+    const canonicalUserId =
+      (await this.usersService.resolveCanonicalUserId(userId)) ||
+      (() => {
+        throw new Error('User not found');
+      })();
+
     const { type, folderId, scrapType, search, tags } = query;
 
     // Ensure defaults for required pagination fields
@@ -58,7 +67,7 @@ export class ContentService {
 
     // Fetch scraps if needed
     if (includeScraps) {
-      const scrapResult = await this.fetchScraps(userId, {
+      const scrapResult = await this.fetchScraps(canonicalUserId, {
         folderId,
         scrapType,
         sortBy,
@@ -75,7 +84,7 @@ export class ContentService {
 
     // Fetch articles if needed
     if (includeArticles) {
-      const articleResult = await this.fetchArticles(userId, {
+      const articleResult = await this.fetchArticles(canonicalUserId, {
         folderId,
         sortBy,
         sortOrder,
@@ -132,7 +141,7 @@ export class ContentService {
    * Fetch scraps with filters
    */
   private async fetchScraps(
-    userId: number,
+    userId: string,
     options: {
       folderId?: string | null;
       scrapType?: string;
@@ -231,7 +240,7 @@ export class ContentService {
    * Fetch articles with filters
    */
   private async fetchArticles(
-    userId: number,
+    userId: string,
     options: {
       folderId?: string | null;
       sortBy: SortByField;

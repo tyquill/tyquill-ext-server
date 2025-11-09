@@ -1,25 +1,39 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { Job, JobType, JobStatus } from '../entities/job-status.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { UsersService } from '../../users/users.service';
+import {
+  UserIdentifierLike,
+  isUuid,
+} from '../../users/utils/user-identifier.util';
 
 @Injectable()
 export class JobStatusService {
   private readonly logger = new Logger(JobStatusService.name);
 
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly usersService: UsersService,
+  ) {}
 
   async createJob(data: {
     jobType: JobType;
-    userId: number;
+    userId: UserIdentifierLike;
     payload?: any;
     queueName?: string;
     maxRetries?: number;
   }): Promise<Job> {
+    const canonicalUserId =
+      (await this.usersService.resolveCanonicalUserId(data.userId)) ??
+      (() => {
+        throw new NotFoundException('User not found');
+      })();
+
     const job = new Job();
     job.jobUuid = uuidv4();
     job.jobType = data.jobType;
-    job.userId = data.userId;
+    job.userId = canonicalUserId;
     job.payload = data.payload;
     job.queueName = data.queueName;
     job.maxRetries = data.maxRetries ?? 3;
@@ -113,10 +127,22 @@ export class JobStatusService {
     return this.em.findOne(Job, { jobUuid });
   }
 
-  async getJobsByUser(userId: number, limit: number = 50): Promise<Job[]> {
+  async getJobsByUser(
+    userId: UserIdentifierLike,
+    limit: number = 50,
+  ): Promise<Job[]> {
+    const canonical =
+      (typeof userId === 'string' && isUuid(userId)
+        ? userId.toLowerCase()
+        : await this.usersService.resolveCanonicalUserId(userId)) ||
+      undefined;
+    if (!canonical) {
+      return [];
+    }
+
     return this.em.find(
       Job,
-      { userId },
+      { userId: canonical },
       {
         orderBy: { createdAt: 'DESC' },
         limit,

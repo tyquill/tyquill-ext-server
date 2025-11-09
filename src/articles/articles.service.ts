@@ -25,6 +25,7 @@ import { ArticleArchive } from '../article-archive/entities/article-archive.enti
 import { ArticleScrap } from './entities/article-scrap.entity';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { User } from '../users/entities/user.entity';
+import { Folder } from '../folders/entities/folder.entity';
 import { EntityManager, EntityRepository, LockMode } from '@mikro-orm/core';
 import { NewsletterAgentService } from '../agents/services/newsletter-agent.service';
 import { SlackService } from '../notifications/slack.service';
@@ -52,6 +53,8 @@ export class ArticlesService {
     private readonly scrapRepository: EntityRepository<Scrap>,
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
+    @InjectRepository(Folder)
+    private readonly folderRepository: EntityRepository<Folder>,
     @InjectRepository(WritingStyle)
     private readonly writingStyleRepository: EntityRepository<WritingStyle>,
     private readonly newsletterAgentService: NewsletterAgentService,
@@ -89,9 +92,12 @@ export class ArticlesService {
   /**
    * 아티클 생성
    */
-  async create(createArticleDto: CreateArticleDto): Promise<Article> {
+  async create(
+    userId: number,
+    createArticleDto: CreateArticleDto,
+  ): Promise<Article> {
     const user = await this.userRepository.findOne({
-      userId: createArticleDto.userId,
+      userId: userId,
     });
 
     if (!user) {
@@ -103,6 +109,17 @@ export class ArticlesService {
     article.keyInsight = createArticleDto.keyInsights;
     article.generationParams = createArticleDto.generationParams;
     article.user = user;
+
+    // Handle folder assignment
+    if (createArticleDto.folderId) {
+      const folder = await this.folderRepository.findOne({
+        folderId: createArticleDto.folderId,
+        user: user,
+      });
+      if (folder) {
+        article.folder = folder;
+      }
+    }
 
     await this.em.persistAndFlush(article);
 

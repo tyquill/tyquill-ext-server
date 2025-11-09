@@ -43,8 +43,9 @@ export class ArticlesController {
    */
   @Version('1')
   @Post()
-  create(@Body() createArticleDto: CreateArticleDto) {
-    return this.articlesService.create(createArticleDto);
+  create(@Request() req: any, @Body() createArticleDto: CreateArticleDto) {
+    const userId = parseInt(req.user.id);
+    return this.articlesService.create(userId, createArticleDto);
   }
   /**
    * 페이지 콘텐츠를 분석하여 글 구조 템플릿을 생성합니다.

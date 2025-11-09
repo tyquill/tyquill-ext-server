@@ -26,11 +26,12 @@ export class CreateArticleDto {
   content?: string;
 
   @ApiProperty()
-  @IsNumber()
-  userId: number;
-
-  @ApiProperty()
   @IsArray()
   @IsNumber({}, { each: true })
   scrapIds: number[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }

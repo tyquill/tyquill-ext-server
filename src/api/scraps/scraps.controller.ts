@@ -444,7 +444,7 @@ export class ScrapsController {
    */
   private async enrichScrapsWithMetadata(
     scraps: any[],
-    userId: number,
+    userId: string,
   ): Promise<ScrapResponseDto[]> {
     const scrapIds = scraps.map((scrap) => scrap.scrapId);
     return await this.scrapsService.findMany(scrapIds, userId);

@@ -8,11 +8,13 @@ import { Scrap } from '../../scraps/entities/scrap.entity';
 import { ArticleArchive } from '../../article-archive/entities/article-archive.entity';
 import { AuthModule } from '../../auth/auth.module';
 import { RolesGuard } from '../../auth/guards/roles.guard';
+import { UsersModule } from '../../users/users.module';
 
 @Module({
   imports: [
     MikroOrmModule.forFeature([User, Article, Scrap, ArticleArchive]),
     AuthModule,
+    UsersModule,
   ],
   controllers: [AdminController],
   providers: [AdminService, RolesGuard],

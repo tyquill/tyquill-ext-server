@@ -9,6 +9,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UserRole } from '../../users/entities/user.entity';
+import { UsersService } from '../../users/users.service';
+import { isUuid } from '../../users/utils/user-identifier.util';
 // Removed Supabase config import
 
 /**
@@ -55,7 +57,7 @@ export interface AuthenticatedUser {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private readonly usersService: UsersService) {
     const jwtSecret = process.env.JWT_SECRET || 'your-fallback-secret-key';
 
     super({
@@ -96,10 +98,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // }
 
       // 사용자 정보 구성
+      let canonicalUserId = payload.sub;
+
+      if (!isUuid(canonicalUserId)) {
+        const resolved = await this.usersService.resolveCanonicalUserId(
+          payload.sub,
+          { throwOnNotFound: false },
+        );
+
+        if (!resolved) {
+          throw new UnauthorizedException('User not found');
+        }
+
+        canonicalUserId = resolved;
+      }
+
       const normalizedRole = this.normalizeRole(payload.role);
 
       const user: AuthenticatedUser = {
-        id: payload.sub,
+        id: canonicalUserId,
         email: payload.email,
         role: normalizedRole,
         metadata: {

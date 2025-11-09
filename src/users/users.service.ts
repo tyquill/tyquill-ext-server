@@ -1,8 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { User, UserRole } from './entities/user.entity';
 import { UserOAuth, OAuthProvider } from './entities/user-oauth.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
+import {
+  UserIdentifierLike,
+  buildUserFilterFromInput,
+  ensureUserIdentifier,
+  isUuid,
+} from './utils/user-identifier.util';
 // Analytics tracking migrated to extension client (PostHog). Server no longer emits events.
 
 /**
@@ -35,9 +41,13 @@ export class UsersService {
     private readonly userOAuthRepository: EntityRepository<UserOAuth>,
   ) {}
 
-  async findOne(id: number): Promise<User | null> {
+  async findOne(id: UserIdentifierLike): Promise<User | null> {
+    if (id === null || id === undefined) {
+      return null;
+    }
+
     return await this.userRepository.findOne(
-      { userId: id },
+      buildUserFilterFromInput(id),
       { populate: ['oauthAccounts'] },
     );
   }
@@ -166,7 +176,9 @@ export class UsersService {
   /**
    * 사용자의 OAuth 계정 조회
    */
-  async getUserOAuthAccounts(userId: number): Promise<UserOAuth[]> {
+  async getUserOAuthAccounts(
+    userId: UserIdentifierLike,
+  ): Promise<UserOAuth[]> {
     const user = await this.findOne(userId);
     if (!user) {
       return [];
@@ -210,7 +222,7 @@ export class UsersService {
    * 사용자 정보 업데이트
    */
   async updateUser(
-    userId: number,
+    userId: UserIdentifierLike,
     updateData: Partial<{ email: string; name: string }>,
   ): Promise<User | null> {
     const user = await this.findOne(userId);
@@ -229,5 +241,29 @@ export class UsersService {
     await this.em.persistAndFlush(user);
 
     return user;
+  }
+
+  async resolveCanonicalUserId(
+    identifier: UserIdentifierLike,
+    { throwOnNotFound = true }: { throwOnNotFound?: boolean } = {},
+  ): Promise<string | null> {
+    const normalized = ensureUserIdentifier(identifier);
+
+    if (typeof normalized === 'string' && isUuid(normalized)) {
+      return normalized.toLowerCase();
+    }
+
+    const user = await this.userRepository.findOne(
+      buildUserFilterFromInput(normalized),
+    );
+
+    if (!user) {
+      if (throwOnNotFound) {
+        throw new NotFoundException('User not found');
+      }
+      return null;
+    }
+
+    return user.userId;
   }
 }

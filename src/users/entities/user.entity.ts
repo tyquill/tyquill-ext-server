@@ -5,6 +5,7 @@ import {
   Property,
   Collection,
 } from '@mikro-orm/core';
+import { v4 as uuidv4 } from 'uuid';
 import { Scrap } from '../../scraps/entities/scrap.entity';
 import { Tag } from '../../tags/entities/tag.entity';
 import { UserOAuth } from './user-oauth.entity';
@@ -17,8 +18,20 @@ export enum UserRole {
 
 @Entity({ tableName: 'users' })
 export class User {
-  @PrimaryKey({ name: 'user_id' })
-  userId: number;
+  @PrimaryKey({
+    name: 'user_id',
+    type: 'uuid',
+    defaultRaw: 'uuid_generate_v4()',
+  })
+  userId: string = uuidv4();
+
+  @Property({
+    name: 'legacy_user_id',
+    type: 'integer',
+    nullable: true,
+    unique: true,
+  })
+  legacyUserId?: number;
 
   @Property({ name: 'email', unique: true })
   email: string;

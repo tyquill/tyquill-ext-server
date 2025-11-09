@@ -93,16 +93,10 @@ export class ArticlesService {
    * 아티클 생성
    */
   async create(
-    userId: number,
+    userId: string,
     createArticleDto: CreateArticleDto,
   ): Promise<Article> {
-    const user = await this.userRepository.findOne({
-      userId: userId,
-    });
-
-    if (!user) {
-      throw new NotFoundException('사용자를 찾을 수 없습니다.');
-    }
+    const user = await this.getUserOrThrow(userId);
 
     const article = new Article();
     article.topic = createArticleDto.topic;
@@ -140,11 +134,11 @@ export class ArticlesService {
    * AI 기반 아티클 생성
    */
   async generateArticle(
-    userId: number,
+    userId: string,
     generateDto: GenerateArticleDto,
   ): Promise<GenerateArticleResponse> {
     // 사용자 검증
-    const user = await this.userRepository.findOne({ userId: userId });
+    const user = await this.getUserOrThrow(userId);
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
@@ -277,7 +271,7 @@ export class ArticlesService {
    */
   private async validateAndGetWritingStyle(
     writingStyleId: number | undefined,
-    userId: number,
+    userId: string,
   ): Promise<WritingStyle | undefined> {
     if (!writingStyleId) {
       return undefined;
@@ -371,11 +365,11 @@ export class ArticlesService {
    * 사용자별 아티클 조회
    */
   async findByUser(
-    userId: number,
+    userId: string,
     sortBy?: 'created_at' | 'updated_at',
     sortOrder?: 'ASC' | 'DESC',
   ): Promise<any[]> {
-    const user = await this.userRepository.findOne({ userId });
+    const user = await this.getUserOrThrow(userId);
 
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
@@ -548,7 +542,7 @@ export class ArticlesService {
   /**
    * 아티클 버전 히스토리 조회
    */
-  async getVersions(articleId: number, userId: number): Promise<any[]> {
+  async getVersions(articleId: number, userId: string): Promise<any[]> {
     this.logger.log(
       `📋 Fetching versions for article ${articleId} by user ${userId}`,
     );
@@ -594,7 +588,7 @@ export class ArticlesService {
   async restoreVersion(
     articleId: number,
     versionNumber: number,
-    userId: number,
+    userId: string,
   ): Promise<any> {
     this.logger.log(
       `🔄 Restoring article ${articleId} to version ${versionNumber} by user ${userId}`,
@@ -681,7 +675,7 @@ export class ArticlesService {
   /**
    * 아티클 검색
    */
-  async search(query: string, userId?: number): Promise<Article[]> {
+  async search(query: string, userId?: string): Promise<Article[]> {
     const whereClause: any = {
       $or: [
         { topic: { $like: `%${query}%` } },
@@ -723,7 +717,7 @@ export class ArticlesService {
    * V2 API: 비동기 아티클 생성 - 즉시 202 응답 후 백그라운드 처리
    */
   async generateArticleV2(
-    userId: number,
+    userId: string,
     generateDto: GenerateArticleV2Dto,
   ): Promise<GenerateArticleV2Response> {
     this.logger.log(
@@ -731,7 +725,7 @@ export class ArticlesService {
     );
 
     // 사용자 검증
-    const user = await this.userRepository.findOne({ userId: userId });
+    const user = await this.getUserOrThrow(userId);
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
@@ -796,8 +790,8 @@ export class ArticlesService {
   /**
    * V2 API: 사용자별 아티클 조회 (상태 정보 포함)
    */
-  async findByUserV2(userId: number): Promise<any[]> {
-    const user = await this.userRepository.findOne({ userId });
+  async findByUserV2(userId: string): Promise<any[]> {
+    const user = await this.getUserOrThrow(userId);
 
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
@@ -997,7 +991,7 @@ export class ArticlesService {
    * V3 API: 비동기 아티클 생성 - PDF 업로드 지원
    */
   async generateArticleV3(
-    userId: number,
+    userId: string,
     generateDto: GenerateArticleV3Dto,
   ): Promise<GenerateArticleV2Response> {
     this.logger.log(
@@ -1005,7 +999,7 @@ export class ArticlesService {
     );
 
     // 사용자 검증
-    const user = await this.userRepository.findOne({ userId: userId });
+    const user = await this.getUserOrThrow(userId);
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
@@ -1072,8 +1066,8 @@ export class ArticlesService {
   /**
    * V2 API: 사용자별 아티클 조회 (PDF 정보 포함)
    */
-  async findByUserV3(userId: number): Promise<any[]> {
-    const user = await this.userRepository.findOne({ userId });
+  async findByUserV3(userId: string): Promise<any[]> {
+    const user = await this.getUserOrThrow(userId);
 
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
@@ -1337,7 +1331,7 @@ export class ArticlesService {
    * V3: 실시간 스트리밍으로 아티클 생성
    */
   generateArticleV3Stream(
-    userId: number,
+    userId: string,
     generateDto: GenerateArticleV3Dto,
   ): Observable<MessageEvent> {
     return new Observable((observer) => {
@@ -1350,7 +1344,7 @@ export class ArticlesService {
             `📡 Starting V3 streaming article generation for user ${userId}`,
           );
 
-          const user = await this.userRepository.findOne({ userId });
+          const user = await this.getUserOrThrow(userId);
           if (!user) {
             throw new NotFoundException('사용자를 찾을 수 없습니다.');
           }
@@ -1614,7 +1608,7 @@ export class ArticlesService {
    */
   async regenerateArticleV3(
     articleId: number,
-    userId: number,
+    userId: string,
     dto: RegenerateArticleV3Dto,
   ): Promise<any> {
     this.logger.log(
@@ -2009,7 +2003,7 @@ export class ArticlesService {
    */
   regenerateArticleV3Stream(
     articleId: number,
-    userId: number,
+    userId: string,
     dto: RegenerateArticleV3Dto,
   ): Observable<MessageEvent> {
     return new Observable((observer) => {
@@ -2516,5 +2510,13 @@ export class ArticlesService {
         }
       })();
     });
+  }
+
+  private async getUserOrThrow(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne({ userId });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    return user;
   }
 }

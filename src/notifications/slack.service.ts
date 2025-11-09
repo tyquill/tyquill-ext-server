@@ -25,7 +25,7 @@ export class SlackService {
   async notifyNewUserSignup(userData: {
     email: string;
     name: string;
-    userId: number;
+    userId: string;
     provider?: string;
     createdAt?: Date;
   }): Promise<void> {
@@ -147,7 +147,7 @@ export class SlackService {
     keyInsight?: string;
     userEmail: string;
     userName: string;
-    userId: number;
+    userId: string;
     generationTime?: number;
     contentLength?: number;
     version?: string; // API version used (V1, V2, V3)

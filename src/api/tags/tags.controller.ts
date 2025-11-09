@@ -35,7 +35,7 @@ export class TagsController {
     @Query('scrapId') scrapId?: number,
   ) {
     try {
-      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      const userId = req.user.id; // JWT에서 사용자 ID 추출
       return await this.tagsService.create(createTagDto, userId, scrapId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
@@ -53,7 +53,7 @@ export class TagsController {
     @Query('scrapId') scrapId?: number,
   ) {
     try {
-      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      const userId = req.user.id; // JWT에서 사용자 ID 추출
 
       if (name) {
         return await this.tagsService.getTagsByName(userId, name);
@@ -133,7 +133,7 @@ export class TagsController {
   @Get('names')
   async getUserTagNames(@Request() req: any) {
     try {
-      const userId = parseInt(req.user.id); // JWT에서 사용자 ID 추출
+      const userId = req.user.id; // JWT에서 사용자 ID 추출
       return await this.tagsService.getUserTagNames(userId);
     } catch (error: any) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);

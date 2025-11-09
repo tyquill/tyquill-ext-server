@@ -26,8 +26,8 @@ export class Job {
   @Enum(() => JobStatus)
   status: JobStatus = JobStatus.PENDING;
 
-  @Property()
-  userId!: number;
+  @Property({ columnType: 'uuid' })
+  userId!: string;
 
   @Property({ type: 'json', nullable: true })
   payload?: any; // Job-specific data

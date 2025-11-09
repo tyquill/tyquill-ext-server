@@ -2,10 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { User } from '../../users/entities/user.entity';
 import { Article } from '../../articles/entities/article.entity';
+import { UsersService } from '../../users/users.service';
+import {
+  UserIdentifierLike,
+  buildUserFilterFromInput,
+  normalizeUserIdentifier,
+} from '../../users/utils/user-identifier.util';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly usersService: UsersService,
+  ) {}
 
   /**
    * 유저 대시보드 - 사용자별 스크랩 수, 생성한 아티클 수, 미활동일 수
@@ -43,10 +52,10 @@ export class AdminService {
   /**
    * 특정 유저의 상세 정보 조회
    */
-  async getUserDetail(userId: number) {
+  async getUserDetail(userId: UserIdentifierLike) {
     const user = await this.em.findOne(
       User,
-      { userId: userId },
+      buildUserFilterFromInput(userId),
       {
         populate: ['scraps', 'tags'],
       },
@@ -59,7 +68,7 @@ export class AdminService {
     const articles = await this.em.find(
       Article,
       {
-        user: { userId: userId },
+        user,
         isDeleted: false,
       },
       {
@@ -139,8 +148,14 @@ export class AdminService {
   /**
    * 활동 내역 - 모든 유저들의 활동 내역
    */
-  async getActivities(userId?: number) {
-    const userFilter = userId ? `AND u.user_id = ${userId}` : '';
+  async getActivities(userId?: UserIdentifierLike) {
+    const canonicalUserId = await this.resolveCanonicalUserId(userId, true);
+    const userFilter = canonicalUserId ? 'AND u.user_id = ?' : '';
+    const params: any[] = [];
+    if (canonicalUserId) {
+      params.push(canonicalUserId);
+      params.push(canonicalUserId);
+    }
 
     const query = `
       SELECT 
@@ -173,7 +188,7 @@ export class AdminService {
       LIMIT 1000
     `;
 
-    const result = await this.em.getConnection().execute(query);
+    const result = await this.em.getConnection().execute(query, params);
     return result.map((row) => ({
       activityType: row.activityType,
       userId: row.userId,
@@ -188,12 +203,12 @@ export class AdminService {
   /**
    * 특정 아티클 생성 요청의 상세 결과
    */
-  async getArticleDetail(userId: number, articleId: number) {
+  async getArticleDetail(userId: UserIdentifierLike, articleId: number) {
     const article = await this.em.findOne(
       Article,
       {
         articleId,
-        user: { userId: userId },
+        user: buildUserFilterFromInput(userId),
         isDeleted: false,
       },
       {
@@ -237,5 +252,26 @@ export class AdminService {
           createdAt: archive.createdAt.toISOString(),
         })),
     };
+  }
+
+  private async resolveCanonicalUserId(
+    userId: UserIdentifierLike,
+    optional = false,
+  ): Promise<string | undefined> {
+    if (userId === undefined || userId === null) {
+      if (optional) {
+        return undefined;
+      }
+      const resolved = await this.usersService.resolveCanonicalUserId(userId);
+      if (!resolved) {
+        throw new Error('User not found');
+      }
+      return resolved;
+    }
+
+    const resolved = await this.usersService.resolveCanonicalUserId(userId, {
+      throwOnNotFound: !optional,
+    });
+    return resolved ?? undefined;
   }
 }

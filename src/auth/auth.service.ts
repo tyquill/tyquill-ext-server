@@ -329,7 +329,7 @@ export class AuthService {
    */
   async getUserProfile(userId: string): Promise<UserProfile> {
     try {
-      const user = await this.usersService.findOne(parseInt(userId));
+      const user = await this.usersService.findOne(userId);
 
       if (!user) {
         throw new UnauthorizedException('User not found');

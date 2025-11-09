@@ -6,6 +6,10 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { User } from '../users/entities/user.entity';
 import { WritingStyleExample } from './entities/writing-style-example.entity';
 import axios from 'axios';
+import {
+  UserIdentifierLike,
+  buildUserFilterFromInput,
+} from '../users/utils/user-identifier.util';
 import TurndownService = require('turndown');
 
 @Injectable()
@@ -26,13 +30,15 @@ export class WritingStylesService {
 
   async create(
     createWritingStyleDto: CreateWritingStyleDto,
-    userId: number,
+    userId: UserIdentifierLike,
   ): Promise<WritingStyle> {
     const { name, examples: scrapedExamples } = createWritingStyleDto;
 
     const writingStyle = new WritingStyle();
     writingStyle.name = name;
-    const user = await this.userRepository.findOne({ userId });
+    const user = await this.userRepository.findOne(
+      buildUserFilterFromInput(userId),
+    );
     if (!user) {
       throw new Error('User not found');
     }
@@ -59,16 +65,20 @@ export class WritingStylesService {
     return writingStyle;
   }
 
-  async findAll(userId: number) {
-    const user = await this.userRepository.findOne({ userId });
+  async findAll(userId: UserIdentifierLike) {
+    const user = await this.userRepository.findOne(
+      buildUserFilterFromInput(userId),
+    );
     if (!user) {
       throw new Error('User not found');
     }
     return this.writingStyleRepository.find({ user: user });
   }
 
-  async findOne(id: number, userId: number) {
-    const user = await this.userRepository.findOne({ userId });
+  async findOne(id: number, userId: UserIdentifierLike) {
+    const user = await this.userRepository.findOne(
+      buildUserFilterFromInput(userId),
+    );
     if (!user) {
       throw new Error('User not found');
     }
@@ -79,8 +89,10 @@ export class WritingStylesService {
     return style;
   }
 
-  async remove(id: number, userId: number) {
-    const user = await this.userRepository.findOne({ userId });
+  async remove(id: number, userId: UserIdentifierLike) {
+    const user = await this.userRepository.findOne(
+      buildUserFilterFromInput(userId),
+    );
     if (!user) {
       throw new Error('User not found');
     }

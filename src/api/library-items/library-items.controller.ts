@@ -39,14 +39,14 @@ export class LibraryItemsController {
     @Query('type', new ParseEnumPipe(LibraryItemTypeEnum))
     type?: LibraryItemType,
   ): Promise<LibraryItemDto[]> {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.libraryItemsService.list(userId, type);
   }
 
   @Version('1')
   @Post('scrap')
   async createScrap(@Request() req: any, @Body() body: CreateScrapDto) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.libraryItemsService.createScrap(body, userId);
   }
 
@@ -74,7 +74,7 @@ export class LibraryItemsController {
     if (!file) {
       throw new BadRequestException('File is required');
     }
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.libraryItemsService.uploadViaS3(file, body, userId);
   }
 
@@ -87,7 +87,7 @@ export class LibraryItemsController {
     @Body() body: { name: string },
     @Request() req: any,
   ) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.libraryItemsService.addTag(
       parseInt(itemId),
       type,
@@ -105,7 +105,7 @@ export class LibraryItemsController {
     type: LibraryItemType,
     @Request() req: any,
   ) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     await this.libraryItemsService.removeTag(
       parseInt(itemId),
       type,
@@ -127,7 +127,7 @@ export class LibraryItemsController {
     type: LibraryItemType,
     @Request() req: any,
   ) {
-    const userId = parseInt(req.user.id);
+    const userId = req.user.id;
     return this.libraryItemsService.getTags(parseInt(itemId), type, userId);
   }
 }

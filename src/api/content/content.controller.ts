@@ -78,7 +78,7 @@ export class ContentController {
     @Request() req: any,
   ): Promise<UnifiedContentResponseDto> {
     try {
-      const userId = parseInt(req.user.id);
+      const userId = req.user.id;
 
       return await this.contentService.getUnifiedContent(userId, query);
     } catch (error: any) {

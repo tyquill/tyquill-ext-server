@@ -14,11 +14,8 @@ export enum JobStatus {
 
 @Entity({ tableName: 'jobs' })
 export class Job {
-  @PrimaryKey()
-  jobId!: number;
-
-  @Property()
-  jobUuid!: string; // Unique identifier for tracking
+  @PrimaryKey({ fieldName: 'job_id', type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  jobUuid!: string; // Unique identifier for tracking (promoted to PK)
 
   @Enum(() => JobType)
   jobType!: JobType;

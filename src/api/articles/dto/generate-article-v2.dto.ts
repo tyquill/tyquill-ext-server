@@ -6,6 +6,7 @@ import {
   IsString,
   IsNumber,
 } from 'class-validator';
+import { WritingStyleIdentifierLike } from '../../../writing-styles/utils/writing-style-identifier.util';
 
 export class ScrapWithOptionalCommentV2 {
   @ApiProperty({
@@ -46,10 +47,13 @@ export class GenerateArticleV2Dto {
   @IsOptional()
   articleStructureTemplate?: TemplateSectionV2Dto[];
 
-  @ApiProperty()
-  @IsNumber()
+  @ApiProperty({
+    description: 'Writing Style ID (UUID or legacy integer)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    required: false,
+  })
   @IsOptional()
-  writingStyleId?: number;
+  writingStyleId?: WritingStyleIdentifierLike;
 }
 
 export interface TemplateSectionV2Dto {

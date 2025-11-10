@@ -7,6 +7,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { WritingStyleIdentifierLike } from '../../../writing-styles/utils/writing-style-identifier.util';
 
 export class ScrapWithCommentDto {
   @ApiProperty({
@@ -72,8 +73,10 @@ export class GenerateArticleV3Dto {
   @IsOptional()
   articleStructureTemplate?: any[];
 
-  @ApiPropertyOptional({ description: '문체 스타일 ID' })
+  @ApiPropertyOptional({
+    description: '문체 스타일 ID (UUID or legacy integer)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @IsOptional()
-  @IsNumber()
-  writingStyleId?: number;
+  writingStyleId?: WritingStyleIdentifierLike;
 }

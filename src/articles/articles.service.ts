@@ -45,6 +45,11 @@ import {
   ScrapIdentifier,
   isUuid as isScrapUuid,
 } from '../scraps/utils/scrap-identifier.util';
+import {
+  WritingStyleIdentifierLike,
+  buildWritingStyleWhereClause,
+  normalizeWritingStyleId,
+} from '../writing-styles/utils/writing-style-identifier.util';
 import { FilterQuery } from '@mikro-orm/core';
 // Analytics tracking migrated to extension client (PostHog).
 
@@ -188,16 +193,26 @@ export class ArticlesService {
 
     let writingStyleExampleContents: string[] = [];
     if (generateDto.writingStyleId) {
+      const normalizedId = normalizeWritingStyleId(generateDto.writingStyleId);
+      const whereClause = buildWritingStyleWhereClause(normalizedId);
+
       const writingStyleExamples =
         await this.writingStyleExampleRepository.find(
-          { writingStyle: { id: generateDto.writingStyleId, user: user } },
+          {
+            writingStyle: {
+              ...(whereClause as any),
+              user: user,
+            },
+          },
           { populate: ['writingStyle'] },
         );
       writingStyleExampleContents = writingStyleExamples.map(
         (example) => example.content,
       );
-      if (!writingStyleExamples) {
-        throw new NotFoundException('쓰기 스타일을 찾을 수 없습니다.');
+      if (!writingStyleExamples || writingStyleExamples.length === 0) {
+        throw new NotFoundException(
+          `Writing style with ID ${normalizedId} not found`,
+        );
       }
     }
 
@@ -281,20 +296,25 @@ export class ArticlesService {
    * @private
    */
   private async validateAndGetWritingStyle(
-    writingStyleId: number | undefined,
+    writingStyleId: WritingStyleIdentifierLike | undefined,
     userId: string,
   ): Promise<WritingStyle | undefined> {
     if (!writingStyleId) {
       return undefined;
     }
 
+    const normalizedId = normalizeWritingStyleId(writingStyleId);
+    const whereClause = buildWritingStyleWhereClause(normalizedId);
+
     const writingStyle = await this.writingStyleRepository.findOne({
-      id: writingStyleId,
+      ...(whereClause as any),
       user: { userId: userId },
     });
 
     if (!writingStyle) {
-      throw new NotFoundException('문체 스타일을 찾을 수 없습니다.');
+      throw new NotFoundException(
+        `Writing style with ID ${normalizedId} not found or not accessible`,
+      );
     }
 
     return writingStyle;
@@ -920,11 +940,17 @@ export class ArticlesService {
       // 문체 예시 준비
       let writingStyleExampleContents: string[] = [];
       if (generateDto.writingStyleId) {
+        const normalizedStyleId = normalizeWritingStyleId(
+          generateDto.writingStyleId,
+        );
+        const styleWhereClause =
+          buildWritingStyleWhereClause(normalizedStyleId);
+
         const writingStyleExamples =
           await this.writingStyleExampleRepository.find(
             {
               writingStyle: {
-                id: generateDto.writingStyleId,
+                ...(styleWhereClause as any),
                 user: article.user,
               },
             },
@@ -1245,11 +1271,17 @@ export class ArticlesService {
       // 문체 예시 준비
       let writingStyleExampleContents: string[] = [];
       if (generateDto.writingStyleId) {
+        const normalizedStyleId = normalizeWritingStyleId(
+          generateDto.writingStyleId,
+        );
+        const styleWhereClause =
+          buildWritingStyleWhereClause(normalizedStyleId);
+
         const writingStyleExamples =
           await this.writingStyleExampleRepository.find(
             {
               writingStyle: {
-                id: generateDto.writingStyleId,
+                ...(styleWhereClause as any),
                 user: article.user,
               },
             },
@@ -1482,10 +1514,16 @@ export class ArticlesService {
 
           let writingStyleExampleContents: string[] = [];
           if (generateDto.writingStyleId) {
+            const normalizedStyleId = normalizeWritingStyleId(
+              generateDto.writingStyleId,
+            );
+            const styleWhereClause =
+              buildWritingStyleWhereClause(normalizedStyleId);
+
             const examples = await this.writingStyleExampleRepository.find(
               {
                 writingStyle: {
-                  id: generateDto.writingStyleId,
+                  ...(styleWhereClause as any),
                   user,
                 },
               },
@@ -1741,14 +1779,17 @@ export class ArticlesService {
         if (dto.writingStyleId === null) {
           writingStyle = null; // Explicit removal
         } else {
+          const normalizedId = normalizeWritingStyleId(dto.writingStyleId);
+          const whereClause = buildWritingStyleWhereClause(normalizedId);
+
           writingStyle = await trx.findOne(WritingStyle, {
-            id: dto.writingStyleId,
+            ...(whereClause as any),
             user: { userId } as any,
           });
 
           if (!writingStyle) {
             throw new BadRequestException(
-              `Writing style with ID ${dto.writingStyleId} not found or not accessible`,
+              `Writing style with ID ${normalizedId} not found or not accessible`,
             );
           }
         }
@@ -1887,10 +1928,17 @@ export class ArticlesService {
         writingStyle !== undefined ? writingStyle : article.writingStyle;
 
       if (finalWritingStyle) {
+        const styleWhereClause = buildWritingStyleWhereClause(
+          finalWritingStyle.id,
+        );
+
         const writingStyleExamples =
           await this.writingStyleExampleRepository.find(
             {
-              writingStyle: { id: finalWritingStyle.id, user: { userId } as any },
+              writingStyle: {
+                ...(styleWhereClause as any),
+                user: { userId } as any,
+              },
             },
             { populate: ['writingStyle'] },
           );
@@ -2157,13 +2205,16 @@ export class ArticlesService {
               if (dto.writingStyleId === null) {
                 article.writingStyle = undefined;
               } else {
+                const normalizedId = normalizeWritingStyleId(dto.writingStyleId);
+                const whereClause = buildWritingStyleWhereClause(normalizedId);
+
                 const writingStyle = await trx.findOne(WritingStyle, {
-                  id: dto.writingStyleId,
+                  ...(whereClause as any),
                   user: { userId } as any,
                 });
                 if (!writingStyle) {
                   throw new NotFoundException(
-                    `WritingStyle with ID ${dto.writingStyleId} not found`,
+                    `WritingStyle with ID ${normalizedId} not found`,
                   );
                 }
                 article.writingStyle = writingStyle;

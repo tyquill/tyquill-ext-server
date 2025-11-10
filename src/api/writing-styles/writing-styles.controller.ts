@@ -13,6 +13,7 @@ import { WritingStylesService } from '../../writing-styles/writing-styles.servic
 import { CreateWritingStyleDto } from './dto/create-writing-style.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
+import { WritingStyleIdParamPipe } from '../../writing-styles/pipes/writing-style-id.pipe';
 
 @Controller('api/v1/writing-styles')
 @UseGuards(JwtAuthGuard)
@@ -35,14 +36,17 @@ export class WritingStylesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: any) {
+  findOne(
+    @Param('id', WritingStyleIdParamPipe) id: string,
+    @Req() req: any,
+  ) {
     const userId = req.user.id; // JWT에서 사용자 ID 추출
-    return this.writingStylesService.findOne(+id, userId);
+    return this.writingStylesService.findOne(id, userId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: any) {
+  remove(@Param('id', WritingStyleIdParamPipe) id: string, @Req() req: any) {
     const userId = req.user.id; // JWT에서 사용자 ID 추출
-    return this.writingStylesService.remove(+id, userId);
+    return this.writingStylesService.remove(id, userId);
   }
 }

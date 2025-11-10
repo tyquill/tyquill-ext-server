@@ -26,6 +26,7 @@ import { ScrapResponseDto, ScrapSummaryDto } from './dto/scrap-response.dto';
 import { CreateTagDto } from '../tags/dto/create-tag.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Scrap } from 'src/scraps/entities/scrap.entity';
+import { ScrapIdParamPipe } from '../../scraps/pipes/scrap-id.pipe';
 
 @UseGuards(JwtAuthGuard)
 @Controller('scraps')
@@ -171,7 +172,7 @@ export class ScrapsController {
   @Version('1')
   @Get(':scrapId')
   async findOne(
-    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Param('scrapId', ScrapIdParamPipe) scrapId: string,
     @Request() req: any,
   ): Promise<ScrapResponseDto> {
     try {
@@ -195,7 +196,7 @@ export class ScrapsController {
   @Version('1')
   @Put(':scrapId')
   async update(
-    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Param('scrapId', ScrapIdParamPipe) scrapId: string,
     @Body() updateScrapDto: UpdateScrapDto,
     @Request() req: any,
   ) {
@@ -217,7 +218,7 @@ export class ScrapsController {
   @Version('1')
   @Delete(':scrapId')
   async remove(
-    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Param('scrapId', ScrapIdParamPipe) scrapId: string,
     @Request() req: any,
   ) {
     try {
@@ -251,7 +252,7 @@ export class ScrapsController {
   @Post(':scrapId/tags')
   async addTagToScrap(
     @Request() req: any,
-    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Param('scrapId', ScrapIdParamPipe) scrapId: string,
     @Body() createTagDto: CreateTagDto,
   ) {
     try {
@@ -271,7 +272,7 @@ export class ScrapsController {
     }
   }
 
-  private async validateScrapExists(scrapId: number, userId?: number) {
+  private async validateScrapExists(scrapId: string, userId?: string) {
     const scrap = await this.scrapsService.findOne(scrapId, userId);
     if (!scrap) {
       throw new HttpException('Scrap not found', HttpStatus.NOT_FOUND);
@@ -284,7 +285,7 @@ export class ScrapsController {
   @Version('1')
   @Get(':scrapId/tags')
   async getScrapTags(
-    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Param('scrapId', ScrapIdParamPipe) scrapId: string,
     @Request() req: any,
   ) {
     try {
@@ -308,7 +309,7 @@ export class ScrapsController {
   @Delete(':scrapId/tags/:tagId')
   async removeTagFromScrap(
     @Request() req: any,
-    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Param('scrapId', ScrapIdParamPipe) scrapId: string,
     @Param('tagId', ParseIntPipe) tagId: number,
   ) {
     try {
@@ -420,7 +421,7 @@ export class ScrapsController {
   @Version('2')
   @Get(':scrapId')
   async findOneV2(
-    @Param('scrapId', ParseIntPipe) scrapId: number,
+    @Param('scrapId', ScrapIdParamPipe) scrapId: string,
     @Request() req: any,
   ): Promise<ScrapResponseDto> {
     try {

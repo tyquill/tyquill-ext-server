@@ -11,6 +11,10 @@ import {
   buildUserFilterFromInput,
   normalizeUserIdentifier,
 } from '../users/utils/user-identifier.util';
+import {
+  ScrapIdentifierLike,
+  buildScrapFilterFromInput,
+} from '../scraps/utils/scrap-identifier.util';
 
 @Injectable()
 export class TagsService {
@@ -27,7 +31,7 @@ export class TagsService {
   async create(
     createTagDto: CreateTagDto,
     userId: UserIdentifierLike,
-    scrapId?: number,
+    scrapId?: ScrapIdentifierLike,
   ): Promise<Tag> {
     const user = await this.userRepository.findOne(
       buildUserFilterFromInput(userId),
@@ -37,7 +41,10 @@ export class TagsService {
     }
 
     const scrap = scrapId
-      ? await this.scrapRepository.findOne({ scrapId, isDeleted: false })
+      ? await this.scrapRepository.findOne({
+          ...buildScrapFilterFromInput(scrapId),
+          isDeleted: false,
+        })
       : null;
     if (scrapId && !scrap) {
       throw new Error('Scrap not found');
@@ -83,21 +90,21 @@ export class TagsService {
     );
   }
 
-  async findByScrap(scrapId: number): Promise<Tag[]> {
+  async findByScrap(scrapId: ScrapIdentifierLike): Promise<Tag[]> {
     return await this.tagRepository.find(
-      { scrap: { scrapId } },
+      { scrap: buildScrapFilterFromInput(scrapId) },
       { populate: ['user', 'scrap'] },
     );
   }
 
   async findByUserAndScrap(
     userId: UserIdentifierLike,
-    scrapId: number,
+    scrapId: ScrapIdentifierLike,
   ): Promise<Tag[]> {
     return await this.tagRepository.find(
       {
         user: buildUserFilterFromInput(userId),
-        scrap: { scrapId },
+        scrap: buildScrapFilterFromInput(scrapId),
       },
       { populate: ['user', 'scrap'], filters: { isDeleted: false } },
     );

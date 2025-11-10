@@ -9,9 +9,12 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ScrapWithCommentDto {
-  @ApiProperty({ description: '스크랩 ID' })
-  @IsNumber()
-  scrapId: number;
+  @ApiProperty({
+    description: '스크랩 ID (UUID or legacy integer)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsString()
+  scrapId: string;
 
   @ApiPropertyOptional({ description: '사용자 코멘트' })
   @IsOptional()
@@ -20,9 +23,12 @@ export class ScrapWithCommentDto {
 }
 
 export class UploadWithUsagePromptDto {
-  @ApiProperty({ description: '업로드된 파일 ID' })
-  @IsNumber()
-  uploadedFileId: number;
+  @ApiProperty({
+    description: '업로드된 파일 ID (Scrap UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000'
+  })
+  @IsString()
+  uploadedFileId: string;
 
   @ApiProperty({
     description: '사용 프롬프트 (어떻게 활용할지)',

@@ -145,7 +145,7 @@ export class TagsController {
    */
   @Version('1')
   @Get('scrap/:scrapId')
-  async findByScrap(@Param('scrapId', ParseIntPipe) scrapId: number) {
+  async findByScrap(@Param('scrapId') scrapId: string) {
     try {
       return await this.tagsService.findByScrap(scrapId);
     } catch (error: any) {

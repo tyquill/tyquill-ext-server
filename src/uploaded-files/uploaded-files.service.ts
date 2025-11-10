@@ -17,6 +17,10 @@ import {
   ensureUserIdentifier,
   normalizeUserIdentifier,
 } from '../users/utils/user-identifier.util';
+import {
+  normalizeScrapIdentifier,
+  buildScrapFilterFromInput,
+} from '../scraps/utils/scrap-identifier.util';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -69,9 +73,12 @@ export class UploadedFilesService {
     });
   }
 
-  async findOne(id: number, userId: UserIdentifierLike): Promise<Scrap> {
+  async findOne(id: string, userId: UserIdentifierLike): Promise<Scrap> {
+    // Support both UUID and legacy numeric IDs
+    const scrapFilter = buildScrapFilterFromInput(normalizeScrapIdentifier(id));
+
     const uploadedFile = await this.scrapRepository.findOne(
-      { scrapId: id },
+      scrapFilter,
       { populate: ['user', 'tags'] },
     );
 
@@ -95,7 +102,7 @@ export class UploadedFilesService {
   }
 
   async update(
-    id: number,
+    id: string,
     updateUploadedFileDto: UpdateUploadedFileDto,
     userId: UserIdentifierLike,
   ): Promise<Scrap> {
@@ -112,7 +119,7 @@ export class UploadedFilesService {
     return uploadedFile;
   }
 
-  async remove(id: number, userId: UserIdentifierLike): Promise<void> {
+  async remove(id: string, userId: UserIdentifierLike): Promise<void> {
     const uploadedFile = await this.findOne(id, userId);
     await this.em.removeAndFlush(uploadedFile);
   }

@@ -10,9 +10,12 @@ import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UploadWithUsagePromptDto {
-  @ApiPropertyOptional({ description: 'Upload ID to include' })
-  @IsNumber()
-  uploadedFileId: number;
+  @ApiPropertyOptional({
+    description: 'Upload ID to include (Scrap UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000'
+  })
+  @IsString()
+  uploadedFileId: string;
 
   @ApiPropertyOptional({
     description: 'Usage instructions for this upload',
@@ -47,25 +50,25 @@ export class RegenerateArticleV3Dto {
 
   @ApiPropertyOptional({
     description:
-      'Array of scrap IDs to add to the article. These scraps will be added to existing scraps',
-    example: [1, 2, 3],
-    type: [Number],
+      'Array of scrap IDs to add to the article. These scraps will be added to existing scraps (UUIDs)',
+    example: ['550e8400-e29b-41d4-a716-446655440000', '6ba7b810-9dad-11d1-80b4-00c04fd430c8'],
+    type: [String],
   })
   @IsOptional()
   @IsArray()
-  @IsNumber({}, { each: true })
-  addedScrapIds?: number[];
+  @IsString({ each: true })
+  addedScrapIds?: string[];
 
   @ApiPropertyOptional({
     description:
-      'Array of scrap IDs to remove from the article. These scraps will be removed from existing scraps',
-    example: [4, 5],
-    type: [Number],
+      'Array of scrap IDs to remove from the article. These scraps will be removed from existing scraps (UUIDs)',
+    example: ['550e8400-e29b-41d4-a716-446655440000', '6ba7b810-9dad-11d1-80b4-00c04fd430c8'],
+    type: [String],
   })
   @IsOptional()
   @IsArray()
-  @IsNumber({}, { each: true })
-  removedScrapIds?: number[];
+  @IsString({ each: true })
+  removedScrapIds?: string[];
 
   @ApiPropertyOptional({
     description:

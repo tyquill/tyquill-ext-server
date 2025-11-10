@@ -16,7 +16,7 @@ import {
 export type LibraryItemType = 'SCRAP' | 'UPLOAD';
 
 export interface LibraryItemDto {
-  id: number;
+  id: string;
   type: LibraryItemType;
   title: string;
   description?: string;
@@ -130,13 +130,13 @@ export class LibraryItemsService {
 
   private async findExistingTag(
     em: EntityManager,
-    itemId: number,
+    itemId: string,
     itemType: LibraryItemType,
     tagName: string,
     userId: UserIdentifierLike,
   ): Promise<Tag | null> {
     const criteria: any = {
-      user: buildUserFilterFromInput(userId),
+      user: buildUserFilterFromInput(userId) as any,
       name: tagName,
     };
 
@@ -151,7 +151,7 @@ export class LibraryItemsService {
 
   // Tag management methods for library items
   async addTag(
-    itemId: number,
+    itemId: string,
     itemType: LibraryItemType,
     tagName: string,
     userId: UserIdentifierLike,
@@ -183,7 +183,7 @@ export class LibraryItemsService {
       if (itemType === 'SCRAP') {
         const scrap = await em.findOne(Scrap, {
           scrapId: itemId,
-          user: buildUserFilterFromInput(userId),
+          user: buildUserFilterFromInput(userId) as any,
         });
         if (!scrap) {
           throw new NotFoundException('Scrap not found');
@@ -192,7 +192,7 @@ export class LibraryItemsService {
       } else {
         const uploadScrap = await em.findOne(Scrap, {
           scrapId: itemId,
-          user: buildUserFilterFromInput(userId),
+          user: buildUserFilterFromInput(userId) as any,
         });
         if (!uploadScrap) {
           throw new NotFoundException('Uploaded file (as scrap) not found');
@@ -206,7 +206,7 @@ export class LibraryItemsService {
   }
 
   async removeTag(
-    itemId: number,
+    itemId: string,
     itemType: LibraryItemType,
     tagId: number,
     userId: UserIdentifierLike,
@@ -214,7 +214,7 @@ export class LibraryItemsService {
     if (itemType === 'SCRAP') {
       const scrap = await this.scrapRepository.findOne({
         scrapId: itemId,
-        user: buildUserFilterFromInput(userId),
+        user: buildUserFilterFromInput(userId) as any,
       });
       if (!scrap) {
         throw new NotFoundException('Scrap not found or access denied');
@@ -222,7 +222,7 @@ export class LibraryItemsService {
     } else {
       const uploadedScrap = await this.scrapRepository.findOne({
         scrapId: itemId,
-        user: buildUserFilterFromInput(userId),
+        user: buildUserFilterFromInput(userId) as any,
       });
       if (!uploadedScrap) {
         throw new NotFoundException('Uploaded file not found or access denied');
@@ -233,13 +233,13 @@ export class LibraryItemsService {
     if (itemType === 'SCRAP') {
       tag = await this.tagRepository.findOne({
         tagId,
-        user: buildUserFilterFromInput(userId),
+        user: buildUserFilterFromInput(userId) as any,
         scrap: { scrapId: itemId },
       });
     } else {
       tag = await this.tagRepository.findOne({
         tagId,
-        user: buildUserFilterFromInput(userId),
+        user: buildUserFilterFromInput(userId) as any,
         scrap: { scrapId: itemId },
       });
     }
@@ -252,14 +252,14 @@ export class LibraryItemsService {
   }
 
   async getTags(
-    itemId: number,
+    itemId: string,
     itemType: LibraryItemType,
     userId: UserIdentifierLike,
   ): Promise<Tag[]> {
     if (itemType === 'SCRAP') {
       return this.tagRepository.find(
         {
-          user: buildUserFilterFromInput(userId),
+          user: buildUserFilterFromInput(userId) as any,
           scrap: { scrapId: itemId },
         },
         {
@@ -270,7 +270,7 @@ export class LibraryItemsService {
     } else {
       return this.tagRepository.find(
         {
-          user: buildUserFilterFromInput(userId),
+          user: buildUserFilterFromInput(userId) as any,
           scrap: { scrapId: itemId },
         },
         {

@@ -6,14 +6,27 @@ import {
   PrimaryKey,
   Property,
 } from '@mikro-orm/core';
+import { v4 as uuidv4 } from 'uuid';
 import { Tag } from '../../tags/entities/tag.entity';
 import { User } from '../../users/entities/user.entity';
 import { Folder } from '../../folders/entities/folder.entity';
 
 @Entity({ tableName: 'scraps' })
 export class Scrap {
-  @PrimaryKey({ name: 'scrap_id' })
-  scrapId: number;
+  @PrimaryKey({
+    name: 'scrap_id',
+    type: 'uuid',
+    defaultRaw: 'uuid_generate_v4()',
+  })
+  scrapId: string = uuidv4();
+
+  @Property({
+    name: 'legacy_scrap_id',
+    type: 'integer',
+    nullable: true,
+    unique: true,
+  })
+  legacyScrapId?: number;
 
   @Property({ name: 'url', type: 'varchar', length: 2000 })
   url: string;

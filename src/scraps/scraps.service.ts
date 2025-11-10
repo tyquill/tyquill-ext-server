@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateScrapDto } from '../api/scraps/dto/create-scrap.dto';
 import { UpdateScrapDto } from '../api/scraps/dto/update-scrap.dto';
 import {
@@ -16,6 +16,13 @@ import {
   buildUserFilterFromInput,
   normalizeUserIdentifier,
 } from '../users/utils/user-identifier.util';
+import {
+  ScrapIdentifier,
+  ScrapIdentifierLike,
+  buildScrapFilterFromInput,
+  ensureScrapIdentifier,
+  isUuid,
+} from './utils/scrap-identifier.util';
 // Analytics tracking migrated to extension client (PostHog).
 
 export interface SearchOptions {
@@ -131,10 +138,13 @@ export class ScrapsService {
   }
 
   async findOne(
-    scrapId: number,
+    scrapId: ScrapIdentifierLike,
     userId?: UserIdentifierLike,
   ): Promise<ScrapResponseDto | null> {
-    const query: any = { scrapId, isDeleted: false };
+    const query: any = {
+      ...buildScrapFilterFromInput(scrapId),
+      isDeleted: false,
+    };
 
     // Add user authorization if userId is provided
     if (normalizeUserIdentifier(userId) !== undefined) {
@@ -156,15 +166,34 @@ export class ScrapsService {
    * @returns Array of ScrapResponseDto for found scraps
    */
   async findMany(
-    scrapIds: number[],
+    scrapIds: ScrapIdentifier[],
     userId?: UserIdentifierLike,
   ): Promise<ScrapResponseDto[]> {
     if (!scrapIds || scrapIds.length === 0) {
       return [];
     }
 
+    // Separate UUIDs and legacy IDs
+    const uuids = scrapIds.filter(
+      (id) => typeof id === 'string' && isUuid(id),
+    );
+    const legacyIds = scrapIds.filter((id) => typeof id === 'number');
+
+    // Build query with OR condition for both UUID and legacy IDs
+    const idConditions: any[] = [];
+    if (uuids.length > 0) {
+      idConditions.push({ scrapId: { $in: uuids } });
+    }
+    if (legacyIds.length > 0) {
+      idConditions.push({ legacyScrapId: { $in: legacyIds } });
+    }
+
+    if (idConditions.length === 0) {
+      return [];
+    }
+
     const query: any = {
-      scrapId: { $in: scrapIds },
+      $or: idConditions,
       isDeleted: false,
     };
 
@@ -179,7 +208,7 @@ export class ScrapsService {
     });
 
     // Convert all found scraps to DTOs with truncated content for list view
-    const scrapMap = new Map<number, ScrapResponseDto>();
+    const scrapMap = new Map<string, ScrapResponseDto>();
     scraps.forEach((scrap) => {
       const dto = this.toScrapResponseDto(scrap);
 
@@ -208,7 +237,7 @@ export class ScrapsService {
 
     // Return scraps in the same order as requested IDs
     return scrapIds
-      .map((id) => scrapMap.get(id))
+      .map((id) => scrapMap.get(String(id)))
       .filter((scrap): scrap is ScrapResponseDto => scrap !== undefined);
   }
 
@@ -317,11 +346,14 @@ export class ScrapsService {
   }
 
   async update(
-    scrapId: number,
+    scrapId: ScrapIdentifierLike,
     updateScrapDto: UpdateScrapDto,
     userId?: UserIdentifierLike,
   ): Promise<Scrap | null> {
-    const query: any = { scrapId, isDeleted: false };
+    const query: any = {
+      ...buildScrapFilterFromInput(scrapId),
+      isDeleted: false,
+    };
 
     // Add user authorization if userId is provided
     if (normalizeUserIdentifier(userId) !== undefined) {
@@ -350,8 +382,11 @@ export class ScrapsService {
     return scrap;
   }
 
-  async remove(scrapId: number, userId?: UserIdentifierLike): Promise<void> {
-    const query: any = { scrapId };
+  async remove(
+    scrapId: ScrapIdentifierLike,
+    userId?: UserIdentifierLike,
+  ): Promise<void> {
+    const query: any = buildScrapFilterFromInput(scrapId);
 
     // Add user authorization if userId is provided
     if (normalizeUserIdentifier(userId) !== undefined) {
@@ -581,6 +616,7 @@ export class ScrapsService {
   private toScrapSummaryDto(scrap: Scrap): ScrapSummaryDto {
     return {
       scrapId: scrap.scrapId,
+      legacyScrapId: scrap.legacyScrapId,
       url: scrap.url,
       title: scrap.title,
       contentPreview:
@@ -610,6 +646,7 @@ export class ScrapsService {
   private toScrapResponseDto(scrap: Scrap): ScrapResponseDto {
     return {
       scrapId: scrap.scrapId,
+      legacyScrapId: scrap.legacyScrapId,
       url: scrap.url,
       title: scrap.title,
       content: scrap.content,
@@ -645,5 +682,37 @@ export class ScrapsService {
       type: scrap.type,
       from: scrap.from,
     };
+  }
+
+  /**
+   * Resolve a scrap identifier (UUID or legacy integer ID) to its canonical UUID
+   * @param identifier UUID string or legacy integer ID
+   * @param options Configuration options
+   * @returns Canonical UUID string or null if not found
+   */
+  async resolveCanonicalScrapId(
+    identifier: ScrapIdentifierLike,
+    { throwOnNotFound = true }: { throwOnNotFound?: boolean } = {},
+  ): Promise<string | null> {
+    const normalized = ensureScrapIdentifier(identifier);
+
+    // If it's already a UUID, return it
+    if (typeof normalized === 'string' && isUuid(normalized)) {
+      return normalized.toLowerCase();
+    }
+
+    // Look up by legacy ID
+    const scrap = await this.scrapRepository.findOne(
+      buildScrapFilterFromInput(normalized),
+    );
+
+    if (!scrap) {
+      if (throwOnNotFound) {
+        throw new NotFoundException('Scrap not found');
+      }
+      return null;
+    }
+
+    return scrap.scrapId;
   }
 }

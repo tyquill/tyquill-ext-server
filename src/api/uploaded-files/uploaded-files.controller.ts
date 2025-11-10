@@ -77,7 +77,7 @@ export class UploadedFilesController {
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   findOne(@Req() req: any, @Param('id') id: string) {
-    return this.uploadedFilesService.findOne(+id, req.user.id);
+    return this.uploadedFilesService.findOne(id, req.user.id);
   }
 
   @Version('1')
@@ -89,7 +89,7 @@ export class UploadedFilesController {
     @Body() updateUploadedFileDto: UpdateUploadedFileDto,
   ) {
     return this.uploadedFilesService.update(
-      +id,
+      id,
       updateUploadedFileDto,
       req.user.id,
     );
@@ -99,7 +99,7 @@ export class UploadedFilesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(@Req() req: any, @Param('id') id: string) {
-    this.uploadedFilesService.remove(+id, req.user.id);
+    this.uploadedFilesService.remove(id, req.user.id);
     return { message: 'Uploaded file deleted successfully' };
   }
 }

@@ -1,7 +1,7 @@
 import { PdfReference } from './newsletter.dto';
 
 export interface ScrapReference {
-  id: number;
+  id: string;
   title: string;
   url: string;
   content: string;

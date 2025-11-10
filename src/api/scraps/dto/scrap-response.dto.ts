@@ -1,8 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ScrapResponseDto {
-  @ApiProperty({ description: 'Scrap ID', example: 1 })
-  scrapId: number;
+  @ApiProperty({
+    description: 'Scrap ID (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  scrapId: string;
+
+  @ApiProperty({
+    description: 'Legacy numeric scrap ID (for backward compatibility)',
+    required: false,
+    example: 367,
+  })
+  legacyScrapId?: number;
 
   @ApiProperty({
     description: 'URL of the scraped content',
@@ -194,8 +204,18 @@ export class ScrapResponseDto {
 }
 
 export class ScrapSummaryDto {
-  @ApiProperty({ description: 'Scrap ID', example: 1 })
-  scrapId: number;
+  @ApiProperty({
+    description: 'Scrap ID (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  scrapId: string;
+
+  @ApiProperty({
+    description: 'Legacy numeric scrap ID (for backward compatibility)',
+    required: false,
+    example: 367,
+  })
+  legacyScrapId?: number;
 
   @ApiProperty({
     description: 'URL of the scraped content',

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export interface ScrapData {
-  id: number;
+  id: string;
   title: string;
   url: string;
   content: string;

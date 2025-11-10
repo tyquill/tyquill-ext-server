@@ -53,6 +53,15 @@ export class User {
   })
   role: UserRole = UserRole.USER;
 
+  @Property({
+    name: 'language',
+    type: 'varchar',
+    length: 10,
+    default: 'en',
+    nullable: true,
+  })
+  language?: string;
+
   @OneToMany(() => Scrap, (scrap) => scrap.user)
   scraps: Collection<Scrap> = new Collection<Scrap>(this);
 

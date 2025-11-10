@@ -15,8 +15,8 @@ import { Scrap } from '../../scraps/entities/scrap.entity';
 @Entity({ tableName: 'article_scraps' })
 @Unique({ properties: ['article', 'scrap'] })
 export class ArticleScrap {
-  @PrimaryKey({ fieldName: 'article_scrap_id' })
-  articleScrapId!: number;
+  @PrimaryKey({ fieldName: 'article_scrap_id', type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  articleScrapId!: string;
 
   @ManyToOne(() => Article, { fieldName: 'article_id' })
   article!: Article;

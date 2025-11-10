@@ -8,9 +8,12 @@ import {
 } from 'class-validator';
 
 export class ScrapWithOptionalCommentV2 {
-  @ApiProperty()
-  @IsNumber()
-  scrapId: number;
+  @ApiProperty({
+    description: 'Scrap ID (UUID or legacy integer)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsString()
+  scrapId: string;
 
   @ApiProperty()
   @IsString()

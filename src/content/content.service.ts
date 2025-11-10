@@ -441,7 +441,9 @@ export class ContentService {
     }
 
     return {
-      id: scrap.scrapId.toString(),
+      // BACKWARD COMPATIBILITY: Use legacyScrapId for client parseInt() compatibility
+      // Chrome extension uses parseInt(item.id, 10) which requires numeric ID
+      id: scrap.legacyScrapId?.toString() || scrap.scrapId.toString(),
       type: 'scrap',
       title: scrap.title,
       contentPreview,

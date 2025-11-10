@@ -7,7 +7,7 @@ import {
 } from 'class-validator';
 
 export interface FileAnalysisMessage {
-  uploadedFileId: number;
+  uploadedFileId: string;
   fileUrl: string;
   fileName: string;
   mimeType: string;
@@ -16,7 +16,7 @@ export interface FileAnalysisMessage {
 }
 
 export interface FileAnalysisResponse {
-  uploadedFileId: number;
+  uploadedFileId: string;
   analysisResult: string;
   success: boolean;
   error?: string;
@@ -24,8 +24,7 @@ export interface FileAnalysisResponse {
 }
 
 export class FileAnalysisRequestDto {
-  @IsNumber()
-  uploadedFileId: number;
+  uploadedFileId: string;
 
   @IsUrl()
   fileUrl: string;

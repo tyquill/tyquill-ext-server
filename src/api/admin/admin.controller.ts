@@ -23,7 +23,7 @@ export type AdminUserDetailResponse = {
   scrapCount: number;
   articleCount: number;
   scraps: {
-    scrapId: number;
+    scrapId: string;
     title: string;
     url: string;
     createdAt: string;
@@ -44,7 +44,7 @@ export type AdminArticleGenerationResultsResponse = {
   articleId: number;
   topic: string;
   keyInsight: string;
-  scrapIds: number[];
+  scrapIds: string[];
   generationParams: Record<string, unknown> | null;
   generationStatus: 'processing' | 'completed' | 'failed';
   createdAt: string;
@@ -72,7 +72,7 @@ export type AdminArticleDetailResponse = {
   createdAt: string;
   updatedAt: string;
   scraps: {
-    scrapId: number;
+    scrapId: string;
     title: string;
     url: string;
     content: string;
@@ -148,7 +148,7 @@ export class AdminController {
           items: {
             type: 'object',
             properties: {
-              scrapId: { type: 'integer', example: 1 },
+              scrapId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
               title: { type: 'string' },
               url: { type: 'string', format: 'uri' },
               createdAt: { type: 'string', format: 'date-time' },
@@ -217,7 +217,7 @@ export class AdminController {
           keyInsight: { type: 'string' },
           scrapIds: {
             type: 'array',
-            items: { type: 'integer' },
+            items: { type: 'string' },
           },
           generationParams: {
             type: 'object',
@@ -317,7 +317,7 @@ export class AdminController {
           items: {
             type: 'object',
             properties: {
-              scrapId: { type: 'integer', example: 10 },
+              scrapId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
               title: { type: 'string' },
               url: { type: 'string', format: 'uri' },
               content: { type: 'string' },

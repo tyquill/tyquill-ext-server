@@ -12,8 +12,13 @@ import {
   UserIdentifierLike,
   buildUserFilterFromInput,
 } from '../users/utils/user-identifier.util';
+import {
+  ScrapIdentifier,
+  isUuid,
+} from '../scraps/utils/scrap-identifier.util';
 import { Scrap } from '../scraps/entities/scrap.entity';
 import { Article } from '../articles/entities/article.entity';
+import { FilterQuery } from '@mikro-orm/core';
 import { CreateFolderDto } from '../api/folders/dto/create-folder.dto';
 import { UpdateFolderDto } from '../api/folders/dto/update-folder.dto';
 import {
@@ -279,7 +284,7 @@ export class FoldersService {
   async moveItemsToFolder(
     folderId: string | null,
     userId: UserIdentifierLike,
-    scrapIds?: number[],
+    scrapIds?: ScrapIdentifier[],
     articleIds?: number[],
   ): Promise<{ movedScraps: number; movedArticles: number }> {
     return await this.em.transactional(async (em) => {
@@ -290,7 +295,7 @@ export class FoldersService {
       if (folderId) {
         targetFolder = await em.findOne(Folder, {
           folderId,
-          user: userFilter,
+          user: userFilter as any,
           isDeleted: false,
         });
 
@@ -305,8 +310,8 @@ export class FoldersService {
       // Move scraps
       if (scrapIds && scrapIds.length > 0) {
         const scraps = await em.find(Scrap, {
-          scrapId: { $in: scrapIds },
-          user: userFilter,
+          ...this.buildScrapIdFilter(scrapIds),
+          user: userFilter as any,
           isDeleted: false,
         });
 
@@ -322,7 +327,7 @@ export class FoldersService {
       if (articleIds && articleIds.length > 0) {
         const articles = await em.find(Article, {
           articleId: { $in: articleIds },
-          user: userFilter,
+          user: userFilter as any,
           isDeleted: false,
         });
 
@@ -469,5 +474,43 @@ export class FoldersService {
       articleCount,
       childFolderCount,
     };
+  }
+
+  /**
+   * Build a filter query for scrap IDs, handling both UUID and legacy integer IDs
+   * @param scrapIds Array of scrap identifiers (UUIDs or legacy integers)
+   * @returns FilterQuery for scraps that handles both ID types
+   */
+  private buildScrapIdFilter(
+    scrapIds: ScrapIdentifier[],
+  ): FilterQuery<Scrap> {
+    if (!scrapIds || scrapIds.length === 0) {
+      return { scrapId: { $in: [] } };
+    }
+
+    // Separate UUIDs and legacy IDs
+    const uuids = scrapIds.filter(
+      (id) => typeof id === 'string' && isUuid(id),
+    );
+    const legacyIds = scrapIds.filter((id) => typeof id === 'number');
+
+    // Build OR condition for both UUID and legacy IDs
+    const idConditions: any[] = [];
+    if (uuids.length > 0) {
+      idConditions.push({ scrapId: { $in: uuids } });
+    }
+    if (legacyIds.length > 0) {
+      idConditions.push({ legacyScrapId: { $in: legacyIds } });
+    }
+
+    if (idConditions.length === 0) {
+      return { scrapId: { $in: [] } };
+    }
+
+    if (idConditions.length === 1) {
+      return idConditions[0];
+    }
+
+    return { $or: idConditions } as FilterQuery<Scrap>;
   }
 }

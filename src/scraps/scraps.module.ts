@@ -7,12 +7,13 @@ import { User } from '../users/entities/user.entity';
 import { Article } from '../articles/entities/article.entity';
 import { ArticleScrap } from '../articles/entities/article-scrap.entity';
 import { TagsModule } from '../tags/tags.module';
+import { ScrapIdParamPipe } from './pipes/scrap-id.pipe';
 // Analytics tracking moved to client; module no longer required here.
 
 @Module({
   imports: [MikroOrmModule.forFeature([Scrap, User, Article, ArticleScrap]), TagsModule],
   controllers: [ScrapsController],
-  providers: [ScrapsService],
-  exports: [ScrapsService],
+  providers: [ScrapsService, ScrapIdParamPipe],
+  exports: [ScrapsService, ScrapIdParamPipe],
 })
 export class ScrapsModule {}

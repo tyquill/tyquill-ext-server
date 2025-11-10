@@ -35,6 +35,11 @@ import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
 import { EventType } from '../ai-workflows/models/streaming';
 import { RegenerateArticleOutput } from '../ai-workflows/dto/regenerate.dto';
+import {
+  ScrapIdentifier,
+  isUuid,
+} from '../scraps/utils/scrap-identifier.util';
+import { FilterQuery } from '@mikro-orm/core';
 // Analytics tracking migrated to extension client (PostHog).
 
 @Injectable()
@@ -1161,7 +1166,7 @@ export class ArticlesService {
 
       // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 생성용)
       let uploadScraps: Scrap[] = [];
-      const usagePromptById = new Map<number, string>();
+      const usagePromptById = new Map<string, string>();
 
       if (
         generateDto.uploadWithUsagePrompt &&
@@ -1177,7 +1182,7 @@ export class ArticlesService {
 
         // Fetch only non-deleted scraps for the user
         uploadScraps = await this.scrapRepository.find({
-          scrapId: { $in: scrapIds },
+          ...this.buildScrapIdFilter(scrapIds),
           user: article.user,
           isDeleted: false,
         });
@@ -1400,7 +1405,7 @@ export class ArticlesService {
 
           // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 생성용)
           let uploadScraps: Scrap[] = [];
-          const usagePromptById = new Map<number, string>();
+          const usagePromptById = new Map<string, string>();
 
           if (
             generateDto.uploadWithUsagePrompt &&
@@ -1414,7 +1419,7 @@ export class ArticlesService {
             );
 
             uploadScraps = await this.scrapRepository.find({
-              scrapId: { $in: scrapIds },
+              ...this.buildScrapIdFilter(scrapIds),
               user,
               isDeleted: false,
             });
@@ -1621,7 +1626,7 @@ export class ArticlesService {
       // Step 1: Fetch and validate article ownership
       const article = await trx.findOne(
         Article,
-        { articleId, user: { userId } },
+        { articleId, user: { userId } as any },
         {
           populate: [
             'user',
@@ -1642,8 +1647,8 @@ export class ArticlesService {
       let addedScraps: Scrap[] = [];
       if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
         addedScraps = await trx.find(Scrap, {
-          scrapId: { $in: dto.addedScrapIds },
-          user: { userId },
+          ...this.buildScrapIdFilter(dto.addedScrapIds),
+          user: { userId } as any,
           isDeleted: false,
         });
 
@@ -1657,7 +1662,7 @@ export class ArticlesService {
       }
 
       let removedScrapsData: Array<{
-        id: number;
+        id: string;
         title: string;
         url: string;
         content: string;
@@ -1670,7 +1675,7 @@ export class ArticlesService {
           ArticleScrap,
           {
             article: { articleId: article.articleId },
-            scrap: { scrapId: { $in: dto.removedScrapIds } },
+            scrap: this.buildScrapIdFilter(dto.removedScrapIds) as any,
           },
           { populate: ['scrap'] },
         );
@@ -1700,7 +1705,7 @@ export class ArticlesService {
         } else {
           writingStyle = await trx.findOne(WritingStyle, {
             id: dto.writingStyleId,
-            user: { userId },
+            user: { userId } as any,
           });
 
           if (!writingStyle) {
@@ -1734,7 +1739,7 @@ export class ArticlesService {
 
       // PDF 스크랩과 사용 프롬프트 매핑 (ArticleScrap 동기화용)
       let uploadScraps: Scrap[] = [];
-      const usagePromptByIdForPdf = new Map<number, string>();
+      const usagePromptByIdForPdf = new Map<string, string>();
 
       if (dto.uploadWithUsagePrompt && dto.uploadWithUsagePrompt.length > 0) {
         const uploads = dto.uploadWithUsagePrompt;
@@ -1745,8 +1750,8 @@ export class ArticlesService {
         );
 
         uploadScraps = await this.scrapRepository.find({
-          scrapId: { $in: scrapIds },
-          user: { userId },
+          ...this.buildScrapIdFilter(scrapIds),
+          user: { userId } as any,
           isDeleted: false,
         });
 
@@ -1847,7 +1852,7 @@ export class ArticlesService {
         const writingStyleExamples =
           await this.writingStyleExampleRepository.find(
             {
-              writingStyle: { id: finalWritingStyle.id, user: { userId } },
+              writingStyle: { id: finalWritingStyle.id, user: { userId } as any },
             },
             { populate: ['writingStyle'] },
           );
@@ -2018,7 +2023,7 @@ export class ArticlesService {
 
           // Variables to capture scrap changes for AI context
           let removedScrapsData: Array<{
-            id: number;
+            id: string;
             title: string;
             url: string;
             content: string;
@@ -2032,14 +2037,14 @@ export class ArticlesService {
             aiContent: string;
           }> = [];
           let uploadScraps: Scrap[] = [];
-          const usagePromptByIdForPdf = new Map<number, string>();
+          const usagePromptByIdForPdf = new Map<string, string>();
 
           // Transaction for validation and update
           await this.em.transactional(async (trx) => {
             // Step 1: Fetch and validate article ownership
             article = await trx.findOne(
               Article,
-              { articleId, user: { userId } },
+              { articleId, user: { userId } as any },
               {
                 populate: [
                   'user',
@@ -2060,8 +2065,8 @@ export class ArticlesService {
             let addedScraps: Scrap[] = [];
             if (dto.addedScrapIds && dto.addedScrapIds.length > 0) {
               addedScraps = await trx.find(Scrap, {
-                scrapId: { $in: dto.addedScrapIds },
-                user: { userId },
+                ...this.buildScrapIdFilter(dto.addedScrapIds),
+                user: { userId } as any,
                 isDeleted: false,
               });
 
@@ -2082,7 +2087,7 @@ export class ArticlesService {
                 ArticleScrap,
                 {
                   article: { articleId: article.articleId },
-                  scrap: { scrapId: { $in: dto.removedScrapIds } },
+                  scrap: this.buildScrapIdFilter(dto.removedScrapIds) as any,
                 },
                 {
                   populate: ['scrap'], // Important: populate scrap details
@@ -2116,7 +2121,7 @@ export class ArticlesService {
               } else {
                 const writingStyle = await trx.findOne(WritingStyle, {
                   id: dto.writingStyleId,
-                  user: { userId },
+                  user: { userId } as any,
                 });
                 if (!writingStyle) {
                   throw new NotFoundException(
@@ -2148,8 +2153,8 @@ export class ArticlesService {
               );
 
               uploadScraps = await trx.find(Scrap, {
-                scrapId: { $in: scrapIds },
-                user: { userId },
+                ...this.buildScrapIdFilter(scrapIds),
+                user: { userId } as any,
                 isDeleted: false,
               });
 
@@ -2510,6 +2515,44 @@ export class ArticlesService {
         }
       })();
     });
+  }
+
+  /**
+   * Build a filter query for scrap IDs, handling both UUID and legacy integer IDs
+   * @param scrapIds Array of scrap identifiers (UUIDs or legacy integers)
+   * @returns FilterQuery for scraps that handles both ID types
+   */
+  private buildScrapIdFilter(
+    scrapIds: ScrapIdentifier[],
+  ): FilterQuery<Scrap> {
+    if (!scrapIds || scrapIds.length === 0) {
+      return { scrapId: { $in: [] } };
+    }
+
+    // Separate UUIDs and legacy IDs
+    const uuids = scrapIds.filter(
+      (id) => typeof id === 'string' && isUuid(id),
+    );
+    const legacyIds = scrapIds.filter((id) => typeof id === 'number');
+
+    // Build OR condition for both UUID and legacy IDs
+    const idConditions: any[] = [];
+    if (uuids.length > 0) {
+      idConditions.push({ scrapId: { $in: uuids } });
+    }
+    if (legacyIds.length > 0) {
+      idConditions.push({ legacyScrapId: { $in: legacyIds } });
+    }
+
+    if (idConditions.length === 0) {
+      return { scrapId: { $in: [] } };
+    }
+
+    if (idConditions.length === 1) {
+      return idConditions[0];
+    }
+
+    return { $or: idConditions } as FilterQuery<Scrap>;
   }
 
   private async getUserOrThrow(userId: string): Promise<User> {

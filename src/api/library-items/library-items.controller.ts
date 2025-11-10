@@ -89,7 +89,7 @@ export class LibraryItemsController {
   ) {
     const userId = req.user.id;
     return this.libraryItemsService.addTag(
-      parseInt(itemId),
+      itemId,
       type,
       body.name,
       userId,
@@ -107,7 +107,7 @@ export class LibraryItemsController {
   ) {
     const userId = req.user.id;
     await this.libraryItemsService.removeTag(
-      parseInt(itemId),
+      itemId,
       type,
       parseInt(tagId),
       userId,
@@ -128,6 +128,6 @@ export class LibraryItemsController {
     @Request() req: any,
   ) {
     const userId = req.user.id;
-    return this.libraryItemsService.getTags(parseInt(itemId), type, userId);
+    return this.libraryItemsService.getTags(itemId, type, userId);
   }
 }

@@ -80,7 +80,7 @@ export class AiCallbacksController {
     if (status === JobStatus.COMPLETED) {
       await this.scrapRepo.getEntityManager().transactional(async (em) => {
         if (markdown && markdown.length > 0) {
-          const scrap = await em.findOne(Scrap, { scrapId: uploadedFileId });
+          const scrap = await em.findOne(Scrap, { scrapId: String(uploadedFileId) });
           if (scrap) {
             scrap.aiContent = markdown;
             scrap.updatedAt = new Date();

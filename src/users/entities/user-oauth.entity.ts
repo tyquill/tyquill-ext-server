@@ -11,6 +11,7 @@ import {
   PrimaryKey,
   Property,
   Unique,
+  Index,
 } from '@mikro-orm/core';
 import { User } from './user.entity';
 
@@ -28,8 +29,17 @@ export enum OAuthProvider {
 @Entity({ tableName: 'user_oauth' })
 @Unique({ properties: ['oauthProvider', 'oauthId'] }) // 같은 제공자의 같은 ID는 중복 불가
 export class UserOAuth {
-  @PrimaryKey({ name: 'user_oauth_id' })
-  userOauthId: number;
+  @PrimaryKey({ name: 'user_oauth_id', type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  userOauthId: string;
+
+  @Property({
+    name: 'legacy_user_oauth_id',
+    nullable: true,
+    unique: true,
+    comment: 'Legacy integer ID for backward compatibility',
+  })
+  @Index()
+  legacyUserOauthId?: number;
 
   @Property({
     name: 'oauth_provider',

@@ -109,13 +109,13 @@ export class LibraryItemsController {
     await this.libraryItemsService.removeTag(
       itemId,
       type,
-      parseInt(tagId),
+      tagId,
       userId,
     );
     return {
       success: true,
       message: 'Tag removed from item successfully',
-      deletedTagId: parseInt(tagId),
+      deletedTagId: tagId,
     };
   }
 

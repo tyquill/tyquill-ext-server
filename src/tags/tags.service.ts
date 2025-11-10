@@ -15,6 +15,12 @@ import {
   ScrapIdentifierLike,
   buildScrapFilterFromInput,
 } from '../scraps/utils/scrap-identifier.util';
+import {
+  buildTagWhereClause,
+  normalizeTagId,
+} from './utils/tag-identifier.util';
+
+export type TagIdentifierLike = string | number;
 
 @Injectable()
 export class TagsService {
@@ -27,6 +33,31 @@ export class TagsService {
     @InjectRepository(Scrap)
     private readonly scrapRepository: EntityRepository<Scrap>,
   ) {}
+
+  /**
+   * Resolve canonical tag ID (UUID) from various input formats
+   * Supports both UUID and legacy integer IDs
+   *
+   * @param tagId - Tag identifier (UUID string or legacy integer)
+   * @returns Canonical UUID string
+   * @throws Error if tag not found
+   */
+  async resolveCanonicalTagId(tagId: TagIdentifierLike): Promise<string> {
+    const normalizedId = normalizeTagId(tagId);
+    const whereClause = buildTagWhereClause(normalizedId);
+
+    const tag = await this.tagRepository.findOne(whereClause, {
+      fields: ['tagId'],
+    });
+
+    if (!tag) {
+      throw new Error(
+        `Tag not found with identifier: ${normalizedId}`,
+      );
+    }
+
+    return tag.tagId;
+  }
 
   async create(
     createTagDto: CreateTagDto,
@@ -74,13 +105,13 @@ export class TagsService {
     });
   }
 
-  async findOne(tagId: number): Promise<Tag | null> {
-    return await this.tagRepository.findOne(
-      { tagId },
-      {
-        populate: ['user', 'scrap'],
-      },
-    );
+  async findOne(tagId: TagIdentifierLike): Promise<Tag | null> {
+    const normalizedId = normalizeTagId(tagId);
+    const whereClause = buildTagWhereClause(normalizedId);
+
+    return await this.tagRepository.findOne(whereClause, {
+      populate: ['user', 'scrap'],
+    });
   }
 
   async findByUser(userId: UserIdentifierLike): Promise<Tag[]> {
@@ -110,8 +141,14 @@ export class TagsService {
     );
   }
 
-  async update(tagId: number, updateTagDto: UpdateTagDto): Promise<Tag | null> {
-    const tag = await this.tagRepository.findOne({ tagId });
+  async update(
+    tagId: TagIdentifierLike,
+    updateTagDto: UpdateTagDto,
+  ): Promise<Tag | null> {
+    const normalizedId = normalizeTagId(tagId);
+    const whereClause = buildTagWhereClause(normalizedId);
+
+    const tag = await this.tagRepository.findOne(whereClause);
     if (!tag) {
       return null;
     }
@@ -120,8 +157,11 @@ export class TagsService {
     return tag;
   }
 
-  async remove(tagId: number): Promise<void> {
-    const tag = await this.tagRepository.findOne({ tagId });
+  async remove(tagId: TagIdentifierLike): Promise<void> {
+    const normalizedId = normalizeTagId(tagId);
+    const whereClause = buildTagWhereClause(normalizedId);
+
+    const tag = await this.tagRepository.findOne(whereClause);
     if (tag) {
       await this.em.removeAndFlush(tag);
     }

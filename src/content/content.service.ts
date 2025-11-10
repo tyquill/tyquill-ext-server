@@ -432,10 +432,11 @@ export class ContentService {
 
     // PERFORMANCE FIX: Check if tags collection is initialized before accessing
     // This prevents N+1 queries when tags are not properly populated
-    let tags: Array<{ tagId: number; name: string }> | undefined = undefined;
+    let tags: Array<{ tagId: string; legacyTagId?: number; name: string }> | undefined = undefined;
     if (scrap.tags && scrap.tags.isInitialized()) {
       tags = scrap.tags.getItems().map((tag) => ({
         tagId: tag.tagId,
+        legacyTagId: tag.legacyTagId,
         name: tag.name,
       }));
     }
@@ -484,10 +485,11 @@ export class ContentService {
 
     // PERFORMANCE FIX: Check if tags collection is initialized before accessing
     // This prevents N+1 queries when tags are not properly populated
-    let tags: Array<{ tagId: number; name: string }> | undefined = undefined;
+    let tags: Array<{ tagId: string; legacyTagId?: number; name: string }> | undefined = undefined;
     if (article.tags && article.tags.isInitialized()) {
       tags = article.tags.getItems().map((tag) => ({
         tagId: tag.tagId,
+        legacyTagId: tag.legacyTagId,
         name: tag.name,
       }));
     }

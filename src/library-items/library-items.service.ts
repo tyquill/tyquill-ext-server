@@ -12,6 +12,10 @@ import {
   UserIdentifierLike,
   buildUserFilterFromInput,
 } from '../users/utils/user-identifier.util';
+import {
+  TagIdentifierLike,
+} from '../tags/tags.service';
+import { buildTagWhereClause } from '../tags/utils/tag-identifier.util';
 
 export type LibraryItemType = 'SCRAP' | 'UPLOAD';
 
@@ -208,7 +212,7 @@ export class LibraryItemsService {
   async removeTag(
     itemId: string,
     itemType: LibraryItemType,
-    tagId: number,
+    tagId: TagIdentifierLike,
     userId: UserIdentifierLike,
   ): Promise<void> {
     if (itemType === 'SCRAP') {
@@ -232,13 +236,13 @@ export class LibraryItemsService {
 
     if (itemType === 'SCRAP') {
       tag = await this.tagRepository.findOne({
-        tagId,
+        ...buildTagWhereClause(String(tagId)),
         user: buildUserFilterFromInput(userId) as any,
         scrap: { scrapId: itemId },
       });
     } else {
       tag = await this.tagRepository.findOne({
-        tagId,
+        ...buildTagWhereClause(String(tagId)),
         user: buildUserFilterFromInput(userId) as any,
         scrap: { scrapId: itemId },
       });

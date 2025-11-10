@@ -317,6 +317,25 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * 사용자 언어 설정 업데이트
+   */
+  async updateLanguage(
+    userId: string,
+    language: string,
+  ): Promise<User | null> {
+    const user = await this.findOne(userId);
+    if (!user) {
+      return null;
+    }
+
+    user.language = language;
+    user.updatedAt = new Date();
+    await this.em.persistAndFlush(user);
+
+    return user;
+  }
+
   async resolveCanonicalUserId(
     identifier: UserIdentifierLike,
     { throwOnNotFound = true }: { throwOnNotFound?: boolean } = {},

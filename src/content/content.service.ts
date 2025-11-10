@@ -442,9 +442,8 @@ export class ContentService {
     }
 
     return {
-      // BACKWARD COMPATIBILITY: Use legacyScrapId for client parseInt() compatibility
-      // Chrome extension uses parseInt(item.id, 10) which requires numeric ID
-      id: scrap.legacyScrapId?.toString() || scrap.scrapId.toString(),
+      // UUID Migration: Use scrapId (UUID string) as primary identifier
+      id: scrap.scrapId,
       type: 'scrap',
       title: scrap.title,
       contentPreview,
@@ -495,9 +494,8 @@ export class ContentService {
     }
 
     return {
-      // BACKWARD COMPATIBILITY: Use legacyArticleId for client parseInt() compatibility
-      // Chrome extension uses parseInt(item.id, 10) which requires numeric ID
-      id: article.legacyArticleId?.toString() || article.articleId.toString(),
+      // UUID Migration: Use articleId (UUID string) as primary identifier
+      id: article.articleId,
       type: 'article',
       title: article.getLatestTitle() || 'Untitled',
       contentPreview,

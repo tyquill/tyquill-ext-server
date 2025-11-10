@@ -28,7 +28,7 @@ import {
 export interface SearchOptions {
   query?: string;
   userId?: UserIdentifierLike;
-  articleId?: number;
+  articleId?: string;
   tags?: string[];
   dateFrom?: Date;
   dateTo?: Date;
@@ -538,7 +538,7 @@ export class ScrapsService {
    */
   async findByTags(
     tagNames: string[],
-    userId?: number,
+    userId?: UserIdentifierLike,
     matchAll: boolean = false,
   ): Promise<Scrap[]> {
     const qb = this.em.createQueryBuilder(Scrap, 's');

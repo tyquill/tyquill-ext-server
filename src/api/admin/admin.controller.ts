@@ -73,7 +73,7 @@ export type AdminActivitiesResponse = {
   userId: string;
   email: string;
   name: string;
-  resourceId: number;
+  resourceId: string;
   resourceTitle: string;
   activityDate: string;
 }[];
@@ -123,7 +123,7 @@ export class AdminController {
       items: {
         type: 'object',
         properties: {
-          userId: { type: 'integer', example: 1 },
+          userId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
           email: { type: 'string', format: 'email' },
           name: { type: 'string', example: 'Admin User' },
           scrapCount: { type: 'integer', example: 5 },
@@ -179,7 +179,7 @@ export class AdminController {
           items: {
             type: 'object',
             properties: {
-              articleId: { type: 'integer', example: 1 },
+              articleId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
               topic: { type: 'string' },
               keyInsight: { type: 'string' },
               generationStatus: {
@@ -227,10 +227,10 @@ export class AdminController {
       items: {
         type: 'object',
         properties: {
-          userId: { type: 'integer', example: 1 },
+          userId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
           email: { type: 'string', format: 'email' },
           name: { type: 'string' },
-          articleId: { type: 'integer', example: 42 },
+          articleId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
           topic: { type: 'string' },
           keyInsight: { type: 'string' },
           scrapIds: {
@@ -279,10 +279,10 @@ export class AdminController {
         type: 'object',
         properties: {
           activityType: { type: 'string', example: 'scrap' },
-          userId: { type: 'integer', example: 1 },
+          userId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
           email: { type: 'string', format: 'email' },
           name: { type: 'string' },
-          resourceId: { type: 'integer', example: 101 },
+          resourceId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
           resourceTitle: { type: 'string' },
           activityDate: { type: 'string', format: 'date-time' },
         },
@@ -349,7 +349,7 @@ export class AdminController {
           items: {
             type: 'object',
             properties: {
-              articleArchiveId: { type: 'integer', example: 20 },
+              articleArchiveId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
               versionNumber: {
                 type: 'integer',
                 nullable: true,

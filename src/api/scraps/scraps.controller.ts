@@ -8,7 +8,6 @@ import {
   Delete,
   Version,
   Query,
-  ParseIntPipe,
   HttpException,
   HttpStatus,
   UseGuards,
@@ -27,6 +26,7 @@ import { CreateTagDto } from '../tags/dto/create-tag.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Scrap } from 'src/scraps/entities/scrap.entity';
 import { ScrapIdParamPipe } from '../../scraps/pipes/scrap-id.pipe';
+import { TagIdParamPipe } from '../../tags/pipes/tag-id.pipe';
 
 @UseGuards(JwtAuthGuard)
 @Controller('scraps')
@@ -95,7 +95,7 @@ export class ScrapsController {
   async advancedSearch(
     @Request() req: any,
     @Query('query') query?: string,
-    @Query('articleId') articleId?: number,
+    @Query('articleId') articleId?: string,
     @Query('tags') tags?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
@@ -310,7 +310,7 @@ export class ScrapsController {
   async removeTagFromScrap(
     @Request() req: any,
     @Param('scrapId', ScrapIdParamPipe) scrapId: string,
-    @Param('tagId', ParseIntPipe) tagId: number,
+    @Param('tagId', TagIdParamPipe) tagId: string,
   ) {
     try {
       const userId = req.user.id; // JWT에서 사용자 ID 추출

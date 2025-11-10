@@ -24,9 +24,8 @@ class FileAnalysisCallbackDto {
   @IsUUID()
   jobUuid!: string;
 
-  @Type(() => Number)
-  @IsInt()
-  uploadedFileId!: number;
+  @IsString()
+  uploadedFileId!: string;
 
   @IsIn([JobStatus.COMPLETED, JobStatus.FAILED])
   status!: JobStatus;
@@ -80,7 +79,7 @@ export class AiCallbacksController {
     if (status === JobStatus.COMPLETED) {
       await this.scrapRepo.getEntityManager().transactional(async (em) => {
         if (markdown && markdown.length > 0) {
-          const scrap = await em.findOne(Scrap, { scrapId: String(uploadedFileId) });
+          const scrap = await em.findOne(Scrap, { scrapId: uploadedFileId });
           if (scrap) {
             scrap.aiContent = markdown;
             scrap.updatedAt = new Date();

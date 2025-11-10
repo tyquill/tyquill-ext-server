@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { WritingStyleIdentifierLike } from '../../../writing-styles/utils/writing-style-identifier.util';
 
 export class UploadWithUsagePromptDto {
   @ApiPropertyOptional({
@@ -72,13 +73,12 @@ export class RegenerateArticleV3Dto {
 
   @ApiPropertyOptional({
     description:
-      'Writing style ID. Pass null to remove, omit to keep existing, or provide ID to change',
-    example: 123,
+      'Writing style ID (UUID or legacy integer). Pass null to remove, omit to keep existing, or provide ID to change',
+    example: '550e8400-e29b-41d4-a716-446655440000',
     nullable: true,
   })
   @IsOptional()
-  @IsNumber()
-  writingStyleId?: number | null;
+  writingStyleId?: WritingStyleIdentifierLike | null;
 
   @ApiPropertyOptional({
     description:

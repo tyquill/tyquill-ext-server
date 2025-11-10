@@ -11,8 +11,11 @@ import { WritingStyleExample } from './writing-style-example.entity';
 
 @Entity({ tableName: 'writing_styles' })
 export class WritingStyle {
-  @PrimaryKey()
-  id: number;
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  id: string;
+
+  @Property({ name: 'legacy_writing_style_id', nullable: true, unique: true })
+  legacyWritingStyleId?: number;
 
   @Property()
   name: string;

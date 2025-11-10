@@ -10,6 +10,11 @@ import {
   UserIdentifierLike,
   buildUserFilterFromInput,
 } from '../users/utils/user-identifier.util';
+import {
+  WritingStyleIdentifierLike,
+  buildWritingStyleWhereClause,
+  normalizeWritingStyleId,
+} from './utils/writing-style-identifier.util';
 import TurndownService = require('turndown');
 
 @Injectable()
@@ -26,6 +31,30 @@ export class WritingStylesService {
     private readonly em: EntityManager,
   ) {
     this.turndownService = new TurndownService();
+  }
+
+  /**
+   * Resolve canonical UUID for a writing style ID (supports both UUID and legacy integer)
+   *
+   * @param id - Writing style identifier (UUID or legacy integer)
+   * @returns Canonical UUID string
+   * @throws NotFoundException if writing style not found
+   */
+  async resolveCanonicalWritingStyleId(
+    id: WritingStyleIdentifierLike,
+  ): Promise<string> {
+    const normalizedId = normalizeWritingStyleId(id);
+    const whereClause = buildWritingStyleWhereClause(normalizedId);
+
+    const writingStyle = await this.writingStyleRepository.findOne(whereClause);
+
+    if (!writingStyle) {
+      throw new NotFoundException(
+        `Writing style with ID ${normalizedId} not found`,
+      );
+    }
+
+    return writingStyle.id; // Always return UUID
   }
 
   async create(
@@ -75,32 +104,61 @@ export class WritingStylesService {
     return this.writingStyleRepository.find({ user: user });
   }
 
-  async findOne(id: number, userId: UserIdentifierLike) {
+  async findOne(
+    id: WritingStyleIdentifierLike,
+    userId: UserIdentifierLike,
+  ): Promise<WritingStyle> {
     const user = await this.userRepository.findOne(
       buildUserFilterFromInput(userId),
     );
     if (!user) {
       throw new Error('User not found');
     }
-    const style = await this.writingStyleRepository.findOne({ id, user: user });
+
+    const normalizedId = normalizeWritingStyleId(id);
+    const whereClause = buildWritingStyleWhereClause(normalizedId);
+
+    const style = await this.writingStyleRepository.findOne({
+      ...(whereClause as any),
+      user: user,
+    });
+
     if (!style) {
-      throw new NotFoundException(`WritingStyle with ID ${id} not found.`);
+      throw new NotFoundException(
+        `WritingStyle with ID ${normalizedId} not found.`,
+      );
     }
     return style;
   }
 
-  async remove(id: number, userId: UserIdentifierLike) {
+  async remove(
+    id: WritingStyleIdentifierLike,
+    userId: UserIdentifierLike,
+  ): Promise<{ message: string }> {
     const user = await this.userRepository.findOne(
       buildUserFilterFromInput(userId),
     );
     if (!user) {
       throw new Error('User not found');
     }
-    const style = await this.writingStyleRepository.findOne({ id, user: user });
+
+    const normalizedId = normalizeWritingStyleId(id);
+    const whereClause = buildWritingStyleWhereClause(normalizedId);
+
+    const style = await this.writingStyleRepository.findOne({
+      ...(whereClause as any),
+      user: user,
+    });
+
     if (!style) {
-      throw new NotFoundException(`WritingStyle with ID ${id} not found.`);
+      throw new NotFoundException(
+        `WritingStyle with ID ${normalizedId} not found.`,
+      );
     }
+
     await this.em.removeAndFlush(style);
-    return { message: `WritingStyle with ID ${id} deleted successfully.` };
+    return {
+      message: `WritingStyle with ID ${normalizedId} deleted successfully.`,
+    };
   }
 }

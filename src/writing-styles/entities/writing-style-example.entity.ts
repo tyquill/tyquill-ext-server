@@ -3,10 +3,13 @@ import { WritingStyle } from './writing-style.entity';
 
 @Entity({ tableName: 'writing_style_examples' })
 export class WritingStyleExample {
-  @PrimaryKey()
-  id: number;
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  id: string;
 
-  @ManyToOne(() => WritingStyle)
+  @Property({ name: 'legacy_example_id', nullable: true, unique: true })
+  legacyExampleId?: number;
+
+  @ManyToOne(() => WritingStyle, { fieldName: 'writing_style_id' })
   writingStyle: WritingStyle;
 
   @Property({ type: 'text' })

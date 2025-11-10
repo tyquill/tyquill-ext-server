@@ -132,12 +132,10 @@ export class SlackBotController {
     @Param('articleId') articleId: string,
   ): Promise<ReportResponseDto> {
     this.logger.log('Received report retrieval request', {
-      articleId: parseInt(articleId, 10),
+      articleId,
     });
 
-    const report = await this.slackBotService.getReport(
-      parseInt(articleId, 10),
-    );
+    const report = await this.slackBotService.getReport(articleId);
 
     if (!report) {
       throw new NotFoundException(`Report not found: ${articleId}`);

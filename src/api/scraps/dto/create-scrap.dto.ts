@@ -99,10 +99,14 @@ export class CreateScrapDto {
   @IsString()
   userComment?: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Associated article ID (UUID or legacy integer)',
+    required: false,
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @IsOptional()
-  @IsNumber()
-  articleId?: number;
+  @IsString()
+  articleId?: string;
 
   @ApiProperty()
   @IsOptional()

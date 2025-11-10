@@ -203,7 +203,7 @@ export class AdminService {
   /**
    * 특정 아티클 생성 요청의 상세 결과
    */
-  async getArticleDetail(userId: UserIdentifierLike, articleId: number) {
+  async getArticleDetail(userId: UserIdentifierLike, articleId: string) {
     const article = await this.em.findOne(
       Article,
       {

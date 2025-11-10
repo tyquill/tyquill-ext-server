@@ -36,8 +36,14 @@ import { MessageEvent } from '@nestjs/common';
 import { EventType } from '../ai-workflows/models/streaming';
 import { RegenerateArticleOutput } from '../ai-workflows/dto/regenerate.dto';
 import {
-  ScrapIdentifier,
+  ArticleIdentifierLike,
+  ensureArticleIdentifier,
+  buildArticleFilterFromInput,
   isUuid,
+} from './utils/article-identifier.util';
+import {
+  ScrapIdentifier,
+  isUuid as isScrapUuid,
 } from '../scraps/utils/scrap-identifier.util';
 import { FilterQuery } from '@mikro-orm/core';
 // Analytics tracking migrated to extension client (PostHog).
@@ -306,9 +312,41 @@ export class ArticlesService {
   }
 
   /**
+   * Resolve article identifier (UUID or legacy numeric ID) to canonical UUID
+   * @param identifier Article UUID or legacy numeric ID
+   * @param options Configuration options
+   * @returns Canonical UUID string or null if not found
+   */
+  async resolveCanonicalArticleId(
+    identifier: ArticleIdentifierLike,
+    { throwOnNotFound = true }: { throwOnNotFound?: boolean } = {},
+  ): Promise<string | null> {
+    const normalized = ensureArticleIdentifier(identifier);
+
+    // If it's already a UUID, return it
+    if (typeof normalized === 'string' && isUuid(normalized)) {
+      return normalized.toLowerCase();
+    }
+
+    // Look up by legacy ID
+    const article = await this.articleRepository.findOne(
+      buildArticleFilterFromInput(normalized),
+    );
+
+    if (!article) {
+      if (throwOnNotFound) {
+        throw new NotFoundException('Article not found');
+      }
+      return null;
+    }
+
+    return article.articleId;
+  }
+
+  /**
    * 특정 아티클 조회
    */
-  async findOne(articleId: number): Promise<any> {
+  async findOne(articleId: string): Promise<any> {
     const article = await this.articleRepository.findOne(
       { articleId },
       {
@@ -415,7 +453,7 @@ export class ArticlesService {
    * 아티클 업데이트
    */
   async update(
-    articleId: number,
+    articleId: string,
     updateArticleDto: UpdateArticleDto,
   ): Promise<any> {
     const article = await this.articleRepository.findOne(
@@ -497,7 +535,7 @@ export class ArticlesService {
   /**
    * 아티클 삭제
    */
-  async remove(articleId: number): Promise<void> {
+  async remove(articleId: string): Promise<void> {
     const article = await this.articleRepository.findOne(
       { articleId, isDeleted: false },
       {
@@ -523,7 +561,7 @@ export class ArticlesService {
   /**
    * 아티클 아카이브
    */
-  async archive(articleId: number): Promise<ArticleArchive> {
+  async archive(articleId: string): Promise<ArticleArchive> {
     const article = await this.findOne(articleId);
 
     // 최신 아카이브에서 title과 content 가져오기
@@ -547,7 +585,7 @@ export class ArticlesService {
   /**
    * 아티클 버전 히스토리 조회
    */
-  async getVersions(articleId: number, userId: string): Promise<any[]> {
+  async getVersions(articleId: string, userId: string): Promise<any[]> {
     this.logger.log(
       `📋 Fetching versions for article ${articleId} by user ${userId}`,
     );
@@ -591,7 +629,7 @@ export class ArticlesService {
    * 특정 버전으로 복원
    */
   async restoreVersion(
-    articleId: number,
+    articleId: string,
     versionNumber: number,
     userId: string,
   ): Promise<any> {
@@ -702,7 +740,7 @@ export class ArticlesService {
   /**
    * 배치 아티클 삭제
    */
-  async removeBatch(articleIds: number[]): Promise<void> {
+  async removeBatch(articleIds: string[]): Promise<void> {
     const articles = await this.articleRepository.find({
       articleId: { $in: articleIds },
       isDeleted: false,
@@ -770,7 +808,7 @@ export class ArticlesService {
    * V2 API: 아티클 상태 확인
    */
   async getArticleStatusV2(
-    articleId: number,
+    articleId: string,
   ): Promise<ArticleStatusV2Response> {
     const article = await this.articleRepository.findOne(
       { articleId, isDeleted: false },
@@ -829,7 +867,7 @@ export class ArticlesService {
    * 백그라운드에서 실제 아티클 생성 수행
    */
   private async performBackgroundGeneration(
-    articleId: number,
+    articleId: string,
     generateDto: GenerateArticleV2Dto,
   ): Promise<void> {
     try {
@@ -1044,7 +1082,7 @@ export class ArticlesService {
    * V2 API: 아티클 상태 확인 (PDF 진행률 포함)
    */
   async getArticleStatusV3(
-    articleId: number,
+    articleId: string,
   ): Promise<ArticleStatusV2Response> {
     const article = await this.articleRepository.findOne(
       { articleId, isDeleted: false },
@@ -1107,7 +1145,7 @@ export class ArticlesService {
    * V3 백그라운드에서 실제 아티클 생성 수행 (PDF 지원)
    */
   private async performBackgroundGenerationV3(
-    articleId: number,
+    articleId: string,
     generateDto: GenerateArticleV3Dto,
   ): Promise<void> {
     try {
@@ -1612,7 +1650,7 @@ export class ArticlesService {
    * V3: 기존 아티클 재생성 (동기)
    */
   async regenerateArticleV3(
-    articleId: number,
+    articleId: string,
     userId: string,
     dto: RegenerateArticleV3Dto,
   ): Promise<any> {
@@ -2007,7 +2045,7 @@ export class ArticlesService {
    * V3: 기존 아티클 재생성 (스트리밍)
    */
   regenerateArticleV3Stream(
-    articleId: number,
+    articleId: string,
     userId: string,
     dto: RegenerateArticleV3Dto,
   ): Observable<MessageEvent> {
@@ -2531,7 +2569,7 @@ export class ArticlesService {
 
     // Separate UUIDs and legacy IDs
     const uuids = scrapIds.filter(
-      (id) => typeof id === 'string' && isUuid(id),
+      (id) => typeof id === 'string' && isScrapUuid(id),
     );
     const legacyIds = scrapIds.filter((id) => typeof id === 'number');
 

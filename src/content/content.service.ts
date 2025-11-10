@@ -493,7 +493,9 @@ export class ContentService {
     }
 
     return {
-      id: article.articleId.toString(),
+      // BACKWARD COMPATIBILITY: Use legacyArticleId for client parseInt() compatibility
+      // Chrome extension uses parseInt(item.id, 10) which requires numeric ID
+      id: article.legacyArticleId?.toString() || article.articleId.toString(),
       type: 'article',
       title: article.getLatestTitle() || 'Untitled',
       contentPreview,

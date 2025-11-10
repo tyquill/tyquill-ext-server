@@ -5,6 +5,12 @@ import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { ArticleArchive } from './entities/article-archive.entity';
 import { Article } from '../articles/entities/article.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
+import {
+  ArticleArchiveIdentifierLike,
+  ensureArticleArchiveIdentifier,
+  buildArticleArchiveFilterFromInput,
+  isUuid,
+} from './utils/article-archive-identifier.util';
 
 @Injectable()
 export class ArticleArchiveService {
@@ -15,6 +21,38 @@ export class ArticleArchiveService {
     @InjectRepository(Article)
     private readonly articleRepository: EntityRepository<Article>,
   ) {}
+
+  /**
+   * Resolve article archive identifier (UUID or legacy numeric ID) to canonical UUID
+   * @param identifier Article archive UUID or legacy numeric ID
+   * @param options Configuration options
+   * @returns Canonical UUID string or null if not found
+   */
+  async resolveCanonicalArticleArchiveId(
+    identifier: ArticleArchiveIdentifierLike,
+    { throwOnNotFound = true }: { throwOnNotFound?: boolean } = {},
+  ): Promise<string | null> {
+    const normalized = ensureArticleArchiveIdentifier(identifier);
+
+    // If it's already a UUID, return it
+    if (typeof normalized === 'string' && isUuid(normalized)) {
+      return normalized.toLowerCase();
+    }
+
+    // Look up by legacy ID
+    const articleArchive = await this.articleArchiveRepository.findOne(
+      buildArticleArchiveFilterFromInput(normalized),
+    );
+
+    if (!articleArchive) {
+      if (throwOnNotFound) {
+        throw new NotFoundException('Article archive not found');
+      }
+      return null;
+    }
+
+    return articleArchive.articleArchiveId;
+  }
 
   async create(createArticleArchiveDto: CreateArticleArchiveDto) {
     const articleArchive = new ArticleArchive();
@@ -27,7 +65,7 @@ export class ArticleArchiveService {
    * 특정 아티클의 새로운 버전을 생성합니다
    */
   async createVersion(
-    articleId: number,
+    articleId: string,
     title: string,
     content: string,
   ): Promise<ArticleArchive> {
@@ -64,7 +102,7 @@ export class ArticleArchiveService {
   /**
    * 특정 아티클의 모든 버전을 조회합니다
    */
-  async findVersionsByArticle(articleId: number): Promise<ArticleArchive[]> {
+  async findVersionsByArticle(articleId: string): Promise<ArticleArchive[]> {
     const article = await this.articleRepository.findOne({ articleId });
     if (!article) {
       throw new NotFoundException('아티클을 찾을 수 없습니다');
@@ -80,7 +118,7 @@ export class ArticleArchiveService {
    * 특정 버전의 아카이브를 조회합니다
    */
   async findSpecificVersion(
-    articleId: number,
+    articleId: string,
     versionNumber: number,
   ): Promise<ArticleArchive | null> {
     const article = await this.articleRepository.findOne({ articleId });
@@ -98,7 +136,7 @@ export class ArticleArchiveService {
   /**
    * 최신 버전을 조회합니다
    */
-  async findLatestVersion(articleId: number): Promise<ArticleArchive | null> {
+  async findLatestVersion(articleId: string): Promise<ArticleArchive | null> {
     const article = await this.articleRepository.findOne({ articleId });
     if (!article) {
       throw new NotFoundException('아티클을 찾을 수 없습니다');
@@ -114,7 +152,7 @@ export class ArticleArchiveService {
    * 버전 간 비교를 위한 데이터를 반환합니다
    */
   async compareVersions(
-    articleId: number,
+    articleId: string,
     version1: number,
     version2: number,
   ): Promise<{
@@ -140,7 +178,7 @@ export class ArticleArchiveService {
     return articleArchives;
   }
 
-  async findOne(id: number) {
+  async findOne(id: string) {
     const articleArchive = await this.articleArchiveRepository.findOne(
       { articleArchiveId: id },
       { populate: ['article'], filters: { isDeleted: false } },
@@ -151,7 +189,7 @@ export class ArticleArchiveService {
     return articleArchive;
   }
 
-  async update(id: number, updateArticleArchiveDto: UpdateArticleArchiveDto) {
+  async update(id: string, updateArticleArchiveDto: UpdateArticleArchiveDto) {
     const articleArchive = await this.articleArchiveRepository.findOne({
       articleArchiveId: id,
       isDeleted: false,
@@ -164,7 +202,7 @@ export class ArticleArchiveService {
     return articleArchive;
   }
 
-  async remove(id: number) {
+  async remove(id: string) {
     const articleArchive = await this.articleArchiveRepository.findOne({
       articleArchiveId: id,
       isDeleted: false,

@@ -16,8 +16,16 @@ import { WritingStyle } from '../../writing-styles/entities/writing-style.entity
 
 @Entity({ tableName: 'articles' })
 export class Article {
-  @PrimaryKey({ fieldName: 'article_id' })
-  articleId!: number;
+  @PrimaryKey({ fieldName: 'article_id', type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  articleId!: string;
+
+  @Property({
+    fieldName: 'legacy_article_id',
+    type: 'integer',
+    nullable: true,
+    unique: true,
+  })
+  legacyArticleId?: number;
 
   @Property({ fieldName: 'topic', type: 'varchar', length: 500 })
   topic!: string;

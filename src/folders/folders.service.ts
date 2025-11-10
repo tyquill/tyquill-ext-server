@@ -25,6 +25,7 @@ import {
   FolderResponseDto,
   FolderContentsDto,
 } from '../api/folders/dto/folder-response.dto';
+import { ArticleIdentifier } from '../articles/utils/article-identifier.util';
 
 @Injectable()
 export class FoldersService {
@@ -285,7 +286,7 @@ export class FoldersService {
     folderId: string | null,
     userId: UserIdentifierLike,
     scrapIds?: ScrapIdentifier[],
-    articleIds?: number[],
+    articleIds?: ArticleIdentifier[],
   ): Promise<{ movedScraps: number; movedArticles: number }> {
     return await this.em.transactional(async (em) => {
       let targetFolder: Folder | null = null;
@@ -325,8 +326,11 @@ export class FoldersService {
 
       // Move articles
       if (articleIds && articleIds.length > 0) {
+        // Convert all identifiers to strings (UUIDs)
+        const articleIdStrings = articleIds.map((id) => String(id));
+
         const articles = await em.find(Article, {
-          articleId: { $in: articleIds },
+          articleId: { $in: articleIdStrings },
           user: userFilter as any,
           isDeleted: false,
         });

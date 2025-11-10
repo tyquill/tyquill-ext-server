@@ -126,7 +126,7 @@ export class SlackBotService {
   /**
    * 보고서 조회 (articleId로)
    */
-  async getReport(articleId: number): Promise<ReportResponseDto | null> {
+  async getReport(articleId: string): Promise<ReportResponseDto | null> {
     this.logger.log('Fetching report from database', { articleId });
 
     try {

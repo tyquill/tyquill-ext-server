@@ -58,7 +58,7 @@ export class ScrapsService {
   async create(
     createScrapDto: CreateScrapDto,
     userId: UserIdentifierLike,
-    articleId?: number,
+    articleId?: string,
   ): Promise<ScrapSummaryDto> {
     const user = await this.userRepository.findOne(
       buildUserFilterFromInput(userId),
@@ -332,7 +332,7 @@ export class ScrapsService {
     };
   }
 
-  async findByArticle(articleId: number): Promise<Scrap[]> {
+  async findByArticle(articleId: string): Promise<Scrap[]> {
     // Find all ArticleScrap junction records for this article
     const articleScraps = await this.articleScrapRepository.find(
       { article: { articleId } },

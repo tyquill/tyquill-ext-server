@@ -30,8 +30,11 @@ export class Tag {
     }
   }
 
-  @PrimaryKey({ name: 'tag_id' })
-  tagId: number;
+  @PrimaryKey({ name: 'tag_id', type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  tagId: string;
+
+  @Property({ name: 'legacy_tag_id', type: 'integer', nullable: true })
+  legacyTagId?: number;
 
   @Property({ name: 'name', type: 'varchar', length: 100 })
   name: string;

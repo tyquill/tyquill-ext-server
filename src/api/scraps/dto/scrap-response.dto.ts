@@ -115,17 +115,19 @@ export class ScrapResponseDto {
     items: {
       type: 'object',
       properties: {
-        tagId: { type: 'number', example: 1 },
+        tagId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
+        legacyTagId: { type: 'number', example: 1 },
         name: { type: 'string', example: 'Technology' },
       },
     },
     example: [
-      { tagId: 1, name: 'Technology' },
-      { tagId: 2, name: 'API' },
+      { tagId: '550e8400-e29b-41d4-a716-446655440000', legacyTagId: 1, name: 'Technology' },
+      { tagId: '550e8400-e29b-41d4-a716-446655440001', legacyTagId: 2, name: 'API' },
     ],
   })
   tags?: {
-    tagId: number;
+    tagId: string;
+    legacyTagId?: number;
     name: string;
   }[];
 
@@ -292,14 +294,16 @@ export class ScrapSummaryDto {
     items: {
       type: 'object',
       properties: {
-        tagId: { type: 'number', example: 1 },
+        tagId: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
+        legacyTagId: { type: 'number', example: 1 },
         name: { type: 'string', example: 'Technology' },
       },
     },
-    example: [{ tagId: 1, name: 'Technology' }],
+    example: [{ tagId: '550e8400-e29b-41d4-a716-446655440000', legacyTagId: 1, name: 'Technology' }],
   })
   tags?: {
-    tagId: number;
+    tagId: string;
+    legacyTagId?: number;
     name: string;
   }[];
 

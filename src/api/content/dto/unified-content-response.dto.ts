@@ -1,8 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class TagDto {
-  @ApiProperty({ example: 1 })
-  tagId: number;
+  @ApiProperty({
+    description: 'Tag ID (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  tagId: string;
+
+  @ApiPropertyOptional({
+    description: 'Legacy numeric tag ID (for backward compatibility)',
+    example: 1,
+  })
+  legacyTagId?: number;
 
   @ApiProperty({ example: 'javascript' })
   name: string;

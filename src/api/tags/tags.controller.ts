@@ -8,7 +8,6 @@ import {
   Delete,
   Version,
   Query,
-  ParseIntPipe,
   HttpException,
   HttpStatus,
   UseGuards,
@@ -18,6 +17,7 @@ import { TagsService } from '../../tags/tags.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { TagIdParamPipe } from '../../tags/pipes/tag-id.pipe';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tags')
@@ -74,7 +74,7 @@ export class TagsController {
    */
   @Version('1')
   @Get(':tagId')
-  async findOne(@Param('tagId', ParseIntPipe) tagId: number) {
+  async findOne(@Param('tagId', TagIdParamPipe) tagId: string) {
     try {
       const tag = await this.tagsService.findOne(tagId);
       if (!tag) {
@@ -95,7 +95,7 @@ export class TagsController {
   @Version('1')
   @Put(':tagId')
   async update(
-    @Param('tagId', ParseIntPipe) tagId: number,
+    @Param('tagId', TagIdParamPipe) tagId: string,
     @Body() updateTagDto: UpdateTagDto,
   ) {
     try {
@@ -117,7 +117,7 @@ export class TagsController {
    */
   @Version('1')
   @Delete(':tagId')
-  async remove(@Param('tagId', ParseIntPipe) tagId: number) {
+  async remove(@Param('tagId', TagIdParamPipe) tagId: string) {
     try {
       await this.tagsService.remove(tagId);
       return { message: 'Tag deleted successfully' };

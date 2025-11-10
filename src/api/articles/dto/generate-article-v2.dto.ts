@@ -62,9 +62,12 @@ export interface TemplateSectionV2Dto {
  * V2 API 비동기 생성 응답 - 즉시 202 반환
  */
 export class GenerateArticleV2Response {
-  @ApiProperty()
-  @IsNumber()
-  articleId: number;
+  @ApiProperty({
+    description: 'Article ID (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsString()
+  articleId: string;
 
   @ApiProperty()
   @IsString()
@@ -83,9 +86,12 @@ export class GenerateArticleV2Response {
  * V2 API 상태 확인 응답
  */
 export class ArticleStatusV2Response {
-  @ApiProperty()
-  @IsNumber()
-  articleId: number;
+  @ApiProperty({
+    description: 'Article ID (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsString()
+  articleId: string;
 
   @ApiProperty()
   @IsString()

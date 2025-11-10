@@ -60,8 +60,8 @@ export interface TemplateSectionDto {
 
 export class GenerateArticleResponse {
   @ApiProperty()
-  @IsNumber()
-  id: number;
+  @IsString()
+  id: string;
 
   @ApiProperty()
   @IsString()

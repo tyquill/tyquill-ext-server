@@ -3,8 +3,16 @@ import { Article } from '../../articles/entities/article.entity';
 
 @Entity({ tableName: 'article_archive' })
 export class ArticleArchive {
-  @PrimaryKey({ fieldName: 'article_archive_id' })
-  articleArchiveId!: number;
+  @PrimaryKey({ fieldName: 'article_archive_id', type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  articleArchiveId!: string;
+
+  @Property({
+    fieldName: 'legacy_article_archive_id',
+    type: 'integer',
+    nullable: true,
+    unique: true,
+  })
+  legacyArticleArchiveId?: number;
 
   @Property({ fieldName: 'title', type: 'varchar', length: 500 })
   title!: string;

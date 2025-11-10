@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { ArticlesService } from '../../articles/articles.service';
+import { ArticleIdParamPipe } from '../../articles/pipes/article-id.pipe';
 import { CreateArticleDto } from './dto/create-article.dto';
 import {
   GenerateArticleDto,
@@ -104,8 +105,8 @@ export class ArticlesController {
    */
   @Version('1')
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.articlesService.findOne(+id);
+  findOne(@Param('id', ArticleIdParamPipe) id: string) {
+    return this.articlesService.findOne(id);
   }
 
   /**
@@ -125,8 +126,8 @@ export class ArticlesController {
    */
   @Version('1')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateArticleDto: UpdateArticleDto) {
-    return this.articlesService.update(+id, updateArticleDto);
+  update(@Param('id', ArticleIdParamPipe) id: string, @Body() updateArticleDto: UpdateArticleDto) {
+    return this.articlesService.update(id, updateArticleDto);
   }
 
   /**
@@ -135,8 +136,8 @@ export class ArticlesController {
    */
   @Version('1')
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    await this.articlesService.remove(+id);
+  async remove(@Param('id', ArticleIdParamPipe) id: string) {
+    await this.articlesService.remove(id);
     return { message: 'Article removed successfully' };
   }
 
@@ -146,8 +147,8 @@ export class ArticlesController {
    */
   @Version('1')
   @Post(':id/archive')
-  archive(@Param('id') id: string) {
-    return this.articlesService.archive(+id);
+  archive(@Param('id', ArticleIdParamPipe) id: string) {
+    return this.articlesService.archive(id);
   }
 
   /**
@@ -161,7 +162,7 @@ export class ArticlesController {
   @ApiResponse({ status: 400, description: '잘못된 요청입니다' })
   @ApiResponse({ status: 403, description: '권한이 없습니다' })
   @ApiResponse({ status: 404, description: '아티클을 찾을 수 없습니다' })
-  getVersions(@Request() req: any, @Param('id', ParseIntPipe) id: number) {
+  getVersions(@Request() req: any, @Param('id', ArticleIdParamPipe) id: string) {
     const userId = req.user.id;
     return this.articlesService.getVersions(id, userId);
   }
@@ -182,7 +183,7 @@ export class ArticlesController {
   })
   restoreVersion(
     @Request() req: any,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ArticleIdParamPipe) id: string,
     @Param('versionNumber', ParseIntPipe) versionNumber: number,
   ) {
     const userId = req.user.id;
@@ -195,7 +196,7 @@ export class ArticlesController {
    */
   @Version('1')
   @Delete('batch')
-  removeBatch(@Body() ids: number[]) {
+  removeBatch(@Body() ids: string[]) {
     return this.articlesService.removeBatch(ids);
   }
 
@@ -248,9 +249,9 @@ export class ArticlesController {
   @Version('2')
   @Get(':id/status')
   async getArticleStatusV2(
-    @Param('id') id: string,
+    @Param('id', ArticleIdParamPipe) id: string,
   ): Promise<ArticleStatusV2Response> {
-    return this.articlesService.getArticleStatusV2(+id);
+    return this.articlesService.getArticleStatusV2(id);
   }
 
   /**
@@ -316,9 +317,9 @@ export class ArticlesController {
   @Version('3')
   @Get(':id/status')
   async getArticleStatusV3(
-    @Param('id') id: string,
+    @Param('id', ArticleIdParamPipe) id: string,
   ): Promise<ArticleStatusV2Response> {
-    return this.articlesService.getArticleStatusV3(+id);
+    return this.articlesService.getArticleStatusV3(id);
   }
 
   /**
@@ -388,7 +389,7 @@ export class ArticlesController {
   @Post(':id/regenerate')
   async regenerateArticleV3(
     @Request() req: any,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ArticleIdParamPipe) id: string,
     @Body() regenerateDto: RegenerateArticleV3Dto,
   ) {
     const userId = req.user.id;
@@ -415,7 +416,7 @@ export class ArticlesController {
   @Sse()
   regenerateArticleV3Stream(
     @Request() req: any,
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ArticleIdParamPipe) id: string,
     @Body() regenerateDto: RegenerateArticleV3Dto,
   ): Observable<MessageEvent> {
     const userId = req.user.id;

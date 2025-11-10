@@ -62,7 +62,7 @@ export class ScrapsController {
   @Get()
   async findAll(
     @Request() req: any,
-    @Query('articleId') articleId?: number,
+    @Query('articleId') articleId?: string,
     @Query('search') search?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -235,7 +235,7 @@ export class ScrapsController {
    */
   @Version('1')
   @Get('article/:articleId')
-  async findByArticle(@Param('articleId', ParseIntPipe) articleId: number) {
+  async findByArticle(@Param('articleId') articleId: string) {
     try {
       return await this.scrapsService.findByArticle(articleId);
     } catch (error: any) {
@@ -380,7 +380,7 @@ export class ScrapsController {
   @Get()
   async findAllV2(
     @Request() req: any,
-    @Query('articleId') articleId?: number,
+    @Query('articleId') articleId?: string,
     @Query('search') search?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,

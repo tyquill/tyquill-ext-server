@@ -5,10 +5,10 @@ import { ApiProperty } from '@nestjs/swagger';
  */
 export class ReportResponseDto {
   @ApiProperty({
-    description: '생성된 아티클 ID',
-    example: 123,
+    description: '생성된 아티클 ID (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  articleId: number;
+  articleId: string;
 
   @ApiProperty({
     description: '보고서 내용 (Markdown)',

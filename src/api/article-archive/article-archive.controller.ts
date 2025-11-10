@@ -30,7 +30,7 @@ export class ArticleArchiveController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.articleArchiveService.findOne(+id);
+    return this.articleArchiveService.findOne(id);
   }
 
   @Patch(':id')
@@ -38,11 +38,11 @@ export class ArticleArchiveController {
     @Param('id') id: string,
     @Body() updateArticleArchiveDto: UpdateArticleArchiveDto,
   ) {
-    return this.articleArchiveService.update(+id, updateArticleArchiveDto);
+    return this.articleArchiveService.update(id, updateArticleArchiveDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.articleArchiveService.remove(+id);
+    return this.articleArchiveService.remove(id);
   }
 }

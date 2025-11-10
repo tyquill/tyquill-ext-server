@@ -29,7 +29,7 @@ export type AdminUserDetailResponse = {
     createdAt: string;
   }[];
   articles: {
-    articleId: number;
+    articleId: string;
     topic: string;
     keyInsight: string;
     generationStatus: 'processing' | 'completed' | 'failed';
@@ -41,7 +41,7 @@ export type AdminArticleGenerationResultsResponse = {
   userId: string;
   email: string;
   name: string;
-  articleId: number;
+  articleId: string;
   topic: string;
   keyInsight: string;
   scrapIds: string[];
@@ -64,7 +64,7 @@ export type AdminArticleDetailResponse = {
   userId: string;
   email: string;
   name: string;
-  articleId: number;
+  articleId: string;
   topic: string;
   keyInsight: string;
   generationParams: Record<string, unknown> | null;
@@ -79,7 +79,7 @@ export type AdminArticleDetailResponse = {
     createdAt: string;
   }[];
   archives: {
-    articleArchiveId: number;
+    articleArchiveId: string;
     versionNumber: number | null;
     title: string;
     content: string;
@@ -369,7 +369,7 @@ export class AdminController {
   @Get('articles/detail')
   async getArticleDetail(
     @Query('userId', UserIdParamPipe) userId: string,
-    @Query('articleId') articleId: number,
+    @Query('articleId') articleId: string,
   ): Promise<AdminArticleDetailResponse> {
     return this.adminService.getArticleDetail(userId, articleId);
   }

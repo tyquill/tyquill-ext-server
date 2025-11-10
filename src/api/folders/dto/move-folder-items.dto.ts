@@ -16,14 +16,17 @@ export class MoveFolderItemsDto {
   scrapIds?: string[];
 
   @ApiProperty({
-    description: 'Array of article IDs to move to this folder',
+    description: 'Array of article IDs to move to this folder (UUIDs or legacy integers)',
     required: false,
-    example: [10, 20, 30],
+    example: [
+      '550e8400-e29b-41d4-a716-446655440000',
+      '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
+    ],
   })
   @IsOptional()
   @IsArray()
-  @IsInt({ each: true })
-  articleIds?: number[];
+  @IsString({ each: true })
+  articleIds?: string[];
 
   @ApiProperty({
     description: 'Target folder UUID (null to remove from folder)',

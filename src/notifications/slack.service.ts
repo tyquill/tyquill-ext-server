@@ -141,7 +141,7 @@ export class SlackService {
    * Send article generation notification to Slack
    */
   async notifyArticleGeneration(articleData: {
-    articleId: number;
+    articleId: string;
     title: string;
     topic: string;
     keyInsight?: string;

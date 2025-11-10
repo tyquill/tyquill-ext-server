@@ -103,11 +103,11 @@ export class ScrapResponseDto {
   updatedAt: Date;
 
   @ApiProperty({
-    description: 'Associated article ID',
+    description: 'Associated article ID (UUID or legacy integer)',
     required: false,
-    example: 1,
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  articleId?: number;
+  articleId?: string;
 
   @ApiProperty({
     description: 'Tags associated with the scrap',
@@ -280,11 +280,11 @@ export class ScrapSummaryDto {
   updatedAt: Date;
 
   @ApiProperty({
-    description: 'Associated article ID',
+    description: 'Associated article ID (UUID or legacy integer)',
     required: false,
-    example: 1,
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  articleId?: number;
+  articleId?: string;
 
   @ApiProperty({
     description: 'Tags associated with the scrap',

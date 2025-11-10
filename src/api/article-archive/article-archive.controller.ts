@@ -11,6 +11,7 @@ import {
 import { ArticleArchiveService } from '../../article-archive/article-archive.service';
 import { CreateArticleArchiveDto } from './dto/create-article-archive.dto';
 import { UpdateArticleArchiveDto } from './dto/update-article-archive.dto';
+import { ArticleArchiveIdParamPipe } from '../../article-archive/pipes/article-archive-id.pipe';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
@@ -29,20 +30,20 @@ export class ArticleArchiveController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ArticleArchiveIdParamPipe) id: string) {
     return this.articleArchiveService.findOne(id);
   }
 
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ArticleArchiveIdParamPipe) id: string,
     @Body() updateArticleArchiveDto: UpdateArticleArchiveDto,
   ) {
     return this.articleArchiveService.update(id, updateArticleArchiveDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ArticleArchiveIdParamPipe) id: string) {
     return this.articleArchiveService.remove(id);
   }
 }

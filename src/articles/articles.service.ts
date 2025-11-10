@@ -35,6 +35,17 @@ import { Observable } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
 import { EventType } from '../ai-workflows/models/streaming';
 import { RegenerateArticleOutput } from '../ai-workflows/dto/regenerate.dto';
+import {
+  ArticleIdentifierLike,
+  ensureArticleIdentifier,
+  buildArticleFilterFromInput,
+  isUuid,
+} from './utils/article-identifier.util';
+import {
+  ScrapIdentifier,
+  isUuid as isScrapUuid,
+} from '../scraps/utils/scrap-identifier.util';
+import { FilterQuery } from '@mikro-orm/core';
 // Analytics tracking migrated to extension client (PostHog).
 
 @Injectable()
@@ -298,6 +309,38 @@ export class ArticlesService {
       orderBy: { createdAt: 'DESC' },
       filters: { isDeleted: false },
     });
+  }
+
+  /**
+   * Resolve article identifier (UUID or legacy numeric ID) to canonical UUID
+   * @param identifier Article UUID or legacy numeric ID
+   * @param options Configuration options
+   * @returns Canonical UUID string or null if not found
+   */
+  async resolveCanonicalArticleId(
+    identifier: ArticleIdentifierLike,
+    { throwOnNotFound = true }: { throwOnNotFound?: boolean } = {},
+  ): Promise<string | null> {
+    const normalized = ensureArticleIdentifier(identifier);
+
+    // If it's already a UUID, return it
+    if (typeof normalized === 'string' && isUuid(normalized)) {
+      return normalized.toLowerCase();
+    }
+
+    // Look up by legacy ID
+    const article = await this.articleRepository.findOne(
+      buildArticleFilterFromInput(normalized),
+    );
+
+    if (!article) {
+      if (throwOnNotFound) {
+        throw new NotFoundException('Article not found');
+      }
+      return null;
+    }
+
+    return article.articleId;
   }
 
   /**
@@ -2510,6 +2553,44 @@ export class ArticlesService {
         }
       })();
     });
+  }
+
+  /**
+   * Build a filter query for scrap IDs, handling both UUID and legacy integer IDs
+   * @param scrapIds Array of scrap identifiers (UUIDs or legacy integers)
+   * @returns FilterQuery for scraps that handles both ID types
+   */
+  private buildScrapIdFilter(
+    scrapIds: ScrapIdentifier[],
+  ): FilterQuery<Scrap> {
+    if (!scrapIds || scrapIds.length === 0) {
+      return { scrapId: { $in: [] } };
+    }
+
+    // Separate UUIDs and legacy IDs
+    const uuids = scrapIds.filter(
+      (id) => typeof id === 'string' && isScrapUuid(id),
+    );
+    const legacyIds = scrapIds.filter((id) => typeof id === 'number');
+
+    // Build OR condition for both UUID and legacy IDs
+    const idConditions: any[] = [];
+    if (uuids.length > 0) {
+      idConditions.push({ scrapId: { $in: uuids } });
+    }
+    if (legacyIds.length > 0) {
+      idConditions.push({ legacyScrapId: { $in: legacyIds } });
+    }
+
+    if (idConditions.length === 0) {
+      return { scrapId: { $in: [] } };
+    }
+
+    if (idConditions.length === 1) {
+      return idConditions[0];
+    }
+
+    return { $or: idConditions } as FilterQuery<Scrap>;
   }
 
   private async getUserOrThrow(userId: string): Promise<User> {

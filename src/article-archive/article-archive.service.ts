@@ -5,6 +5,12 @@ import { EntityManager, EntityRepository } from '@mikro-orm/postgresql';
 import { ArticleArchive } from './entities/article-archive.entity';
 import { Article } from '../articles/entities/article.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
+import {
+  ArticleArchiveIdentifierLike,
+  ensureArticleArchiveIdentifier,
+  buildArticleArchiveFilterFromInput,
+  isUuid,
+} from './utils/article-archive-identifier.util';
 
 @Injectable()
 export class ArticleArchiveService {
@@ -15,6 +21,38 @@ export class ArticleArchiveService {
     @InjectRepository(Article)
     private readonly articleRepository: EntityRepository<Article>,
   ) {}
+
+  /**
+   * Resolve article archive identifier (UUID or legacy numeric ID) to canonical UUID
+   * @param identifier Article archive UUID or legacy numeric ID
+   * @param options Configuration options
+   * @returns Canonical UUID string or null if not found
+   */
+  async resolveCanonicalArticleArchiveId(
+    identifier: ArticleArchiveIdentifierLike,
+    { throwOnNotFound = true }: { throwOnNotFound?: boolean } = {},
+  ): Promise<string | null> {
+    const normalized = ensureArticleArchiveIdentifier(identifier);
+
+    // If it's already a UUID, return it
+    if (typeof normalized === 'string' && isUuid(normalized)) {
+      return normalized.toLowerCase();
+    }
+
+    // Look up by legacy ID
+    const articleArchive = await this.articleArchiveRepository.findOne(
+      buildArticleArchiveFilterFromInput(normalized),
+    );
+
+    if (!articleArchive) {
+      if (throwOnNotFound) {
+        throw new NotFoundException('Article archive not found');
+      }
+      return null;
+    }
+
+    return articleArchive.articleArchiveId;
+  }
 
   async create(createArticleArchiveDto: CreateArticleArchiveDto) {
     const articleArchive = new ArticleArchive();

@@ -326,8 +326,11 @@ export class FoldersService {
 
       // Move articles
       if (articleIds && articleIds.length > 0) {
+        // Convert all identifiers to strings (UUIDs)
+        const articleIdStrings = articleIds.map((id) => String(id));
+
         const articles = await em.find(Article, {
-          articleId: { $in: articleIds },
+          articleId: { $in: articleIdStrings },
           user: userFilter as any,
           isDeleted: false,
         });

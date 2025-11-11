@@ -69,12 +69,12 @@ ALTER TABLE article_scraps
 ADD CONSTRAINT article_scraps_article_id_foreign
 FOREIGN KEY (article_id) REFERENCES articles(article_id) ON DELETE CASCADE;
 
--- article_archives table
-ALTER TABLE article_archives
-DROP CONSTRAINT IF EXISTS article_archives_article_id_foreign;
+-- article_archive table
+ALTER TABLE article_archive
+DROP CONSTRAINT IF EXISTS article_archive_article_id_foreign;
 
-ALTER TABLE article_archives
-ADD CONSTRAINT article_archives_article_id_foreign
+ALTER TABLE article_archive
+ADD CONSTRAINT article_archive_article_id_foreign
 FOREIGN KEY (article_id) REFERENCES articles(article_id) ON DELETE CASCADE;
 
 -- 3. Add CASCADE to writing_style_examples (cascade through writing_styles)
@@ -182,11 +182,11 @@ ALTER TABLE article_scraps
 ADD CONSTRAINT article_scraps_article_id_foreign
 FOREIGN KEY (article_id) REFERENCES articles(article_id);
 
-ALTER TABLE article_archives
-DROP CONSTRAINT IF EXISTS article_archives_article_id_foreign;
+ALTER TABLE article_archive
+DROP CONSTRAINT IF EXISTS article_archive_article_id_foreign;
 
-ALTER TABLE article_archives
-ADD CONSTRAINT article_archives_article_id_foreign
+ALTER TABLE article_archive
+ADD CONSTRAINT article_archive_article_id_foreign
 FOREIGN KEY (article_id) REFERENCES articles(article_id);
 
 -- 3. Writing style examples - remove CASCADE

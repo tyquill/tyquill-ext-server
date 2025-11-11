@@ -87,14 +87,14 @@ ALTER TABLE writing_style_examples
 ADD CONSTRAINT writing_style_examples_writing_style_id_foreign
 FOREIGN KEY (writing_style_id) REFERENCES writing_styles(id) ON DELETE CASCADE;
 
--- 4. Add CASCADE to folders parent_id self-reference
+-- 4. Add CASCADE to folders parent_folder_id self-reference
 
 ALTER TABLE folders
-DROP CONSTRAINT IF EXISTS folders_parent_id_foreign;
+DROP CONSTRAINT IF EXISTS folders_parent_folder_id_foreign;
 
 ALTER TABLE folders
-ADD CONSTRAINT folders_parent_id_foreign
-FOREIGN KEY (parent_id) REFERENCES folders(folder_id) ON DELETE CASCADE;
+ADD CONSTRAINT folders_parent_folder_id_foreign
+FOREIGN KEY (parent_folder_id) REFERENCES folders(folder_id) ON DELETE CASCADE;
 
 -- Verification query to check all CASCADE constraints are in place
 -- Run this after migration to verify:
@@ -199,8 +199,8 @@ FOREIGN KEY (writing_style_id) REFERENCES writing_styles(id);
 
 -- 4. Folders self-reference - remove CASCADE
 ALTER TABLE folders
-DROP CONSTRAINT IF EXISTS folders_parent_id_foreign;
+DROP CONSTRAINT IF EXISTS folders_parent_folder_id_foreign;
 
 ALTER TABLE folders
-ADD CONSTRAINT folders_parent_id_foreign
-FOREIGN KEY (parent_id) REFERENCES folders(folder_id);
+ADD CONSTRAINT folders_parent_folder_id_foreign
+FOREIGN KEY (parent_folder_id) REFERENCES folders(folder_id);

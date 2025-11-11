@@ -23,3 +23,14 @@ COMMENT ON COLUMN pending_s3_deletions.user_id IS 'User whose account was delete
 COMMENT ON COLUMN pending_s3_deletions.s3_key IS 'S3 object key to delete';
 COMMENT ON COLUMN pending_s3_deletions.retry_count IS 'Number of deletion attempts';
 COMMENT ON COLUMN pending_s3_deletions.next_retry_at IS 'When to retry deletion (exponential backoff)';
+
+-- DOWN Migration (Rollback)
+
+-- Drop indexes
+DROP INDEX IF EXISTS idx_pending_s3_deletions_next_retry;
+DROP INDEX IF EXISTS idx_pending_s3_deletions_created_at;
+DROP INDEX IF EXISTS idx_pending_s3_deletions_status;
+DROP INDEX IF EXISTS idx_pending_s3_deletions_user_id;
+
+-- Drop table
+DROP TABLE IF EXISTS pending_s3_deletions;

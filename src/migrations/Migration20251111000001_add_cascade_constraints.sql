@@ -120,3 +120,87 @@ FOREIGN KEY (parent_id) REFERENCES folders(folder_id) ON DELETE CASCADE;
 --     AND ccu.table_name IN ('users', 'articles', 'writing_styles', 'folders')
 --     AND tc.table_schema = 'public'
 -- ORDER BY tc.table_name;
+
+-- DOWN Migration (Rollback)
+-- Remove CASCADE and restore original constraints (NO ACTION)
+
+-- 1. User-related tables - remove CASCADE
+ALTER TABLE scraps
+DROP CONSTRAINT IF EXISTS scraps_user_id_foreign;
+
+ALTER TABLE scraps
+ADD CONSTRAINT scraps_user_id_foreign
+FOREIGN KEY (user_id) REFERENCES users(user_id);
+
+ALTER TABLE articles
+DROP CONSTRAINT IF EXISTS articles_user_id_foreign;
+
+ALTER TABLE articles
+ADD CONSTRAINT articles_user_id_foreign
+FOREIGN KEY (user_id) REFERENCES users(user_id);
+
+ALTER TABLE tags
+DROP CONSTRAINT IF EXISTS tags_user_id_foreign;
+
+ALTER TABLE tags
+ADD CONSTRAINT tags_user_id_foreign
+FOREIGN KEY (user_id) REFERENCES users(user_id);
+
+ALTER TABLE writing_styles
+DROP CONSTRAINT IF EXISTS writing_styles_user_id_foreign;
+
+ALTER TABLE writing_styles
+ADD CONSTRAINT writing_styles_user_id_foreign
+FOREIGN KEY (user_id) REFERENCES users(user_id);
+
+ALTER TABLE folders
+DROP CONSTRAINT IF EXISTS folders_user_id_foreign;
+
+ALTER TABLE folders
+ADD CONSTRAINT folders_user_id_foreign
+FOREIGN KEY (user_id) REFERENCES users(user_id);
+
+ALTER TABLE jobs
+DROP CONSTRAINT IF EXISTS jobs_user_id_foreign;
+
+ALTER TABLE jobs
+ADD CONSTRAINT jobs_user_id_foreign
+FOREIGN KEY (user_id) REFERENCES users(user_id);
+
+ALTER TABLE user_oauth
+DROP CONSTRAINT IF EXISTS user_oauth_user_id_foreign;
+
+ALTER TABLE user_oauth
+ADD CONSTRAINT user_oauth_user_id_foreign
+FOREIGN KEY (user_id) REFERENCES users(user_id);
+
+-- 2. Article-related tables - remove CASCADE
+ALTER TABLE article_scraps
+DROP CONSTRAINT IF EXISTS article_scraps_article_id_foreign;
+
+ALTER TABLE article_scraps
+ADD CONSTRAINT article_scraps_article_id_foreign
+FOREIGN KEY (article_id) REFERENCES articles(article_id);
+
+ALTER TABLE article_archives
+DROP CONSTRAINT IF EXISTS article_archives_article_id_foreign;
+
+ALTER TABLE article_archives
+ADD CONSTRAINT article_archives_article_id_foreign
+FOREIGN KEY (article_id) REFERENCES articles(article_id);
+
+-- 3. Writing style examples - remove CASCADE
+ALTER TABLE writing_style_examples
+DROP CONSTRAINT IF EXISTS writing_style_examples_writing_style_id_foreign;
+
+ALTER TABLE writing_style_examples
+ADD CONSTRAINT writing_style_examples_writing_style_id_foreign
+FOREIGN KEY (writing_style_id) REFERENCES writing_styles(writing_style_id);
+
+-- 4. Folders self-reference - remove CASCADE
+ALTER TABLE folders
+DROP CONSTRAINT IF EXISTS folders_parent_id_foreign;
+
+ALTER TABLE folders
+ADD CONSTRAINT folders_parent_id_foreign
+FOREIGN KEY (parent_id) REFERENCES folders(folder_id);

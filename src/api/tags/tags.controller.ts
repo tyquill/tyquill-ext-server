@@ -32,7 +32,7 @@ export class TagsController {
   async create(
     @Request() req: any,
     @Body() createTagDto: CreateTagDto,
-    @Query('scrapId') scrapId?: number,
+    @Query('scrapId') scrapId?: string,
   ) {
     try {
       const userId = req.user.id; // JWT에서 사용자 ID 추출
@@ -50,7 +50,7 @@ export class TagsController {
   async findAll(
     @Request() req: any,
     @Query('name') name?: string,
-    @Query('scrapId') scrapId?: number,
+    @Query('scrapId') scrapId?: string,
   ) {
     try {
       const userId = req.user.id; // JWT에서 사용자 ID 추출

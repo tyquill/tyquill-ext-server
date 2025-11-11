@@ -9,12 +9,14 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   Request,
   Query,
   HttpCode,
   HttpStatus,
+  HttpException,
   Logger,
   Version,
 } from '@nestjs/common';
@@ -35,6 +37,8 @@ import {
 } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
+import { UsersService } from '../users/users.service';
+import { UpdateUserLanguageDto } from './dto/update-user-language.dto';
 
 /**
  * Google OAuth 인증 요청 DTO
@@ -82,7 +86,10 @@ interface RequestWithUser extends Request {
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   /**
    * 크롬 익스텐션용 OAuth 설정 조회
@@ -314,6 +321,56 @@ export class AuthController {
     this.logger.log('Getting user profile', { userId: req.user.id });
 
     return await this.authService.getUserProfile(req.user.id);
+  }
+
+  /**
+   * 사용자 언어 설정 업데이트
+   */
+  @Patch('profile/language')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '사용자 언어 설정 업데이트',
+    description: '현재 인증된 사용자의 언어 설정을 업데이트합니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '언어 설정 업데이트 성공',
+    schema: {
+      type: 'object',
+      properties: {
+        userId: { type: 'string' },
+        language: { type: 'string', example: 'en' },
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
+  @ApiResponse({ status: 401, description: '인증되지 않은 사용자' })
+  @ApiResponse({ status: 404, description: '사용자를 찾을 수 없음' })
+  async updateLanguage(
+    @Request() req: RequestWithUser,
+    @Body() updateLanguageDto: UpdateUserLanguageDto,
+  ) {
+    this.logger.log('Updating user language', {
+      userId: req.user.id,
+      language: updateLanguageDto.language,
+    });
+
+    const user = await this.usersService.updateLanguage(
+      req.user.id,
+      updateLanguageDto.language,
+    );
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      userId: user.userId,
+      language: user.language,
+      message: 'Language preference updated successfully',
+    };
   }
 
   /**

@@ -1,5 +1,23 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  Delete,
+  Param,
+  HttpCode,
+  HttpStatus,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+} from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -372,5 +390,45 @@ export class AdminController {
     @Query('articleId') articleId: string,
   ): Promise<AdminArticleDetailResponse> {
     return this.adminService.getArticleDetail(userId, articleId);
+  }
+
+  /**
+   * 관리자용 사용자 계정 삭제
+   */
+  @Delete('users/:userId')
+  @Throttle({ default: { limit: 2, ttl: 60000 } }) // 2 requests per 60 seconds
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Delete user account (Admin only)',
+    description:
+      'Permanently delete user account and all associated data. Cannot delete admin accounts. Rate limited to 2 requests per minute.',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID to delete',
+    type: 'string',
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'User account successfully deleted',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Cannot delete admin accounts',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many deletion requests. Please try again later.',
+  })
+  async deleteUserAccount(
+    @Request() req: any,
+    @Param('userId', UserIdParamPipe) userId: string,
+  ): Promise<void> {
+    const adminId = req.user.id;
+    await this.adminService.deleteUserAccount(userId, adminId);
   }
 }

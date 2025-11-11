@@ -254,6 +254,29 @@ export class AdminService {
     };
   }
 
+  /**
+   * 관리자용 사용자 계정 삭제
+   */
+  async deleteUserAccount(
+    userId: UserIdentifierLike,
+    adminId: string,
+  ): Promise<void> {
+    const canonicalUserId = await this.resolveCanonicalUserId(userId);
+
+    if (!canonicalUserId) {
+      throw new Error('User not found');
+    }
+
+    await this.usersService.deleteAccount(canonicalUserId, {
+      deletedBy: 'admin',
+      adminId,
+    });
+
+    console.log(
+      `Admin ${adminId} successfully deleted user ${canonicalUserId}`,
+    );
+  }
+
   private async resolveCanonicalUserId(
     userId: UserIdentifierLike,
     optional = false,

@@ -18,12 +18,20 @@ import { AdminModule } from './api/admin/admin.module';
 import { FoldersModule } from './folders/folders.module';
 import { ContentModule } from './content/content.module';
 import { SlackBotModule } from './slack-bot/slack-bot.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 60 seconds
+        limit: 100, // Default: 100 requests per minute for general endpoints
+      },
+    ]),
     MikroOrmModule.forRoot(mikroOrmConfig),
     AuthModule, // 인증 모듈 추가
     UsersModule,
@@ -41,7 +49,13 @@ import { SlackBotModule } from './slack-bot/slack-bot.module';
     SlackBotModule, // Slack Bot API 모듈 추가
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {
   private readonly logger = new Logger(AppModule.name);

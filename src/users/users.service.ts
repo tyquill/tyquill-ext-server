@@ -376,8 +376,8 @@ export class UsersService {
 
     try {
       // 트랜잭션 내에서 모든 DB 작업 + S3 삭제 추적 레코드 생성
-      await this.em.transactional(
-        async (em) => {
+      // Note: PostgreSQL statement_timeout을 120초로 설정 권장 (SET statement_timeout = '120s')
+      await this.em.transactional(async (em) => {
           const user = await em.findOne(
             User,
             { userId },
@@ -442,9 +442,7 @@ export class UsersService {
           });
 
           await em.removeAndFlush(user);
-        },
-        { timeout: 120000 },
-      ); // 120초 타임아웃 설정
+        });
 
       result.success = true;
 

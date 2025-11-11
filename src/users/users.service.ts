@@ -398,6 +398,13 @@ export class UsersService {
               user,
             );
 
+            console.log({
+              event: 'S3_DELETION_TRACKING',
+              userId,
+              s3FileCount: s3FilePaths.length,
+              bucketName,
+            });
+
             for (const filePath of s3FilePaths) {
               const [, ...keyParts] = filePath.split('/');
               const key = keyParts.join('/');
@@ -412,6 +419,13 @@ export class UsersService {
               em.persist(pendingRecord);
               pendingS3Records.push(pendingRecord);
             }
+          } else {
+            console.log({
+              event: 'S3_DELETION_SKIPPED',
+              userId,
+              skipS3Cleanup: options.skipS3Cleanup,
+              bucketName,
+            });
           }
 
           // 연관 엔티티 삭제
@@ -483,6 +497,9 @@ export class UsersService {
 
   /**
    * 트랜잭션 내에서 S3 파일 경로 수집
+   * 지원 형식:
+   * - s3://bucket-name/key
+   * - https://bucket-name.s3.region.amazonaws.com/key
    */
   private async collectS3FilePathsInTransaction(
     em: EntityManager,
@@ -494,8 +511,32 @@ export class UsersService {
     });
 
     return scraps
-      .filter((scrap) => scrap.filePath && scrap.filePath.startsWith('s3://'))
-      .map((scrap) => scrap.filePath!.replace('s3://', ''));
+      .filter((scrap) => {
+        if (!scrap.filePath) return false;
+        return (
+          scrap.filePath.startsWith('s3://') ||
+          scrap.filePath.includes('.s3.') ||
+          scrap.filePath.includes('.amazonaws.com')
+        );
+      })
+      .map((scrap) => {
+        const path = scrap.filePath!;
+
+        // s3://bucket/key 형식
+        if (path.startsWith('s3://')) {
+          return path.replace('s3://', '');
+        }
+
+        // https://bucket.s3.region.amazonaws.com/key 형식
+        // https://bucket.s3.amazonaws.com/key 형식
+        if (path.includes('.amazonaws.com')) {
+          const url = new URL(path);
+          // pathname이 /key 형식이므로 앞의 / 제거
+          return url.pathname.substring(1);
+        }
+
+        return path;
+      });
   }
 
   private async deleteTags(em: EntityManager, user: User): Promise<number> {

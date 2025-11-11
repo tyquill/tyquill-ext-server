@@ -85,7 +85,7 @@ DROP CONSTRAINT IF EXISTS writing_style_examples_writing_style_id_foreign;
 
 ALTER TABLE writing_style_examples
 ADD CONSTRAINT writing_style_examples_writing_style_id_foreign
-FOREIGN KEY (writing_style_id) REFERENCES writing_styles(writing_style_id) ON DELETE CASCADE;
+FOREIGN KEY (writing_style_id) REFERENCES writing_styles(id) ON DELETE CASCADE;
 
 -- 4. Add CASCADE to folders parent_id self-reference
 
@@ -195,7 +195,7 @@ DROP CONSTRAINT IF EXISTS writing_style_examples_writing_style_id_foreign;
 
 ALTER TABLE writing_style_examples
 ADD CONSTRAINT writing_style_examples_writing_style_id_foreign
-FOREIGN KEY (writing_style_id) REFERENCES writing_styles(writing_style_id);
+FOREIGN KEY (writing_style_id) REFERENCES writing_styles(id);
 
 -- 4. Folders self-reference - remove CASCADE
 ALTER TABLE folders

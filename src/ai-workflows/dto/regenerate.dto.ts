@@ -8,6 +8,11 @@ export interface ScrapReference {
   userComment?: string | null;
 }
 
+export interface ConversationMessage {
+  role: string; // 'user' | 'assistant' | 'system'
+  content: string;
+}
+
 export interface RegenerateArticleInput {
   previousTitle: string;
   previousContent: string;
@@ -21,11 +26,17 @@ export interface RegenerateArticleInput {
   additionalPdfs?: PdfReference[] | null;
   writingStyleExamples?: string[] | null;
   generationParams?: string | null;
+  conversationHistory?: ConversationMessage[] | null;
 }
 
 export interface RegenerateArticleOutput {
   title: string;
   content: string;
   changesSummary: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  latencyMs?: number;
+  costUsd?: number;
 }
 

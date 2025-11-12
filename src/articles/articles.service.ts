@@ -51,6 +51,8 @@ import {
   normalizeWritingStyleId,
 } from '../writing-styles/utils/writing-style-identifier.util';
 import { FilterQuery } from '@mikro-orm/core';
+import { ArticleChatService } from '../article-chat/services/article-chat.service';
+import { ChatMessageRole } from '../article-chat/dto/chat-message.dto';
 // Analytics tracking migrated to extension client (PostHog).
 
 @Injectable()
@@ -77,6 +79,7 @@ export class ArticlesService {
     private readonly slackService: SlackService,
     @InjectRepository(WritingStyleExample)
     private readonly writingStyleExampleRepository: EntityRepository<WritingStyleExample>,
+    private readonly articleChatService: ArticleChatService,
     // Uploaded files are represented as scraps with file metadata
   ) {}
 
@@ -2431,6 +2434,41 @@ export class ArticlesService {
 
           const userPrompt = userPromptParts.join(' ');
 
+          // Parse conversationHistory from generationParams
+          let conversationHistory: Array<{ role: string; content: string }> = [];
+          let actualUserRequest = userPrompt;
+
+          if (dto.generationParams) {
+            try {
+              const parsedParams = JSON.parse(dto.generationParams);
+              if (parsedParams.conversationHistory && Array.isArray(parsedParams.conversationHistory)) {
+                conversationHistory = parsedParams.conversationHistory;
+              }
+              if (parsedParams.userRequest && typeof parsedParams.userRequest === 'string') {
+                actualUserRequest = parsedParams.userRequest;
+              }
+            } catch (parseError) {
+              this.logger.warn('Failed to parse generationParams:', parseError);
+            }
+          }
+
+          // Save user message to chat session
+          try {
+            await this.articleChatService.saveConversationHistory({
+              articleId,
+              userId,
+              messages: [
+                {
+                  role: ChatMessageRole.USER,
+                  content: actualUserRequest,
+                },
+              ],
+            });
+            this.logger.log(`Saved user message to chat session for article ${articleId}`);
+          } catch (chatError) {
+            this.logger.warn('Failed to save user message to chat:', chatError);
+          }
+
           // Format additional scraps for gRPC
           const additionalScraps = scrapsWithComments.map((item) => ({
             id: item.scrap.scrapId,
@@ -2468,6 +2506,7 @@ export class ArticlesService {
                 additionalPdfs: pdfUploadsWithPrompts,
                 writingStyleExamples: writingStyleExampleContents,
                 generationParams: dto.generationParams,
+                conversationHistory: conversationHistory.length > 0 ? conversationHistory : null,
               });
           } catch (error) {
             observer.next({
@@ -2520,6 +2559,36 @@ export class ArticlesService {
               this.logger.log(
                 `✅ Regeneration complete: articleId=${article.articleId}, version=${nextVersion}`,
               );
+
+              // Save AI response to chat session
+              try {
+                const aiResponse = regenerationResult.changesSummary
+                  ? `${regenerationResult.changesSummary}`
+                  : '재생성이 완료되었습니다.';
+
+                await this.articleChatService.saveConversationHistory({
+                  articleId,
+                  userId,
+                  messages: [
+                    {
+                      role: ChatMessageRole.ASSISTANT,
+                      content: aiResponse,
+                      modelName: 'gemini-1.5-flash',
+                      promptTokens: regenerationResult.promptTokens,
+                      completionTokens: regenerationResult.completionTokens,
+                      totalTokens: regenerationResult.totalTokens,
+                      latencyMs: regenerationResult.latencyMs,
+                      costUsd: regenerationResult.costUsd,
+                    },
+                  ],
+                });
+                this.logger.log(
+                  `Saved AI response to chat session for article ${articleId} - ` +
+                  `Tokens: ${regenerationResult.totalTokens}, Cost: $${regenerationResult.costUsd?.toFixed(4)}`
+                );
+              } catch (chatError) {
+                this.logger.warn('Failed to save AI response to chat:', chatError);
+              }
 
               // Send Slack notification
               try {

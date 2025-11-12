@@ -5,6 +5,7 @@ import { ArticleChatSession } from './entities/article-chat-session.entity';
 import { ArticleChatMessage } from './entities/article-chat-message.entity';
 import { Article } from '../articles/entities/article.entity';
 import { User } from '../users/entities/user.entity';
+import { ArticleChatController } from '../api/article-chat/article-chat.controller';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { User } from '../users/entities/user.entity';
       User,
     ]),
   ],
+  controllers: [ArticleChatController],
   providers: [ArticleChatService],
   exports: [ArticleChatService],
 })

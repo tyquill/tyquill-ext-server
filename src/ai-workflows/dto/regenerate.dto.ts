@@ -33,6 +33,7 @@ export interface RegenerateArticleOutput {
   title: string;
   content: string;
   changesSummary: string;
+  modelName?: string;
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;

@@ -33,5 +33,10 @@ export interface RegenerateArticleOutput {
   title: string;
   content: string;
   changesSummary: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  latencyMs?: number;
+  costUsd?: number;
 }
 

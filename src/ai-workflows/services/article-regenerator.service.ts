@@ -33,11 +33,56 @@ export class ArticleRegeneratorService {
   ): Promise<RegenerateArticleOutput> {
     this.logger.log('Starting article regeneration');
 
+    const startTime = Date.now();
     const prompt = await this.buildPrompt(input);
     const response = await this.llm.invoke(prompt);
-    const text = this.extractMessageText(response?.content ?? '');
+    const latencyMs = Date.now() - startTime;
 
-    return this.parseResponse(text);
+    const text = this.extractMessageText(response?.content ?? '');
+    const result = this.parseResponse(text);
+
+    // Extract token usage information from AIMessage's usage_metadata
+    const usageMetadata = (response as any)?.usage_metadata;
+
+    if (usageMetadata) {
+      // The metadata contains both snake_case (LangChain format) and camelCase (Vertex AI format)
+      // We can use either format, but let's prefer the original Vertex AI format for clarity
+      result.promptTokens = usageMetadata.promptTokenCount || usageMetadata.input_tokens;
+      result.completionTokens = usageMetadata.candidatesTokenCount || usageMetadata.output_tokens;
+      result.totalTokens = usageMetadata.totalTokenCount || usageMetadata.total_tokens;
+
+      // If we don't have totalTokens but have the components, calculate it
+      if (!result.totalTokens && result.promptTokens && result.completionTokens) {
+        result.totalTokens = result.promptTokens + result.completionTokens;
+      }
+
+      this.logger.debug('Extracted token counts from usage_metadata:', {
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        totalTokens: result.totalTokens,
+        raw_metadata: usageMetadata,
+      });
+    } else {
+      this.logger.warn('No token usage data found in response.usage_metadata');
+    }
+
+    result.latencyMs = latencyMs;
+
+    // Estimate cost for Gemini 2.5 Flash Lite
+    if (result.promptTokens && result.completionTokens) {
+      // Gemini 2.5 Flash Lite pricing (as of late 2024):
+      // Input: $0.0375 per 1M tokens (50% cheaper than 1.5 Flash)
+      // Output: $0.15 per 1M tokens (50% cheaper than 1.5 Flash)
+      const inputCost = (result.promptTokens || 0) * 0.0375 / 1_000_000;
+      const outputCost = (result.completionTokens || 0) * 0.15 / 1_000_000;
+      result.costUsd = inputCost + outputCost;
+    }
+
+    this.logger.log(
+      `Article regeneration completed - Tokens: ${result.totalTokens}, Latency: ${latencyMs}ms, Cost: $${result.costUsd?.toFixed(4)}`,
+    );
+
+    return result;
   }
 
   private async buildPrompt(input: RegenerateArticleInput): Promise<string> {

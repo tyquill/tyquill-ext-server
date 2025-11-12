@@ -2574,10 +2574,18 @@ export class ArticlesService {
                       role: ChatMessageRole.ASSISTANT,
                       content: aiResponse,
                       modelName: 'gemini-1.5-flash',
+                      promptTokens: regenerationResult.promptTokens,
+                      completionTokens: regenerationResult.completionTokens,
+                      totalTokens: regenerationResult.totalTokens,
+                      latencyMs: regenerationResult.latencyMs,
+                      costUsd: regenerationResult.costUsd,
                     },
                   ],
                 });
-                this.logger.log(`Saved AI response to chat session for article ${articleId}`);
+                this.logger.log(
+                  `Saved AI response to chat session for article ${articleId} - ` +
+                  `Tokens: ${regenerationResult.totalTokens}, Cost: $${regenerationResult.costUsd?.toFixed(4)}`
+                );
               } catch (chatError) {
                 this.logger.warn('Failed to save AI response to chat:', chatError);
               }

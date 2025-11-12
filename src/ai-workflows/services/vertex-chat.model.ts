@@ -41,10 +41,35 @@ export class ChatVertexAI {
 
   async invoke(input: MessageInput): Promise<AIMessage> {
     const { text, raw } = await this.generateContent(input);
+
+    // Extract usage metadata from the raw response
+    const usageMetadata = this.extractUsageMetadata(raw);
+
     return new AIMessage({
       content: text,
       response_metadata: { raw },
+      usage_metadata: usageMetadata,
     });
+  }
+
+  private extractUsageMetadata(response: any): any {
+    // The Google Generative AI response typically has usageMetadata at response.usageMetadata
+    const metadata = response?.usageMetadata || response?.response?.usageMetadata;
+
+    if (metadata) {
+      // Return in LangChain's expected format (snake_case)
+      return {
+        input_tokens: metadata.promptTokenCount || 0,
+        output_tokens: metadata.candidatesTokenCount || 0,
+        total_tokens: metadata.totalTokenCount || 0,
+        // Also include the original field names for compatibility
+        promptTokenCount: metadata.promptTokenCount || 0,
+        candidatesTokenCount: metadata.candidatesTokenCount || 0,
+        totalTokenCount: metadata.totalTokenCount || 0,
+      };
+    }
+
+    return undefined;
   }
 
   withStructuredOutput<TSchema extends ZodTypeAny>(

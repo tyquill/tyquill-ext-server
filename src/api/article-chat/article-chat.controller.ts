@@ -21,7 +21,7 @@ export class ArticleChatController {
     @Param('articleId') articleId: string,
     @Req() req: any,
   ): Promise<SessionListItemDto[]> {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const sessions = await this.articleChatService.getSessionsForArticle(
       articleId,
       userId,
@@ -74,7 +74,7 @@ export class ArticleChatController {
     @Param('articleId') articleId: string,
     @Req() req: any,
   ): Promise<{ sessionId: string; message: string }> {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const newSession = await this.articleChatService.createNewSession(
       articleId,
       userId,

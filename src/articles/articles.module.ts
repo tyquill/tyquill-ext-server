@@ -12,6 +12,7 @@ import { User } from '../users/entities/user.entity';
 import { WritingStyle } from '../writing-styles/entities/writing-style.entity';
 import { WritingStyleExample } from 'src/writing-styles/entities/writing-style-example.entity';
 import { Folder } from '../folders/entities/folder.entity';
+import { ArticleChatModule } from '../article-chat/article-chat.module';
 // Analytics tracking moved to client; module no longer required here.
 
 @Module({
@@ -28,6 +29,7 @@ import { Folder } from '../folders/entities/folder.entity';
     ]),
     AgentsModule,
     NotificationsModule,
+    ArticleChatModule,
   ],
   controllers: [ArticlesController],
   providers: [ArticlesService],

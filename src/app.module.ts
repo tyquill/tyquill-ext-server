@@ -18,6 +18,7 @@ import { AdminModule } from './api/admin/admin.module';
 import { FoldersModule } from './folders/folders.module';
 import { ContentModule } from './content/content.module';
 import { SlackBotModule } from './slack-bot/slack-bot.module';
+import { ArticleChatModule } from './article-chat/article-chat.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -47,6 +48,7 @@ import { APP_GUARD } from '@nestjs/core';
     QueueModule, // SQS 큐 모듈 추가
     AdminModule, // 관리자 모듈 추가
     SlackBotModule, // Slack Bot API 모듈 추가
+    ArticleChatModule, // 채팅 세션 및 메시지 모듈 추가
   ],
   controllers: [AppController],
   providers: [

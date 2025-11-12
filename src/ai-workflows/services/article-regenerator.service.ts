@@ -52,6 +52,20 @@ export class ArticleRegeneratorService {
     sections.push("\n## User's Modification Request");
     sections.push(`\n${input.userPrompt}`);
 
+    if (input.conversationHistory && input.conversationHistory.length > 0) {
+      sections.push('\n## Conversation History');
+      sections.push('\n이전 대화 내역입니다. 사용자와의 대화 맥락을 이해하고 일관성 있게 응답해주세요:');
+      sections.push('\n```');
+      input.conversationHistory.forEach((msg, index) => {
+        const roleLabel = msg.role === 'user' ? '사용자' : msg.role === 'assistant' ? 'AI' : '시스템';
+        sections.push(`\n[${roleLabel}]: ${msg.content}`);
+        if (index < input.conversationHistory!.length - 1) {
+          sections.push('');
+        }
+      });
+      sections.push('\n```');
+    }
+
     if (input.topic || input.keyInsight) {
       sections.push('\n## Updated Parameters');
       if (input.topic) {

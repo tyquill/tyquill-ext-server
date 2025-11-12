@@ -18,6 +18,8 @@ import { Job } from './queue/entities/job-status.entity';
 import { Folder } from './folders/entities/folder.entity';
 import { AccountDeletionAudit } from './users/entities/account-deletion-audit.entity';
 import { PendingS3Deletion } from './users/entities/pending-s3-deletion.entity';
+import { ArticleChatSession } from './article-chat/entities/article-chat-session.entity';
+import { ArticleChatMessage } from './article-chat/entities/article-chat-message.entity';
 
 export default defineConfig({
   host: process.env.DATABASE_HOST,
@@ -40,6 +42,8 @@ export default defineConfig({
     Folder,
     AccountDeletionAudit,
     PendingS3Deletion,
+    ArticleChatSession,
+    ArticleChatMessage,
   ],
   schema: 'public',
   debug: true,

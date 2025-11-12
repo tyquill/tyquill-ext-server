@@ -53,14 +53,13 @@ export class ArticleChatService {
     }
 
     // 새 세션 생성
-    const newSession = this.sessionRepository.create({
-      article,
-      user,
-      isActive: true,
-      messageCount: 0,
-      totalTokens: 0,
-      totalCostUsd: 0,
-    });
+    const newSession = new ArticleChatSession();
+    newSession.article = article;
+    newSession.user = user;
+    newSession.isActive = true;
+    newSession.messageCount = 0;
+    newSession.totalTokens = 0;
+    newSession.totalCostUsd = 0;
 
     await this.em.persistAndFlush(newSession);
     this.logger.log(
@@ -79,29 +78,31 @@ export class ArticleChatService {
     const session = await this.getOrCreateSession(dto.articleId, dto.userId);
 
     // 현재 세션의 최대 sequence_number 조회
-    const maxSequence = await this.messageRepository
-      .createQueryBuilder('m')
-      .select('MAX(m.sequence_number)')
-      .where({ session })
-      .execute('get');
+    const result = await this.em
+      .getConnection()
+      .execute(
+        'SELECT COALESCE(MAX(sequence_number), -1) as max_seq FROM article_chat_messages WHERE session_id = ?',
+        [session.sessionId],
+      );
 
-    let nextSequence = (maxSequence?.max || -1) + 1;
+    let nextSequence = (result[0]?.max_seq ?? -1) + 1;
 
     // 메시지들을 순서대로 저장
     for (const messageDto of dto.messages) {
-      const message = this.messageRepository.create({
-        session,
-        role: messageDto.role,
-        content: messageDto.content,
-        sequenceNumber: messageDto.sequenceNumber ?? nextSequence++,
-        modelName: messageDto.modelName,
-        promptTokens: messageDto.promptTokens,
-        completionTokens: messageDto.completionTokens,
-        totalTokens: messageDto.totalTokens,
-        latencyMs: messageDto.latencyMs,
-        costUsd: messageDto.costUsd,
-        metadata: messageDto.metadata,
-      });
+      const message = new ArticleChatMessage();
+      message.session = session;
+      message.role = messageDto.role;
+      message.content = messageDto.content;
+      message.sequenceNumber = messageDto.sequenceNumber ?? nextSequence++;
+      message.contentType = 'text';
+      if (messageDto.modelName) message.modelName = messageDto.modelName;
+      if (messageDto.promptTokens) message.promptTokens = messageDto.promptTokens;
+      if (messageDto.completionTokens)
+        message.completionTokens = messageDto.completionTokens;
+      if (messageDto.totalTokens) message.totalTokens = messageDto.totalTokens;
+      if (messageDto.latencyMs) message.latencyMs = messageDto.latencyMs;
+      if (messageDto.costUsd) message.costUsd = messageDto.costUsd;
+      if (messageDto.metadata) message.metadata = messageDto.metadata;
 
       this.em.persist(message);
     }
@@ -178,27 +179,29 @@ export class ArticleChatService {
     const session = await this.sessionRepository.findOneOrFail({ sessionId });
 
     // 다음 sequence number 계산
-    const maxSequence = await this.messageRepository
-      .createQueryBuilder('m')
-      .select('MAX(m.sequence_number)')
-      .where({ session })
-      .execute('get');
+    const result = await this.em
+      .getConnection()
+      .execute(
+        'SELECT COALESCE(MAX(sequence_number), -1) as max_seq FROM article_chat_messages WHERE session_id = ?',
+        [sessionId],
+      );
 
-    const nextSequence = (maxSequence?.max || -1) + 1;
+    const nextSequence = (result[0]?.max_seq ?? -1) + 1;
 
-    const message = this.messageRepository.create({
-      session,
-      role: messageDto.role,
-      content: messageDto.content,
-      sequenceNumber: messageDto.sequenceNumber ?? nextSequence,
-      modelName: messageDto.modelName,
-      promptTokens: messageDto.promptTokens,
-      completionTokens: messageDto.completionTokens,
-      totalTokens: messageDto.totalTokens,
-      latencyMs: messageDto.latencyMs,
-      costUsd: messageDto.costUsd,
-      metadata: messageDto.metadata,
-    });
+    const message = new ArticleChatMessage();
+    message.session = session;
+    message.role = messageDto.role;
+    message.content = messageDto.content;
+    message.sequenceNumber = messageDto.sequenceNumber ?? nextSequence;
+    message.contentType = 'text';
+    if (messageDto.modelName) message.modelName = messageDto.modelName;
+    if (messageDto.promptTokens) message.promptTokens = messageDto.promptTokens;
+    if (messageDto.completionTokens)
+      message.completionTokens = messageDto.completionTokens;
+    if (messageDto.totalTokens) message.totalTokens = messageDto.totalTokens;
+    if (messageDto.latencyMs) message.latencyMs = messageDto.latencyMs;
+    if (messageDto.costUsd) message.costUsd = messageDto.costUsd;
+    if (messageDto.metadata) message.metadata = messageDto.metadata;
 
     await this.em.persistAndFlush(message);
 

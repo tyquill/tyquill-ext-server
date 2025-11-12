@@ -2,9 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(done)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "/Users/hippoo/Desktop/SoMA/tyquill/tyquill-client/"
+    ]
   }
 }

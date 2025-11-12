@@ -67,11 +67,53 @@ async function bootstrap() {
   });
 
   // CORS 설정 (크롬 익스텐션 포함)
+  // Best practice: credentials: true 사용 시 specific origin 필요
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  const allowedOrigins = [
+    'http://localhost:5173', // Local web client (Vite)
+    'http://localhost:3000', // Local dev server
+    'https://tyquill.ai',
+    'https://www.tyquill.ai',
+    'https://app.tyquill.ai',
+    /^chrome-extension:\/\/.*$/, // All Chrome extensions
+  ];
+
   app.enableCors({
-    origin: '*',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (Postman, mobile apps, server-to-server)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Check string origins
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Check regex patterns (e.g., Chrome extensions)
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (allowed instanceof RegExp) {
+          return allowed.test(origin);
+        }
+        return false;
+      });
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+
+      // In development, log rejected origins for debugging
+      if (!isProduction) {
+        console.warn(`⚠️  CORS rejected origin: ${origin}`);
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
   });
 
   const port = process.env.PORT || 3000;

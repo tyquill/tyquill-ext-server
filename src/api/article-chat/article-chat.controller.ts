@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Req, Version } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ArticleChatService } from '../../article-chat/services/article-chat.service';
 import {
@@ -6,7 +6,7 @@ import {
   SessionMessagesDto,
 } from '../../article-chat/dto/session-list.dto';
 
-@Controller('api/v1/article-chat')
+@Controller('article-chat')
 @UseGuards(JwtAuthGuard)
 export class ArticleChatController {
   constructor(private readonly articleChatService: ArticleChatService) {}
@@ -15,6 +15,7 @@ export class ArticleChatController {
    * 아티클의 모든 채팅 세션 목록 조회
    * GET /api/v1/article-chat/articles/:articleId/sessions
    */
+  @Version('1')
   @Get('articles/:articleId/sessions')
   async getArticleSessions(
     @Param('articleId') articleId: string,
@@ -41,6 +42,7 @@ export class ArticleChatController {
    * 특정 세션의 메시지 조회
    * GET /api/v1/article-chat/sessions/:sessionId/messages
    */
+  @Version('1')
   @Get('sessions/:sessionId/messages')
   async getSessionMessages(
     @Param('sessionId') sessionId: string,
@@ -66,6 +68,7 @@ export class ArticleChatController {
    * 새 채팅 세션 생성
    * POST /api/v1/article-chat/articles/:articleId/sessions/new
    */
+  @Version('1')
   @Post('articles/:articleId/sessions/new')
   async createNewSession(
     @Param('articleId') articleId: string,

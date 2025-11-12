@@ -57,6 +57,7 @@ export interface UserProfile {
   fullName?: string;
   avatarUrl?: string;
   provider: string;
+  language?: string;
   createdAt: string;
   lastSignInAt?: string;
 }
@@ -341,6 +342,7 @@ export class AuthService {
         fullName: user.name,
         avatarUrl: user.oauthAccounts?.[0]?.profileData?.picture,
         provider: user.oauthAccounts?.[0]?.oauthProvider || 'google',
+        language: user.language,
         createdAt: user.createdAt.toISOString(),
         lastSignInAt: user.updatedAt.toISOString(),
       };

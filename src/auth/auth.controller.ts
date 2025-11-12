@@ -324,6 +324,42 @@ export class AuthController {
   }
 
   /**
+   * 사용자 언어 설정 조회
+   */
+  @Get('profile/language')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '사용자 언어 설정 조회',
+    description: '현재 인증된 사용자의 언어 설정을 조회합니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '언어 설정 조회 성공',
+    schema: {
+      type: 'object',
+      properties: {
+        language: { type: 'string', example: 'en' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: '인증되지 않은 사용자' })
+  @ApiResponse({ status: 404, description: '사용자를 찾을 수 없음' })
+  async getLanguage(@Request() req: RequestWithUser) {
+    this.logger.log('Getting user language', { userId: req.user.id });
+
+    const user = await this.usersService.findOne(req.user.id);
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      language: user.language || 'ko',
+    };
+  }
+
+  /**
    * 사용자 언어 설정 업데이트
    */
   @Patch('profile/language')

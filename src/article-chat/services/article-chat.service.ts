@@ -78,14 +78,12 @@ export class ArticleChatService {
     const session = await this.getOrCreateSession(dto.articleId, dto.userId);
 
     // 현재 세션의 최대 sequence_number 조회
-    const result = await this.em
-      .getConnection()
-      .execute(
-        'SELECT COALESCE(MAX(sequence_number), -1) as max_seq FROM article_chat_messages WHERE session_id = ?',
-        [session.sessionId],
-      );
+    const lastMessage = await this.messageRepository.findOne(
+      { session },
+      { orderBy: { sequenceNumber: 'DESC' } },
+    );
 
-    let nextSequence = (result[0]?.max_seq ?? -1) + 1;
+    let nextSequence = (lastMessage?.sequenceNumber ?? -1) + 1;
 
     // 메시지들을 순서대로 저장
     for (const messageDto of dto.messages) {
@@ -179,14 +177,12 @@ export class ArticleChatService {
     const session = await this.sessionRepository.findOneOrFail({ sessionId });
 
     // 다음 sequence number 계산
-    const result = await this.em
-      .getConnection()
-      .execute(
-        'SELECT COALESCE(MAX(sequence_number), -1) as max_seq FROM article_chat_messages WHERE session_id = ?',
-        [sessionId],
-      );
+    const lastMessage = await this.messageRepository.findOne(
+      { session },
+      { orderBy: { sequenceNumber: 'DESC' } },
+    );
 
-    const nextSequence = (result[0]?.max_seq ?? -1) + 1;
+    const nextSequence = (lastMessage?.sequenceNumber ?? -1) + 1;
 
     const message = new ArticleChatMessage();
     message.session = session;

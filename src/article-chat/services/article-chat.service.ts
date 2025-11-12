@@ -230,4 +230,83 @@ export class ArticleChatService {
       isActive: true,
     });
   }
+
+  /**
+   * 아티클의 모든 세션을 조회합니다 (사용자별)
+   */
+  async getSessionsForArticle(
+    articleId: string,
+    userId: string,
+  ): Promise<ArticleChatSession[]> {
+    return this.sessionRepository.find(
+      {
+        article: { articleId },
+        user: { userId },
+      },
+      {
+        orderBy: { lastMessageAt: 'DESC' },
+      },
+    );
+  }
+
+  /**
+   * 세션의 모든 메시지를 조회합니다
+   */
+  async getSessionMessages(sessionId: string): Promise<ArticleChatMessage[]> {
+    return this.messageRepository.find(
+      { session: { sessionId } },
+      {
+        orderBy: { sequenceNumber: 'ASC' },
+      },
+    );
+  }
+
+  /**
+   * 기존 활성 세션을 비활성화하고 새 세션을 생성합니다
+   */
+  async createNewSession(
+    articleId: string,
+    userId: string,
+  ): Promise<ArticleChatSession> {
+    // 기존 활성 세션 비활성화
+    const activeSessions = await this.sessionRepository.find({
+      article: { articleId },
+      user: { userId },
+      isActive: true,
+    });
+
+    for (const session of activeSessions) {
+      session.isActive = false;
+    }
+
+    await this.em.flush();
+
+    // 아티클과 유저 존재 확인
+    const article = await this.articleRepository.findOne({ articleId });
+    if (!article) {
+      throw new NotFoundException(`Article with ID ${articleId} not found`);
+    }
+
+    const user = await this.userRepository.findOne({ userId });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    // 새 세션 생성
+    const newSession = new ArticleChatSession();
+    newSession.article = article;
+    newSession.user = user;
+    newSession.isActive = true;
+    newSession.messageCount = 0;
+    newSession.totalTokens = 0;
+    newSession.totalCostUsd = 0;
+
+    await this.em.persistAndFlush(newSession);
+
+    this.logger.log(
+      `Created new chat session ${newSession.sessionId} for article ${articleId}`,
+    );
+
+    return newSession;
+  }
 }

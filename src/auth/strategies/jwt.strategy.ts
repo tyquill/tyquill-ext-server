@@ -61,14 +61,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const jwtSecret = process.env.JWT_SECRET || 'your-fallback-secret-key';
 
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (request) => {
+          // Extract JWT from cookie as fallback
+          return request?.cookies?.tyquill_auth;
+        },
+      ]),
       ignoreExpiration: false,
       secretOrKey: jwtSecret,
       issuer: 'tyquill-ext-server',
       audience: 'tyquill-ext-client',
     });
 
-    console.log('✅ JWT Strategy initialized successfully');
+    console.log('✅ JWT Strategy initialized successfully with cookie support');
   }
 
   /**

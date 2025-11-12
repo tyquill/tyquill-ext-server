@@ -19,7 +19,9 @@ import {
   HttpException,
   Logger,
   Version,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -241,12 +243,37 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Google OAuth 인증 실패' })
   async authenticateWithGoogle(
     @Body() authDto: GoogleAuthRequestDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     this.logger.log('Processing Google OAuth authentication', {
       redirectUri: authDto.redirectUri,
     });
 
-    return await this.authService.authenticateWithGoogle(authDto);
+    const authResponse = await this.authService.authenticateWithGoogle(authDto);
+
+    // Set httpOnly cookie for cross-domain auth
+    this.setAuthCookie(res, authResponse.accessToken);
+
+    return authResponse;
+  }
+
+  /**
+   * Set httpOnly cookie for authentication
+   */
+  private setAuthCookie(res: Response, accessToken: string) {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const domain = isProduction ? '.tyquill.ai' : undefined;
+
+    res.cookie('tyquill_auth', accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      domain,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    this.logger.log('Auth cookie set', { domain, secure: isProduction });
   }
 
   /**

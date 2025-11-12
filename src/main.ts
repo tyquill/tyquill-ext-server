@@ -71,12 +71,19 @@ async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
 
   const allowedOrigins = [
-    'http://localhost:5173', // Local web client (Vite)
-    'http://localhost:3000', // Local dev server
+    // Development origins (only in non-production)
+    ...(isProduction
+      ? []
+      : [
+          'http://localhost:5173', // Local web client (Vite)
+          'http://localhost:3000', // Local dev server
+        ]),
+    // Production origins
     'https://tyquill.ai',
     'https://www.tyquill.ai',
     'https://app.tyquill.ai',
-    /^chrome-extension:\/\/.*$/, // All Chrome extensions
+    // Chrome extensions (all environments)
+    /^chrome-extension:\/\/.*$/,
   ];
 
   app.enableCors({

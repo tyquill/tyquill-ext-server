@@ -164,20 +164,14 @@ export class AuthController {
   @ApiResponse({ status: 401, description: '크롬 익스텐션 OAuth 인증 실패' })
   async authenticateWithChromeExtension(
     @Body() authDto: ChromeExtensionAuthDto,
-    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     this.logger.log('Processing Chrome Extension OAuth authentication', {
       provider: authDto.provider,
       extensionId: authDto.extensionId,
     });
 
-    const authResponse =
-      await this.authService.authenticateWithChromeExtension(authDto);
-
-    // Set httpOnly cookie for cross-domain auth
-    this.setAuthCookie(res, authResponse.accessToken);
-
-    return authResponse;
+    // Chrome extensions use Bearer token only (no cookie support for chrome-extension:// origin)
+    return await this.authService.authenticateWithChromeExtension(authDto);
   }
 
   /**

@@ -41,6 +41,9 @@ export class ArticleRegeneratorService {
     const text = this.extractMessageText(response?.content ?? '');
     const result = this.parseResponse(text);
 
+    // Set model name
+    result.modelName = REGENERATOR_MODEL;
+
     // Extract token usage information from AIMessage's usage_metadata
     const usageMetadata = (response as any)?.usage_metadata;
 

@@ -2573,7 +2573,7 @@ export class ArticlesService {
                     {
                       role: ChatMessageRole.ASSISTANT,
                       content: aiResponse,
-                      modelName: 'gemini-1.5-flash',
+                      modelName: regenerationResult.modelName,
                       promptTokens: regenerationResult.promptTokens,
                       completionTokens: regenerationResult.completionTokens,
                       totalTokens: regenerationResult.totalTokens,

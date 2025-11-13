@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ChatVertexAI } from '../ai-workflows/services/vertex-chat.model';
+import { ChatVertexAI } from '@langchain/google-vertexai';
 import { VertexAiFactory } from '../ai-workflows/services/vertex-ai.factory';
 
 /**

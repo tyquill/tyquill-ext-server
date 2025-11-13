@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ChatVertexAI } from './vertex-chat.model';
+import { ChatVertexAI } from '@langchain/google-vertexai';
 import { RepurposePromptTemplatesService } from '../prompts/repurpose-prompt-templates.service';
 import { VertexAiFactory } from './vertex-ai.factory';
 import { ContentFormat } from '../../repurpose/entities';
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 const VERTEX_MODEL_REPURPOSE = 'gemini-2.5-flash';
 
@@ -119,20 +120,28 @@ export class RepurposeWorkflowService {
       // 1. 포맷별 프롬프트 템플릿 가져오기
       const template = this.promptTemplates.getTemplateByFormat(input.format);
 
-      // 2. LLM 모델 생성
-      const model = this.createModel(input.format);
-
-      // 3. 프롬프트 변수 준비
+      // 2. 프롬프트 변수 준비
       const promptVariables = this.preparePromptVariables(input);
-
-      // 4. 프롬프트 생성 및 LLM 호출
       const formattedPrompt = await template.format(promptVariables);
-      const response = await model.invoke(formattedPrompt);
 
-      // 5. 응답 파싱
-      const parsedResponse = this.parseResponse(input.format, response.content as string);
+      // 3. 포맷에 따라 적절한 모델로 생성
+      let parsedResponse: { content: string; formatSpecificData?: Record<string, any> };
 
-      // 6. 품질 평가
+      if (this.isJsonFormat(input.format)) {
+        // Structured output을 사용하는 JSON 포맷
+        const { model, schema } = this.createStructuredModel(input.format);
+        const structuredResponse = await model.invoke(formattedPrompt);
+        parsedResponse = this.parseJsonResponse(input.format, structuredResponse);
+      } else {
+        // 일반 텍스트 포맷
+        const model = this.createTextModel();
+        const response = await model.invoke(formattedPrompt);
+        parsedResponse = {
+          content: response.content as string,
+        };
+      }
+
+      // 4. 품질 평가
       const qualityAssessment = await this.assessQuality(
         input,
         parsedResponse.content,
@@ -151,37 +160,60 @@ export class RepurposeWorkflowService {
   }
 
   /**
-   * 포맷별 모델 생성
+   * Structured output을 사용하는 모델 생성
    */
-  private createModel(format: ContentFormat): ChatVertexAI {
-    // JSON 출력이 필요한 포맷
-    const jsonFormats = [
-      ContentFormat.TWITTER,
-      ContentFormat.INSTAGRAM,
-      ContentFormat.YOUTUBE,
-      ContentFormat.TIKTOK,
-      ContentFormat.EMAIL,
-      ContentFormat.PODCAST,
-    ];
+  private createStructuredModel(format: ContentFormat): {
+    model: any;
+    schema: z.ZodType<any>
+  } {
+    const schema = this.getSchemaForFormat(format);
+    const baseModel = this.vertexAiFactory.buildChat({
+      model: VERTEX_MODEL_REPURPOSE,
+      temperature: 0.7,
+      thinkingBudget: -1,
+      maxOutputTokens: 4096,
+    });
 
-    // JSON 포맷용 모델
-    if (jsonFormats.includes(format)) {
-      return this.vertexAiFactory.buildChat({
-        model: VERTEX_MODEL_REPURPOSE,
-        temperature: 0.7,
-        thinkingBudget: -1,
-        maxOutputTokens: 4096,
-        responseMimeType: 'application/json',
-      });
-    }
+    // withStructuredOutput을 사용하여 스키마 강제
+    const structuredModel = baseModel.withStructuredOutput(schema, {
+      method: 'jsonMode',
+    });
 
-    // 일반 텍스트 포맷용 모델
+    return { model: structuredModel, schema };
+  }
+
+  /**
+   * 일반 텍스트 모델 생성
+   */
+  private createTextModel(): ChatVertexAI {
     return this.vertexAiFactory.buildChat({
       model: VERTEX_MODEL_REPURPOSE,
       temperature: 0.7,
       thinkingBudget: -1,
       maxOutputTokens: 8192,
     });
+  }
+
+  /**
+   * 포맷별 Zod 스키마 가져오기
+   */
+  private getSchemaForFormat(format: ContentFormat): z.ZodType<any> {
+    switch (format) {
+      case ContentFormat.TWITTER:
+        return TwitterResponseSchema;
+      case ContentFormat.INSTAGRAM:
+        return InstagramResponseSchema;
+      case ContentFormat.YOUTUBE:
+        return YoutubeResponseSchema;
+      case ContentFormat.TIKTOK:
+        return TikTokResponseSchema;
+      case ContentFormat.EMAIL:
+        return EmailResponseSchema;
+      case ContentFormat.PODCAST:
+        return PodcastResponseSchema;
+      default:
+        throw new Error(`No schema defined for format: ${format}`);
+    }
   }
 
   /**
@@ -203,7 +235,7 @@ export class RepurposeWorkflowService {
   }
 
   /**
-   * 응답 파싱
+   * 응답 파싱 (레거시 메서드, 새로운 워크플로우에서는 사용하지 않음)
    */
   private parseResponse(
     format: ContentFormat,
@@ -243,86 +275,80 @@ export class RepurposeWorkflowService {
   }
 
   /**
-   * JSON 응답 파싱
+   * JSON 응답 파싱 (structured output에서 이미 검증된 데이터)
    */
   private parseJsonResponse(
     format: ContentFormat,
-    jsonData: any,
+    validatedData: any,
   ): { content: string; formatSpecificData: Record<string, any> } {
     switch (format) {
       case ContentFormat.TWITTER: {
-        const validated = TwitterResponseSchema.parse(jsonData);
         return {
-          content: validated.tweets.join('\n\n'),
+          content: validatedData.tweets.join('\n\n'),
           formatSpecificData: {
-            tweets: validated.tweets,
-            hashtags: validated.hashtags,
+            tweets: validatedData.tweets,
+            hashtags: validatedData.hashtags,
           },
         };
       }
 
       case ContentFormat.INSTAGRAM: {
-        const validated = InstagramResponseSchema.parse(jsonData);
         return {
-          content: validated.caption,
+          content: validatedData.caption,
           formatSpecificData: {
-            hashtags: validated.hashtags,
-            suggestedVisuals: validated.suggestedVisuals,
+            hashtags: validatedData.hashtags,
+            suggestedVisuals: validatedData.suggestedVisuals,
           },
         };
       }
 
       case ContentFormat.YOUTUBE: {
-        const validated = YoutubeResponseSchema.parse(jsonData);
         return {
-          content: validated.script,
+          content: validatedData.script,
           formatSpecificData: {
-            timestamps: validated.timestamps,
-            visualCues: validated.visualCues,
+            timestamps: validatedData.timestamps,
+            visualCues: validatedData.visualCues,
           },
         };
       }
 
       case ContentFormat.TIKTOK: {
-        const validated = TikTokResponseSchema.parse(jsonData);
         return {
-          content: validated.script,
+          content: validatedData.script,
           formatSpecificData: {
-            textOverlays: validated.textOverlays,
-            hashtags: validated.hashtags,
-            soundSuggestion: validated.soundSuggestion,
+            textOverlays: validatedData.textOverlays,
+            hashtags: validatedData.hashtags,
+            soundSuggestion: validatedData.soundSuggestion,
           },
         };
       }
 
       case ContentFormat.EMAIL: {
-        const validated = EmailResponseSchema.parse(jsonData);
         return {
-          content: validated.body,
+          content: validatedData.body,
           formatSpecificData: {
-            subjectLine: validated.subjectLine,
-            preheader: validated.preheader,
-            cta: validated.cta,
+            subjectLine: validatedData.subjectLine,
+            preheader: validatedData.preheader,
+            cta: validatedData.cta,
           },
         };
       }
 
       case ContentFormat.PODCAST: {
-        const validated = PodcastResponseSchema.parse(jsonData);
         return {
-          content: validated.script,
+          content: validatedData.script,
           formatSpecificData: {
-            segments: validated.segments,
-            episodeTitle: validated.episodeTitle,
-            episodeDescription: validated.episodeDescription,
+            segments: validatedData.segments,
+            episodeTitle: validatedData.episodeTitle,
+            episodeDescription: validatedData.episodeDescription,
           },
         };
       }
 
       default:
         return {
-          content: JSON.stringify(jsonData, null, 2),
-          formatSpecificData: jsonData,
+          content: JSON.stringify(validatedData, null, 2),
+          formatSpecificData: validatedData,
         };
     }
   }

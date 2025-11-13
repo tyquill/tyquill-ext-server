@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { RunnableLambda, RunnableSequence } from '@langchain/core/runnables';
-import { ChatVertexAI } from './vertex-chat.model';
+import { ChatVertexAI } from '@langchain/google-vertexai';
 
 import { ScrapWithComment } from '../dto/newsletter.dto';
 import { VertexAiFactory } from './vertex-ai.factory';

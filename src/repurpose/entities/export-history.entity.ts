@@ -6,6 +6,7 @@ import {
   Enum,
   Index,
 } from '@mikro-orm/core';
+import { v4 as uuidv4 } from 'uuid';
 import { User } from '../../users/entities/user.entity';
 import { RepurposedContent } from './repurposed-content.entity';
 import { ExportDestination } from './content-format.enum';
@@ -16,8 +17,8 @@ import { ExportDestination } from './content-format.enum';
  */
 @Entity({ tableName: 'export_histories' })
 export class ExportHistory {
-  @PrimaryKey({ type: 'integer', autoincrement: true })
-  id!: number;
+  @PrimaryKey({ type: 'uuid', onCreate: () => uuidv4() })
+  id: string = uuidv4();
 
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user!: User;

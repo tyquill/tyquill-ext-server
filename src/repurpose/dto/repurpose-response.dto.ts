@@ -109,9 +109,9 @@ export class RepurposeResponseDto {
 export class AsyncRepurposeResponseDto {
   @ApiProperty({
     description: '작업 ID',
-    example: 123,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  jobId: number;
+  jobId: string;
 
   @ApiProperty({
     description: '작업 상태',
@@ -139,9 +139,9 @@ export class AsyncRepurposeResponseDto {
 export class JobStatusResponseDto {
   @ApiProperty({
     description: '작업 ID',
-    example: 123,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  jobId: number;
+  jobId: string;
 
   @ApiProperty({
     description: '작업 상태',

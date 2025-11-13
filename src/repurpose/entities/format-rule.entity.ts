@@ -5,6 +5,7 @@ import {
   Enum,
   Unique,
 } from '@mikro-orm/core';
+import { v4 as uuidv4 } from 'uuid';
 import { ContentFormat } from './content-format.enum';
 
 /**
@@ -13,8 +14,8 @@ import { ContentFormat } from './content-format.enum';
  */
 @Entity({ tableName: 'format_rules' })
 export class FormatRule {
-  @PrimaryKey({ type: 'integer', autoincrement: true })
-  id!: number;
+  @PrimaryKey({ type: 'uuid', onCreate: () => uuidv4() })
+  id: string = uuidv4();
 
   @Enum(() => ContentFormat)
   @Unique()

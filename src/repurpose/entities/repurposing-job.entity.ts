@@ -5,6 +5,7 @@ import {
   ManyToOne,
   Enum,
 } from '@mikro-orm/core';
+import { v4 as uuidv4 } from 'uuid';
 import { Article } from '../../articles/entities/article.entity';
 import { User } from '../../users/entities/user.entity';
 import { JobStatus, ContentFormat } from './content-format.enum';
@@ -15,8 +16,8 @@ import { JobStatus, ContentFormat } from './content-format.enum';
  */
 @Entity({ tableName: 'repurposing_jobs' })
 export class RepurposingJob {
-  @PrimaryKey({ type: 'integer', autoincrement: true })
-  id!: number;
+  @PrimaryKey({ type: 'uuid', onCreate: () => uuidv4() })
+  id: string = uuidv4();
 
   @ManyToOne(() => User, { fieldName: 'user_id' })
   user!: User;
@@ -64,7 +65,7 @@ export class RepurposingJob {
   result?: {
     successCount: number;
     failedFormats: string[];
-    repurposedContentIds: number[];
+    repurposedContentIds: string[];
   };
 
   @Property({ fieldName: 'created_at', onCreate: () => new Date() })

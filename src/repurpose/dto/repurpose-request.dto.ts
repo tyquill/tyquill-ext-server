@@ -133,12 +133,12 @@ export class RepurposeRequestDto {
   formatOptions?: Record<ContentFormat, FormatOptionsDto>;
 
   @ApiPropertyOptional({
-    description: '사용자 정의 템플릿 ID',
-    example: 123,
+    description: '사용자 정의 템플릿 UUID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsOptional()
-  @IsNumber()
-  templateId?: number;
+  @IsUUID()
+  templateId?: string;
 
   @ApiPropertyOptional({
     description: '비동기 처리 여부 (true: 백그라운드 작업, false: 동기 처리)',

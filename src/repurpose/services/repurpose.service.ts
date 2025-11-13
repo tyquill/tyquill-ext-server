@@ -194,7 +194,7 @@ export class RepurposeService {
   /**
    * 작업 상태 조회
    */
-  async getJobStatus(jobId: number): Promise<JobStatusResponseDto> {
+  async getJobStatus(jobId: string): Promise<JobStatusResponseDto> {
     const job = await this.repurposingJobRepository.findOne(
       { id: jobId },
       { populate: ['user', 'article'] },

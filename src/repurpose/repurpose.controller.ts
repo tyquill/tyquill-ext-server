@@ -80,8 +80,8 @@ export class RepurposeController {
   })
   @ApiParam({
     name: 'jobId',
-    description: '작업 ID',
-    type: Number,
+    description: '작업 UUID',
+    type: String,
   })
   @ApiResponse({
     status: 200,
@@ -93,7 +93,7 @@ export class RepurposeController {
     description: 'Job not found',
   })
   async getJobStatus(
-    @Param('jobId', ParseIntPipe) jobId: number,
+    @Param('jobId') jobId: string,
   ): Promise<JobStatusResponseDto> {
     return this.repurposeService.getJobStatus(jobId);
   }

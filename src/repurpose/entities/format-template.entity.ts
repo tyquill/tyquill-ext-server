@@ -5,6 +5,7 @@ import {
   ManyToOne,
   Enum,
 } from '@mikro-orm/core';
+import { v4 as uuidv4 } from 'uuid';
 import { User } from '../../users/entities/user.entity';
 import { ContentFormat } from './content-format.enum';
 
@@ -14,8 +15,8 @@ import { ContentFormat } from './content-format.enum';
  */
 @Entity({ tableName: 'format_templates' })
 export class FormatTemplate {
-  @PrimaryKey({ type: 'integer', autoincrement: true })
-  id!: number;
+  @PrimaryKey({ type: 'uuid', onCreate: () => uuidv4() })
+  id: string = uuidv4();
 
   @ManyToOne(() => User, { fieldName: 'creator_id' })
   creator!: User;

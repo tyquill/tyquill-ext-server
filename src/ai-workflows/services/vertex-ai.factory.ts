@@ -109,6 +109,8 @@ export class VertexAiFactory {
       maxOutputTokens: params.maxOutputTokens,
       topP: params.topP,
       topK: params.topK,
+      // Explicitly disable API key - Vertex AI requires service account auth
+      apiKey: undefined,
     };
 
     // Add auth options if available

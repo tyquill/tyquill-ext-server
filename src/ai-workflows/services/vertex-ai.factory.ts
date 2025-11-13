@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { GoogleAuthOptions } from 'google-auth-library';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { ChatVertexAI, type ChatVertexAIInput } from './vertex-chat.model';
+import { ChatVertexAI } from '@langchain/google-vertexai';
 
 @Injectable()
 export class VertexAiFactory {
@@ -93,19 +93,49 @@ export class VertexAiFactory {
     }
   }
 
-  buildChat(
-    params: Omit<ChatVertexAIInput, 'location' | 'authOptions'> & {
-      model: string;
-    },
-  ): ChatVertexAI {
-    const chatParams: ChatVertexAIInput = {
-      ...params,
+  buildChat(params: {
+    model: string;
+    temperature?: number;
+    maxOutputTokens?: number;
+    topP?: number;
+    topK?: number;
+    thinkingBudget?: number; // Custom parameter (ignored for now, can be added via modelKwargs)
+    responseMimeType?: string;
+  }): ChatVertexAI {
+    const chatParams: any = {
+      model: params.model,
       location: this.location,
-      apiVersion: this.apiVersion,
-      vertexai: true,
-      project: this.projectId ?? this.authOptions?.projectId,
-      authOptions: this.authOptions,
+      temperature: params.temperature,
+      maxOutputTokens: params.maxOutputTokens,
+      topP: params.topP,
+      topK: params.topK,
+      // Explicitly disable API key - Vertex AI requires service account auth
+      apiKey: undefined,
     };
+
+    // Add auth options if available
+    if (this.authOptions) {
+      chatParams.authOptions = this.authOptions;
+    }
+
+    // Add project ID if available
+    if (this.projectId ?? this.authOptions?.projectId) {
+      chatParams.project = this.projectId ?? this.authOptions?.projectId;
+    }
+
+    // Add responseMimeType if specified (for JSON mode)
+    if (params.responseMimeType) {
+      chatParams.responseMimeType = params.responseMimeType;
+    }
+
+    // Add thinkingBudget via modelKwargs if specified
+    if (params.thinkingBudget !== undefined) {
+      chatParams.modelKwargs = {
+        thinking_config: {
+          thinking_budget: params.thinkingBudget,
+        },
+      };
+    }
 
     return new ChatVertexAI(chatParams);
   }

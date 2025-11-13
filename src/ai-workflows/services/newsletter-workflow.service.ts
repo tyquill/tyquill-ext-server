@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { AIMessage, BaseMessage, HumanMessage } from '@langchain/core/messages';
-import { ChatVertexAI } from './vertex-chat.model';
+import { ChatVertexAI } from '@langchain/google-vertexai';
 import { z } from 'zod';
 
 import {
@@ -276,7 +276,6 @@ export class NewsletterWorkflowService {
         {
           name: 'PageStructureAnalysis',
           method: 'json_mode',
-          responseSchema: PAGE_STRUCTURE_JSON_SCHEMA,
         },
       );
       const result = await structuredModel.invoke(prompt);

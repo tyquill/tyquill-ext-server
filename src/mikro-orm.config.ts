@@ -20,6 +20,11 @@ import { AccountDeletionAudit } from './users/entities/account-deletion-audit.en
 import { PendingS3Deletion } from './users/entities/pending-s3-deletion.entity';
 import { ArticleChatSession } from './article-chat/entities/article-chat-session.entity';
 import { ArticleChatMessage } from './article-chat/entities/article-chat-message.entity';
+import { RepurposedContent } from './repurpose/entities/repurposed-content.entity';
+import { FormatTemplate } from './repurpose/entities/format-template.entity';
+import { RepurposingJob } from './repurpose/entities/repurposing-job.entity';
+import { ExportHistory } from './repurpose/entities/export-history.entity';
+import { FormatRule } from './repurpose/entities/format-rule.entity';
 
 export default defineConfig({
   host: process.env.DATABASE_HOST,
@@ -44,10 +49,19 @@ export default defineConfig({
     PendingS3Deletion,
     ArticleChatSession,
     ArticleChatMessage,
+    RepurposedContent,
+    FormatTemplate,
+    RepurposingJob,
+    ExportHistory,
+    FormatRule,
   ],
   schema: 'public',
   debug: true,
   allowGlobalContext: true,
+  migrations: {
+    path: './src/migrations',
+    pathTs: './src/migrations',
+  },
   driverOptions: {
     connection: {
       ssl:

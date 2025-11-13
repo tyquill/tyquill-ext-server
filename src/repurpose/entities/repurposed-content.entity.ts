@@ -6,6 +6,7 @@ import {
   Enum,
   Index,
 } from '@mikro-orm/core';
+import { v4 as uuidv4 } from 'uuid';
 import { Article } from '../../articles/entities/article.entity';
 import { User } from '../../users/entities/user.entity';
 import { FormatTemplate } from './format-template.entity';
@@ -17,8 +18,8 @@ import { ContentFormat } from './content-format.enum';
  */
 @Entity({ tableName: 'repurposed_contents' })
 export class RepurposedContent {
-  @PrimaryKey({ type: 'integer', autoincrement: true })
-  id!: number;
+  @PrimaryKey({ type: 'uuid', onCreate: () => uuidv4() })
+  id: string = uuidv4();
 
   @ManyToOne(() => Article, { fieldName: 'article_id' })
   originalArticle!: Article;

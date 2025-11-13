@@ -126,14 +126,14 @@ export class RepurposeController {
   })
   @ApiParam({
     name: 'id',
-    description: 'Repurposed Content ID',
-    type: Number,
+    description: 'Repurposed Content UUID',
+    type: String,
   })
   @ApiResponse({
     status: 200,
     description: '콘텐츠 상세 조회 성공',
   })
-  async getRepurposedContent(@Param('id', ParseIntPipe) id: number) {
+  async getRepurposedContent(@Param('id') id: string) {
     return this.repurposeService.getRepurposedContent(id);
   }
 }

@@ -7,9 +7,9 @@ import { ContentFormat, JobStatus } from '../entities';
 export class RepurposedContentResponseDto {
   @ApiProperty({
     description: '콘텐츠 ID',
-    example: 1,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  id: number;
+  id: string;
 
   @ApiProperty({
     description: '콘텐츠 포맷',

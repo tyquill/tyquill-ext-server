@@ -332,7 +332,7 @@ export class RepurposeService {
   /**
    * 리퍼포징 콘텐츠 상세 조회
    */
-  async getRepurposedContent(id: number) {
+  async getRepurposedContent(id: string) {
     const content = await this.repurposedContentRepository.findOne(
       { id },
       {

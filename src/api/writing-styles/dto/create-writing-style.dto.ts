@@ -1,18 +1,18 @@
-import { IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ScrapedExampleDto {
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  @IsOptional()
+  title?: string;
 
   @IsString()
   @IsNotEmpty()
   content: string;
 
   @IsString()
-  @IsNotEmpty()
-  url: string;
+  @IsOptional()
+  url?: string;
 }
 
 export class CreateWritingStyleDto {

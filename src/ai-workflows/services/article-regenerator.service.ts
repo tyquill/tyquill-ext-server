@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChatVertexAI } from '@langchain/google-vertexai';
+import { z } from 'zod';
 
 import { ScrapWithComment } from '../dto/newsletter.dto';
 import {
@@ -11,6 +12,15 @@ import { VertexAiFactory } from './vertex-ai.factory';
 import { ScrapCombinationService } from './scrap-combination.service';
 
 const REGENERATOR_MODEL = 'gemini-2.5-flash-lite';
+
+// Zod schema for structured output
+const RegenerateResponseSchema = z.object({
+  title: z.string().describe('수정된 아티클 제목'),
+  content: z.string().describe('수정된 본문 내용 (마크다운 형식)'),
+  changesSummary: z.string().describe('변경사항 요약 (구체적으로 무엇이 바뀌었는지 설명)'),
+});
+
+type RegenerateResponse = z.infer<typeof RegenerateResponseSchema>;
 
 @Injectable()
 export class ArticleRegeneratorService {
@@ -31,18 +41,57 @@ export class ArticleRegeneratorService {
   async regenerateArticle(
     input: RegenerateArticleInput,
   ): Promise<RegenerateArticleOutput> {
-    this.logger.log('Starting article regeneration');
+    this.logger.log('Starting article regeneration with structured output');
 
     const startTime = Date.now();
     const prompt = await this.buildPrompt(input);
-    const response = await this.llm.invoke(prompt);
-    const latencyMs = Date.now() - startTime;
 
-    const text = this.extractMessageText(response?.content ?? '');
-    const result = this.parseResponse(text);
+    // Create structured LLM with Zod schema
+    const structuredLLM = this.llm.withStructuredOutput(
+      RegenerateResponseSchema,
+      {
+        name: 'ArticleRegeneration',
+        method: 'jsonMode',
+      },
+    );
 
-    // Set model name
-    result.modelName = REGENERATOR_MODEL;
+    let result: RegenerateArticleOutput;
+    let response: any;
+
+    try {
+      // Attempt structured output
+      const structuredResponse = await structuredLLM.invoke(prompt);
+      const latencyMs = Date.now() - startTime;
+
+      this.logger.log('Structured output received successfully');
+
+      // structuredResponse is already typed as RegenerateResponse
+      result = {
+        title: structuredResponse.title,
+        content: structuredResponse.content,
+        changesSummary: structuredResponse.changesSummary,
+        modelName: REGENERATOR_MODEL,
+        latencyMs,
+      };
+
+      // For token usage, we need to invoke again with the original LLM
+      // or use the response from structuredLLM if it contains usage metadata
+      response = structuredResponse;
+    } catch (error) {
+      this.logger.warn(
+        'Structured output failed, falling back to text parsing',
+        error,
+      );
+
+      // Fallback to original text parsing
+      response = await this.llm.invoke(prompt);
+      const latencyMs = Date.now() - startTime;
+
+      const text = this.extractMessageText(response?.content ?? '');
+      result = this.parseResponse(text);
+      result.modelName = REGENERATOR_MODEL;
+      result.latencyMs = latencyMs;
+    }
 
     // Extract token usage information from AIMessage's usage_metadata
     const usageMetadata = (response as any)?.usage_metadata;
@@ -50,12 +99,19 @@ export class ArticleRegeneratorService {
     if (usageMetadata) {
       // The metadata contains both snake_case (LangChain format) and camelCase (Vertex AI format)
       // We can use either format, but let's prefer the original Vertex AI format for clarity
-      result.promptTokens = usageMetadata.promptTokenCount || usageMetadata.input_tokens;
-      result.completionTokens = usageMetadata.candidatesTokenCount || usageMetadata.output_tokens;
-      result.totalTokens = usageMetadata.totalTokenCount || usageMetadata.total_tokens;
+      result.promptTokens =
+        usageMetadata.promptTokenCount || usageMetadata.input_tokens;
+      result.completionTokens =
+        usageMetadata.candidatesTokenCount || usageMetadata.output_tokens;
+      result.totalTokens =
+        usageMetadata.totalTokenCount || usageMetadata.total_tokens;
 
       // If we don't have totalTokens but have the components, calculate it
-      if (!result.totalTokens && result.promptTokens && result.completionTokens) {
+      if (
+        !result.totalTokens &&
+        result.promptTokens &&
+        result.completionTokens
+      ) {
         result.totalTokens = result.promptTokens + result.completionTokens;
       }
 
@@ -69,20 +125,18 @@ export class ArticleRegeneratorService {
       this.logger.warn('No token usage data found in response.usage_metadata');
     }
 
-    result.latencyMs = latencyMs;
-
     // Estimate cost for Gemini 2.5 Flash Lite
     if (result.promptTokens && result.completionTokens) {
       // Gemini 2.5 Flash Lite pricing (as of late 2024):
       // Input: $0.0375 per 1M tokens (50% cheaper than 1.5 Flash)
       // Output: $0.15 per 1M tokens (50% cheaper than 1.5 Flash)
-      const inputCost = (result.promptTokens || 0) * 0.0375 / 1_000_000;
-      const outputCost = (result.completionTokens || 0) * 0.15 / 1_000_000;
+      const inputCost = ((result.promptTokens || 0) * 0.0375) / 1_000_000;
+      const outputCost = ((result.completionTokens || 0) * 0.15) / 1_000_000;
       result.costUsd = inputCost + outputCost;
     }
 
     this.logger.log(
-      `Article regeneration completed - Tokens: ${result.totalTokens}, Latency: ${latencyMs}ms, Cost: $${result.costUsd?.toFixed(4)}`,
+      `Article regeneration completed - Tokens: ${result.totalTokens}, Latency: ${result.latencyMs}ms, Cost: $${result.costUsd?.toFixed(4)}`,
     );
 
     return result;
@@ -191,15 +245,13 @@ export class ArticleRegeneratorService {
     }
 
     sections.push('\n## Output Format');
-    sections.push('\n다음 형식으로 응답해주세요:');
-    sections.push('\n```');
-    sections.push('TITLE: [수정된 제목]');
-    sections.push('');
-    sections.push('CONTENT:');
-    sections.push('[수정된 본문 내용]');
-    sections.push('');
-    sections.push('CHANGES_SUMMARY:');
-    sections.push('[어떤 부분이 어떻게 변경되었는지 간략히 설명]');
+    sections.push('\nJSON 형식으로 다음 필드를 포함하여 응답해주세요:');
+    sections.push('\n```json');
+    sections.push('{');
+    sections.push('  "title": "수정된 아티클 제목",');
+    sections.push('  "content": "수정된 본문 내용 (마크다운 형식)",');
+    sections.push('  "changesSummary": "변경사항 요약 (구체적으로 무엇이 바뀌었는지 설명)"');
+    sections.push('}');
     sections.push('```');
 
     sections.push('\n## Important Guidelines');

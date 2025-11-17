@@ -373,7 +373,7 @@ export class ArticlesService {
     const article = await this.articleRepository.findOne(
       { articleId },
       {
-        populate: ['user', 'archives', 'writingStyle', 'articleScraps.scrap'],
+        populate: ['user', 'archives', 'writingStyle', 'articleScraps.scrap', 'folder'],
         filters: { isDeleted: false },
       },
     );
@@ -410,6 +410,7 @@ export class ArticlesService {
       topic: article.topic,
       keyInsight: article.keyInsight,
       generationParams: article.generationParams,
+      folderId: article.folder?.folderId || null,
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
       user: article.user,

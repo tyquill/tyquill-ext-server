@@ -85,10 +85,7 @@ export class NewsletterStreamingService extends NewsletterWorkflowService {
           });
         });
 
-        await this.runStep(streaming, NodeName.ADAPT_LOCALE, async () => {
-          const update = await this.adaptLocaleNode(state);
-          this.applyStateUpdate(state, update);
-        });
+        // adaptLocaleNode removed: userLanguage now determines language from the start
 
         streaming.emitProgress({
           node: 'workflow',

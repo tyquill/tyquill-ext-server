@@ -39,6 +39,7 @@ export interface NewsletterWorkflowInput {
   writingStyleExampleContents?: string[];
   pdfUrlsWithPrompts?: PdfReference[];
   feedbacks?: Feedback[];
+  userLanguage?: string | null; // 'ko' for Korean, 'en' for English
 }
 
 export interface NewsletterWorkflowOutput {

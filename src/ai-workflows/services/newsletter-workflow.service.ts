@@ -24,8 +24,6 @@ const VERTEX_MODEL_TITLE = 'gemini-2.5-flash';
 const VERTEX_MODEL_REFLECTOR = 'gemini-2.5-flash';
 const VERTEX_MODEL_REWRITE = 'gemini-2.5-flash';
 const VERTEX_MODEL_PDF = 'gemini-2.0-flash-lite';
-const VERTEX_MODEL_LANGUAGE_DETECTION = 'gemini-2.5-flash';
-const VERTEX_MODEL_TRANSLATION = 'gemini-2.5-flash';
 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const PDF_DOWNLOAD_TIMEOUT_MS = 60_000;
@@ -48,6 +46,7 @@ export interface WorkflowState {
   title: string;
   content: string;
   analysisReason: string;
+  userLanguage: string; // 'ko' for Korean, 'en' for English
 }
 
 export type WorkflowUpdate = Partial<WorkflowState> & {
@@ -57,16 +56,6 @@ export type WorkflowUpdate = Partial<WorkflowState> & {
   feedbacks?: Feedback[];
 };
 
-const LanguageDetectionSchema = z.object({
-  isKoreanUser: z.boolean(),
-  confidence: z.enum(['low', 'medium', 'high']),
-  reason: z.string().optional().nullable(),
-});
-
-const TranslationSchema = z.object({
-  title: z.string().optional(),
-  content: z.string(),
-});
 
 const LIST_MERGE_KEYS = new Set<keyof WorkflowState>([
   'processingSteps',
@@ -107,11 +96,6 @@ export class NewsletterWorkflowService {
   private readonly reflectorModel: ChatVertexAI;
   private readonly rewriteModel: ChatVertexAI;
   private readonly pdfModel: ChatVertexAI;
-  private readonly languageDetectionModel: ChatVertexAI;
-  private readonly translationModel: ChatVertexAI;
-
-  private readonly detectionPrompt: PromptTemplate;
-  private readonly translationPrompt: PromptTemplate;
 
   constructor(
     private readonly vertexFactory: VertexAiFactory,
@@ -144,21 +128,6 @@ export class NewsletterWorkflowService {
       temperature: 0.4,
       thinkingBudget: 0,
     });
-    this.languageDetectionModel = this.vertexFactory.buildChat({
-      model: VERTEX_MODEL_LANGUAGE_DETECTION,
-      temperature: 0.1,
-      thinkingBudget: -1,
-    });
-    this.translationModel = this.vertexFactory.buildChat({
-      model: VERTEX_MODEL_TRANSLATION,
-      temperature: 0.2,
-      thinkingBudget: -1,
-    });
-
-    this.detectionPrompt =
-      this.promptTemplates.getLanguagePreferenceDetectionTemplate();
-    this.translationPrompt =
-      this.promptTemplates.getKoreanTranslationTemplate();
   }
 
   protected createInitialState(
@@ -182,6 +151,7 @@ export class NewsletterWorkflowService {
       title: '',
       content: '',
       countOfReflector: 0,
+      userLanguage: input.userLanguage ?? 'en', // Default to English
     };
   }
 
@@ -226,7 +196,7 @@ export class NewsletterWorkflowService {
     this.applyStateUpdate(state, this.aggregatorNode(state));
     await this.generateWithIterations(state);
     this.applyStateUpdate(state, await this.generateTitleNode(state));
-    this.applyStateUpdate(state, await this.adaptLocaleNode(state));
+    // adaptLocaleNode removed: userLanguage now determines language from the start
   }
 
   protected async generateWithIterations(state: WorkflowState): Promise<void> {
@@ -511,8 +481,12 @@ export class NewsletterWorkflowService {
     try {
       const feedbacks = state.feedbacks ?? [];
       const articleStructure = state.articleStructureTemplate ?? [];
+      const isKorean = state.userLanguage === 'ko';
 
-      const template = this.promptTemplates.getSimpleNewsletterTemplate();
+      const template = isKorean
+        ? this.promptTemplates.getKoreanNewsletterTemplate()
+        : this.promptTemplates.getSimpleNewsletterTemplate();
+
       const prompt = await template.format({
         topic: state.topic ?? '',
         keyInsight: state.keyInsight ?? 'Empty',
@@ -548,7 +522,12 @@ export class NewsletterWorkflowService {
     state: WorkflowState,
   ): Promise<WorkflowUpdate> {
     try {
-      const template = this.promptTemplates.getSimpleNewsletterTitleTemplate();
+      const isKorean = state.userLanguage === 'ko';
+
+      const template = isKorean
+        ? this.promptTemplates.getKoreanNewsletterTitleTemplate()
+        : this.promptTemplates.getSimpleNewsletterTitleTemplate();
+
       const prompt = await template.format({
         topic: state.topic ?? '',
         keyInsight: state.keyInsight ?? 'Empty',
@@ -574,7 +553,12 @@ export class NewsletterWorkflowService {
     state: WorkflowState,
   ): Promise<WorkflowUpdate> {
     try {
-      const template = this.promptTemplates.getArticleReflectorTemplate();
+      const isKorean = state.userLanguage === 'ko';
+
+      const template = isKorean
+        ? this.promptTemplates.getKoreanArticleReflectorTemplate()
+        : this.promptTemplates.getArticleReflectorTemplate();
+
       const prompt = await template.format({
         topic: state.topic ?? 'Empty',
         keyInsight: state.keyInsight ?? 'Empty',
@@ -618,7 +602,12 @@ export class NewsletterWorkflowService {
         };
       }
 
-      const template = this.promptTemplates.getWritingStyleRewriteTemplate();
+      const isKorean = state.userLanguage === 'ko';
+
+      const template = isKorean
+        ? this.promptTemplates.getKoreanWritingStyleRewriteTemplate()
+        : this.promptTemplates.getWritingStyleRewriteTemplate();
+
       const prompt = await template.format({
         topic: state.topic ?? '',
         keyInsight: state.keyInsight ?? 'Empty',
@@ -639,95 +628,6 @@ export class NewsletterWorkflowService {
         processingSteps: ['writing_style_rewrite'],
         warnings: ['Writing style rewrite error. Proceed with the original content.'],
         errors: ['Writing style rewrite error.'],
-      };
-    }
-  }
-
-  protected async adaptLocaleNode(
-    state: WorkflowState,
-  ): Promise<WorkflowUpdate> {
-    try {
-      const prompt = await this.detectionPrompt.format({
-        topic: state.topic ?? '',
-        keyInsight: state.keyInsight ?? '',
-        generationParams: state.generationParams ?? '',
-      });
-
-      const rawDetection = await this.languageDetectionModel.invoke(prompt);
-      const detectionText = this.extractMessageText(rawDetection);
-
-      const detectionResult = this.safeJsonParse(
-        detectionText,
-        LanguageDetectionSchema,
-      );
-
-      if (!detectionResult) {
-        return {
-          analysisReason: state.analysisReason ?? 'AI system generated newsletter.',
-          processingSteps: ['locale_adaptation'],
-          warnings: ['Locale adaptation skipped due to uncertain detection result.'],
-        };
-      }
-
-      this.logger.log(
-        `Language preference detection: isKoreanUser=${detectionResult.isKoreanUser}, confidence=${detectionResult.confidence}, reason=${detectionResult.reason}`,
-      );
-
-      const shouldTranslate =
-        detectionResult.isKoreanUser &&
-        ['medium', 'high'].includes(detectionResult.confidence);
-
-      const baseReason =
-        state.analysisReason ?? 'AI system generated newsletter.';
-
-      if (!shouldTranslate) {
-        const updatedReason = detectionResult.reason
-          ? `${baseReason}\n\nLocale decision: ${detectionResult.reason}`.trim()
-          : baseReason;
-
-        return {
-          analysisReason: updatedReason,
-          processingSteps: ['locale_adaptation'],
-        };
-      }
-
-      const translationPrompt = await this.translationPrompt.format({
-        title: state.title ?? '',
-        content: state.content ?? '',
-      });
-
-      const rawTranslation = await this.translationModel.invoke(
-        translationPrompt,
-      );
-      const translationText = this.extractMessageText(rawTranslation);
-
-      const translationResult = this.safeJsonParse(
-        translationText,
-        TranslationSchema,
-      );
-
-      if (!translationResult) {
-        return {
-          processingSteps: ['locale_adaptation'],
-          warnings: ['Translation failed. Content kept in English.'],
-        };
-      }
-
-      const updatedReason = `${baseReason}\n\nTranslated to Korean because: ${
-        detectionResult.reason ?? 'User likely prefers Korean content.'
-      }`.trim();
-
-      return {
-        title: translationResult.title ?? state.title ?? '',
-        content: translationResult.content ?? state.content ?? '',
-        analysisReason: updatedReason,
-        processingSteps: ['locale_adaptation'],
-      };
-    } catch (error) {
-      this.logger.error('Locale adaptation error', error as Error);
-      return {
-        processingSteps: ['locale_adaptation'],
-        warnings: ['Locale adaptation failed. Content kept in English.'],
       };
     }
   }

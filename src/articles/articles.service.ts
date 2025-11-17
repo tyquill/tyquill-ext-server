@@ -240,6 +240,7 @@ export class ArticlesService {
         generationParams: generateDto.generationParams,
         articleStructureTemplate: generateDto.articleStructureTemplate,
         writingStyleExampleContents,
+        userLanguage: user.language,
       });
 
     // 아티클 저장
@@ -986,6 +987,7 @@ export class ArticlesService {
           generationParams: generateDto.generationParams,
           articleStructureTemplate: generateDto.articleStructureTemplate,
           writingStyleExampleContents,
+          userLanguage: article.user.language,
         });
 
       // AI 생성 결과를 아카이브에 저장
@@ -1319,6 +1321,7 @@ export class ArticlesService {
           writingStyleExampleContents,
           // V3에서 추가: PDF 업로드 정보
           pdfUrlsWithPrompts: pdfUploadsWithPrompts, // 이 부분은 newsletterAgentService에서 지원해야 함
+          userLanguage: article.user.language,
         });
 
       // AI 생성 결과를 아카이브에 저장
@@ -1559,6 +1562,7 @@ export class ArticlesService {
             articleStructureTemplate: generateDto.articleStructureTemplate,
             writingStyleExampleContents,
             pdfUrlsWithPrompts: pdfUploadsWithPrompts,
+            userLanguage: user.language,
           };
 
           const stream = this.newsletterAgentService.generateNewsletterStream(

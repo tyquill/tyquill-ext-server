@@ -176,7 +176,7 @@ export class RepurposeWorkflowService {
 
     // withStructuredOutput을 사용하여 스키마 강제
     const structuredModel = baseModel.withStructuredOutput(schema, {
-      method: 'jsonMode',
+      method: 'functionCalling',
     });
 
     return { model: structuredModel, schema };

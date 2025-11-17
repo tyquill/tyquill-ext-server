@@ -51,7 +51,7 @@ export class ArticleRegeneratorService {
       RegenerateResponseSchema,
       {
         name: 'ArticleRegeneration',
-        method: 'jsonMode',
+        method: 'functionCalling',
       },
     );
 

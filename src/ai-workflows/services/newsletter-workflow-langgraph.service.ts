@@ -3,6 +3,7 @@ import { PromptTemplate } from '@langchain/core/prompts';
 import { AIMessage, BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ChatVertexAI } from '@langchain/google-vertexai';
 import { z } from 'zod';
+import { StateGraph, END, Annotation } from '@langchain/langgraph';
 
 import {
   Feedback,
@@ -28,74 +29,62 @@ const VERTEX_MODEL_PDF = 'gemini-2.0-flash-lite';
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const PDF_DOWNLOAD_TIMEOUT_MS = 60_000;
 
-export interface WorkflowState {
-  topic: string;
-  keyInsight: string;
-  generationParams: string;
-  articleStructureTemplate: SectionTemplate[];
-  writingStyleExampleContents: string[];
-  scrapsWithComments: ScrapWithComment[];
-  pdfUrlsWithPrompts: PdfReference[];
-  scrapContent: string;
-  pdfContent: string;
-  feedbacks: Feedback[];
-  countOfReflector: number;
-  processingSteps: string[];
-  warnings: string[];
-  errors: string[];
-  title: string;
-  content: string;
-  analysisReason: string;
-  userLanguage: string; // 'ko' for Korean, 'en' for English
+// Define WorkflowState using LangGraph Annotation
+const WorkflowStateAnnotation = Annotation.Root({
+  topic: Annotation<string>,
+  keyInsight: Annotation<string>,
+  generationParams: Annotation<string>,
+  articleStructureTemplate: Annotation<SectionTemplate[]>,
+  writingStyleExampleContents: Annotation<string[]>,
+  scrapsWithComments: Annotation<ScrapWithComment[]>,
+  pdfUrlsWithPrompts: Annotation<PdfReference[]>,
+  scrapContent: Annotation<string>,
+  pdfContent: Annotation<string>,
+  feedbacks: Annotation<Feedback[]>({
+    reducer: (current, update) => [...(current || []), ...(update || [])],
+  }),
+  countOfReflector: Annotation<number>,
+  processingSteps: Annotation<string[]>({
+    reducer: (current, update) => [...(current || []), ...(update || [])],
+  }),
+  warnings: Annotation<string[]>({
+    reducer: (current, update) => [...(current || []), ...(update || [])],
+  }),
+  errors: Annotation<string[]>({
+    reducer: (current, update) => [...(current || []), ...(update || [])],
+  }),
+  title: Annotation<string>,
+  content: Annotation<string>,
+  analysisReason: Annotation<string>,
+  userLanguage: Annotation<string>,
+});
+
+type WorkflowState = typeof WorkflowStateAnnotation.State;
+
+// Opik integration
+let OpikTracer: any;
+let OPIK_AVAILABLE = false;
+try {
+  // Dynamic import to make Opik optional
+  OpikTracer = require('opik').OpikTracer;
+  OPIK_AVAILABLE = true;
+} catch (error) {
+  // Opik not available, will use LangSmith only
+  OPIK_AVAILABLE = false;
 }
 
-export type WorkflowUpdate = Partial<WorkflowState> & {
-  processingSteps?: string[];
-  warnings?: string[];
-  errors?: string[];
-  feedbacks?: Feedback[];
-};
-
-
-const LIST_MERGE_KEYS = new Set<keyof WorkflowState>([
-  'processingSteps',
-  'warnings',
-  'errors',
-  'feedbacks',
-]);
-
-const PAGE_STRUCTURE_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    sections: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          title: { type: 'string' },
-          level: { type: 'integer' },
-          parent_index: {
-            anyOf: [{ type: 'integer' }, { type: 'null' }],
-          },
-        },
-        required: ['title', 'level'],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ['sections'],
-  additionalProperties: false,
-} as const;
-
 @Injectable()
-export class NewsletterWorkflowService {
-  protected readonly logger = new Logger(NewsletterWorkflowService.name);
+export class NewsletterWorkflowLanggraphService {
+  protected readonly logger = new Logger(NewsletterWorkflowLanggraphService.name);
 
   private readonly newsletterModel: ChatVertexAI;
   private readonly titleModel: ChatVertexAI;
   private readonly reflectorModel: ChatVertexAI;
   private readonly rewriteModel: ChatVertexAI;
   private readonly pdfModel: ChatVertexAI;
+
+  private compiledWorkflow: ReturnType<typeof this.buildWorkflow>;
+  private opikTracer: any = null;
 
   constructor(
     private readonly vertexFactory: VertexAiFactory,
@@ -128,6 +117,244 @@ export class NewsletterWorkflowService {
       temperature: 0.4,
       thinkingBudget: 0,
     });
+
+    // Build and compile the workflow graph
+    this.compiledWorkflow = this.buildWorkflow();
+
+    // Initialize Opik tracer after workflow is compiled
+    this.initializeOpikTracer();
+  }
+
+  /**
+   * Initialize Opik tracer for LangGraph
+   */
+  private initializeOpikTracer() {
+    if (!OPIK_AVAILABLE) {
+      this.logger.log('⚠️ Opik not available, using LangSmith only');
+      return;
+    }
+
+    try {
+      this.opikTracer = new OpikTracer({
+        tags: ['newsletter-workflow', 'langgraph', 'vertex-ai', 'typescript'],
+      });
+      this.logger.log('✅ Opik tracer initialized successfully');
+    } catch (error) {
+      this.logger.warn(`⚠️ Failed to initialize Opik tracer: ${error}`);
+      this.opikTracer = null;
+    }
+  }
+
+  /**
+   * Build the LangGraph workflow
+   */
+  private buildWorkflow() {
+    const workflow = new StateGraph(WorkflowStateAnnotation)
+      .addNode('prepareScrapContent', this.prepareScrapContentNode.bind(this))
+      .addNode('processPdfContent', this.processPdfContentNode.bind(this))
+      .addNode('aggregator', this.aggregatorNode.bind(this))
+      .addNode('generateNewsletter', this.generateNewsletterNode.bind(this))
+      .addNode('articleReflector', this.articleReflectorNode.bind(this))
+      .addNode('rewriteWritingStyle', this.rewriteWritingStyleNode.bind(this))
+      .addNode('generateTitle', this.generateTitleNode.bind(this));
+
+    // Parallel execution: Both scrap and PDF processing start from START
+    workflow.addEdge('__start__', 'prepareScrapContent');
+    workflow.addEdge('__start__', 'processPdfContent');
+
+    // Both nodes feed into aggregator
+    workflow.addEdge('prepareScrapContent', 'aggregator');
+    workflow.addEdge('processPdfContent', 'aggregator');
+    workflow.addEdge('aggregator', 'generateNewsletter');
+
+    // Conditional routing after generateNewsletter
+    workflow.addConditionalEdges(
+      'generateNewsletter',
+      this.determineNextNode.bind(this),
+      {
+        [NodeName.ARTICLE_REFLECTOR]: 'articleReflector',
+        [NodeName.REWRITE_STYLE]: 'rewriteWritingStyle',
+        [NodeName.GENERATE_TITLE]: 'generateTitle',
+      },
+    );
+
+    // Article reflector loops back to generateNewsletter
+    workflow.addEdge('articleReflector', 'generateNewsletter');
+
+    // Writing style rewrite goes to title generation
+    workflow.addEdge('rewriteWritingStyle', 'generateTitle');
+
+    // Title generation is the final node
+    workflow.addEdge('generateTitle', '__end__');
+
+    return workflow.compile();
+  }
+
+  /**
+   * Generate newsletter using LangGraph workflow
+   */
+  async generateNewsletter(
+    input: NewsletterWorkflowInput,
+  ): Promise<NewsletterWorkflowOutput> {
+    const startTime = Date.now();
+    const initialState = this.createInitialState(input);
+
+    try {
+      this.logger.log('🚀 Starting newsletter generation workflow');
+      this.logger.log(`📝 Topic: ${input.topic}`);
+      this.logger.log(`💡 Key insight: ${input.keyInsight || 'None'}`);
+      this.logger.log(`📊 Scraps count: ${input.scrapsWithComments?.length || 0}`);
+
+      // Prepare config with proper metadata for LangSmith graph visualization
+      const config: any = {
+        runName: 'newsletter-generation-workflow',
+        tags: [
+          'newsletter',
+          'langgraph',
+          'production',
+          'typescript',
+          input.userLanguage || 'en',
+        ],
+        metadata: {
+          topic: input.topic,
+          userLanguage: input.userLanguage || 'en',
+          scrapsCount: input.scrapsWithComments?.length || 0,
+          pdfCount: input.pdfUrlsWithPrompts?.length || 0,
+          hasWritingStyle: (input.writingStyleExampleContents?.length || 0) > 0,
+          hasArticleStructure: (input.articleStructureTemplate?.length || 0) > 0,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      // Add Opik tracer if available
+      if (this.opikTracer) {
+        config.callbacks = [this.opikTracer];
+        this.logger.log('🔍 Executing workflow with Opik tracing');
+      }
+
+      // Invoke the compiled workflow
+      const finalState = await this.compiledWorkflow.invoke(initialState, config);
+
+      if (finalState.errors && finalState.errors.length > 0) {
+        this.logger.error(`❌ Newsletter generation failed: ${finalState.errors.join(', ')}`);
+        throw new Error(finalState.errors.join(', '));
+      }
+
+      const executionTime = (Date.now() - startTime) / 1000;
+      this.logger.log(`🎉 Newsletter generation completed successfully in ${executionTime.toFixed(1)}s`);
+
+      return {
+        title: finalState.title,
+        content: finalState.content,
+        analysisReason: finalState.analysisReason || 'AI system generated newsletter.',
+        warnings: finalState.warnings || [],
+      };
+    } catch (error) {
+      const executionTime = (Date.now() - startTime) / 1000;
+      this.logger.error(`🚨 Newsletter generation workflow failed after ${executionTime.toFixed(1)}s`, error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stream newsletter generation events
+   */
+  async *streamNewsletter(
+    input: NewsletterWorkflowInput,
+  ): AsyncGenerator<{ event: string; data: any }> {
+    const initialState = this.createInitialState(input);
+
+    try {
+      // Prepare config for streaming with LangSmith tracing
+      const config: any = {
+        runName: 'newsletter-generation-stream',
+        tags: [
+          'newsletter',
+          'langgraph',
+          'streaming',
+          'typescript',
+          input.userLanguage || 'en',
+        ],
+        metadata: {
+          topic: input.topic,
+          userLanguage: input.userLanguage || 'en',
+          scrapsCount: input.scrapsWithComments?.length || 0,
+          pdfCount: input.pdfUrlsWithPrompts?.length || 0,
+          timestamp: new Date().toISOString(),
+        },
+        streamMode: ['updates', 'tasks'],
+      };
+
+      // Add Opik tracer if available
+      if (this.opikTracer) {
+        config.callbacks = [this.opikTracer];
+      }
+
+      // Stream events from the workflow
+      this.logger.log('📡 Starting LangGraph workflow stream...');
+      const stream = await this.compiledWorkflow.stream(initialState, config);
+
+      this.logger.log('🔄 Iterating over stream events...');
+      for await (const chunk of stream) {
+        if (Array.isArray(chunk) && chunk.length === 2 && typeof chunk[0] === 'string') {
+          const [mode, payload] = chunk;
+
+          if (mode === 'tasks') {
+            this.logger.debug(
+              `🧩 TASK EVENT: ${JSON.stringify(payload).substring(0, 100)}`,
+            );
+
+            yield {
+              event: 'task_update',
+              data: Array.isArray(payload) ? payload : [payload],
+            };
+            continue;
+          }
+
+          if (mode === 'updates') {
+            const nodeName =
+              payload && typeof payload === 'object'
+                ? Object.keys(payload)[0]
+                : 'unknown';
+            this.logger.log(
+              `⚡ STREAM UPDATE (${mode}): ${nodeName} at ${new Date().toISOString()}`,
+            );
+
+            yield {
+              event: 'node_update',
+              data: payload,
+            };
+            continue;
+          }
+
+          this.logger.debug(
+            `ℹ️ Unsupported LangGraph stream mode received: ${mode}`,
+          );
+          continue;
+        }
+
+        const nodeName =
+          chunk && typeof chunk === 'object'
+            ? Object.keys(chunk)[0]
+            : 'unknown';
+        this.logger.log(
+          `⚡ STREAMING EVENT: ${nodeName} at ${new Date().toISOString()}`,
+        );
+
+        yield {
+          event: 'node_update',
+          data: chunk,
+        };
+      }
+
+      this.logger.log('✅ LangGraph stream iteration completed');
+    } catch (error) {
+      this.logger.error('Newsletter streaming workflow failed', error as Error);
+      yield {
+        event: 'error',
+        data: { message: (error as Error).message },
+      };
+    }
   }
 
   protected createInitialState(
@@ -151,142 +378,13 @@ export class NewsletterWorkflowService {
       title: '',
       content: '',
       countOfReflector: 0,
-      userLanguage: input.userLanguage ?? 'en', // Default to English
+      userLanguage: input.userLanguage ?? 'en',
     };
-  }
-
-  protected applyStateUpdate(
-    state: WorkflowState,
-    update: WorkflowUpdate | undefined,
-  ): void {
-    if (!update) {
-      return;
-    }
-
-    const stateRecord = state as Record<
-      keyof WorkflowState,
-      WorkflowState[keyof WorkflowState]
-    >;
-
-    Object.entries(update).forEach(([key, value]) => {
-      if (value === undefined) {
-        return;
-      }
-
-      const typedKey = key as keyof WorkflowState;
-
-      if (LIST_MERGE_KEYS.has(typedKey)) {
-        const current = stateRecord[typedKey];
-        const currentArray = Array.isArray(current) ? current : [];
-        const nextArray = Array.isArray(value) ? value : [value];
-        stateRecord[typedKey] = [
-          ...currentArray,
-          ...nextArray,
-        ] as WorkflowState[typeof typedKey];
-        return;
-      }
-
-      stateRecord[typedKey] = value as WorkflowState[typeof typedKey];
-    });
-  }
-
-  protected async runWorkflow(state: WorkflowState): Promise<void> {
-    this.applyStateUpdate(state, await this.prepareScrapContentNode(state));
-    this.applyStateUpdate(state, await this.processPdfContentNode(state));
-    this.applyStateUpdate(state, this.aggregatorNode(state));
-    await this.generateWithIterations(state);
-    this.applyStateUpdate(state, await this.generateTitleNode(state));
-    // adaptLocaleNode removed: userLanguage now determines language from the start
-  }
-
-  protected async generateWithIterations(state: WorkflowState): Promise<void> {
-    this.applyStateUpdate(state, await this.generateNewsletterNode(state));
-
-    let next = this.determineNextNode(state);
-    while (next !== NodeName.GENERATE_TITLE) {
-      if (next === NodeName.ARTICLE_REFLECTOR) {
-        this.applyStateUpdate(state, await this.articleReflectorNode(state));
-        this.applyStateUpdate(state, await this.generateNewsletterNode(state));
-      } else if (next === NodeName.REWRITE_STYLE) {
-        this.applyStateUpdate(state, await this.rewriteWritingStyleNode(state));
-        break;
-      } else {
-        break;
-      }
-
-      next = this.determineNextNode(state);
-    }
-  }
-
-  async generateNewsletter(
-    input: NewsletterWorkflowInput,
-  ): Promise<NewsletterWorkflowOutput> {
-    const state = this.createInitialState(input);
-
-    await this.runWorkflow(state);
-
-    if (state.errors.length > 0) {
-      throw new Error(state.errors.join(', '));
-    }
-
-    return {
-      title: state.title,
-      content: state.content,
-      analysisReason: state.analysisReason || 'AI system generated newsletter.',
-      warnings: state.warnings,
-    };
-  }
-
-  async analyzePageStructure(content: string): Promise<PageStructureAnalysis> {
-    try {
-      const template = this.promptTemplates.getStructureAnalysisTemplate();
-      const prompt = await template.format({ content });
-      const structuredModel = this.newsletterModel.withStructuredOutput(
-        PageStructureSchema,
-        {
-          name: 'PageStructureAnalysis',
-          method: 'json_mode',
-        },
-      );
-      const result = await structuredModel.invoke(prompt);
-      return this.normalizePageStructureResult(result);
-    } catch (error) {
-      this.logger.warn(
-        'Structured output failed for page structure analysis, attempting fallback',
-        error as Error,
-      );
-
-      try {
-        const template = this.promptTemplates.getStructureAnalysisTemplate();
-        const prompt = await template.format({ content });
-        const response = await this.newsletterModel.invoke(prompt);
-        const text = this.extractMessageText(response);
-        const parsed = this.safeJsonParse(text, PageStructureSchema);
-        if (parsed) {
-          return parsed;
-        }
-      } catch (fallbackError) {
-        this.logger.error(
-          'Page structure analysis fallback failed',
-          fallbackError as Error,
-        );
-      }
-
-      return this.normalizePageStructureResult({
-        sections: [
-          {
-            title: 'Document',
-            level: 1,
-            parent_index: null,
-          },
-        ],
-      });
-    }
   }
 
   protected async prepareScrapContentNode(
     state: WorkflowState,
-  ): Promise<WorkflowUpdate> {
+  ): Promise<Partial<WorkflowState>> {
     try {
       const scraps = state.scrapsWithComments ?? [];
       if (scraps.length === 0) {
@@ -445,7 +543,7 @@ export class NewsletterWorkflowService {
 
   protected async processPdfContentNode(
     state: WorkflowState,
-  ): Promise<WorkflowUpdate> {
+  ): Promise<Partial<WorkflowState>> {
     try {
       const pdfItems = state.pdfUrlsWithPrompts ?? [];
       if (pdfItems.length === 0) {
@@ -477,7 +575,7 @@ export class NewsletterWorkflowService {
 
   protected async generateNewsletterNode(
     state: WorkflowState,
-  ): Promise<WorkflowUpdate> {
+  ): Promise<Partial<WorkflowState>> {
     try {
       const feedbacks = state.feedbacks ?? [];
       const articleStructure = state.articleStructureTemplate ?? [];
@@ -520,7 +618,7 @@ export class NewsletterWorkflowService {
 
   protected async generateTitleNode(
     state: WorkflowState,
-  ): Promise<WorkflowUpdate> {
+  ): Promise<Partial<WorkflowState>> {
     try {
       const isKorean = state.userLanguage === 'ko';
 
@@ -551,7 +649,7 @@ export class NewsletterWorkflowService {
 
   protected async articleReflectorNode(
     state: WorkflowState,
-  ): Promise<WorkflowUpdate> {
+  ): Promise<Partial<WorkflowState>> {
     try {
       const isKorean = state.userLanguage === 'ko';
 
@@ -589,7 +687,7 @@ export class NewsletterWorkflowService {
 
   protected async rewriteWritingStyleNode(
     state: WorkflowState,
-  ): Promise<WorkflowUpdate> {
+  ): Promise<Partial<WorkflowState>> {
     try {
       const examples = state.writingStyleExampleContents ?? [];
       if (examples.length === 0) {
@@ -632,7 +730,7 @@ export class NewsletterWorkflowService {
     }
   }
 
-  protected aggregatorNode(state: WorkflowState): WorkflowUpdate {
+  protected aggregatorNode(state: WorkflowState): Partial<WorkflowState> {
     const scrapContent = state.scrapContent ?? '';
     const pdfContent = state.pdfContent ?? '';
     this.logger.debug(
@@ -663,6 +761,53 @@ export class NewsletterWorkflowService {
     }
 
     return NodeName.GENERATE_TITLE;
+  }
+
+  async analyzePageStructure(content: string): Promise<PageStructureAnalysis> {
+    try {
+      const template = this.promptTemplates.getStructureAnalysisTemplate();
+      const prompt = await template.format({ content });
+      const structuredModel = this.newsletterModel.withStructuredOutput(
+        PageStructureSchema,
+        {
+          name: 'PageStructureAnalysis',
+          method: 'json_mode',
+        },
+      );
+      const result = await structuredModel.invoke(prompt);
+      return this.normalizePageStructureResult(result);
+    } catch (error) {
+      this.logger.warn(
+        'Structured output failed for page structure analysis, attempting fallback',
+        error as Error,
+      );
+
+      try {
+        const template = this.promptTemplates.getStructureAnalysisTemplate();
+        const prompt = await template.format({ content });
+        const response = await this.newsletterModel.invoke(prompt);
+        const text = this.extractMessageText(response);
+        const parsed = this.safeJsonParse(text, PageStructureSchema);
+        if (parsed) {
+          return parsed;
+        }
+      } catch (fallbackError) {
+        this.logger.error(
+          'Page structure analysis fallback failed',
+          fallbackError as Error,
+        );
+      }
+
+      return this.normalizePageStructureResult({
+        sections: [
+          {
+            title: 'Document',
+            level: 1,
+            parent_index: null,
+          },
+        ],
+      });
+    }
   }
 
   protected safeJsonParse<T>(

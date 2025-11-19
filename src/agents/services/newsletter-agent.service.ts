@@ -215,13 +215,29 @@ export class NewsletterAgentService {
         };
         markNodeComplete(legacyNodeName);
 
-        // Collect final result
-        if (progressData?.title && progressData?.content) {
-          finalResult = progressData;
-        } else if (progressData?.content && !finalResult) {
-          finalResult = progressData;
-        } else if (progressData?.title && finalResult) {
-          finalResult.title = progressData.title;
+        // Collect final result, always prefer the latest content/title updates
+        if (
+          progressData?.content ||
+          progressData?.title ||
+          progressData?.analysisReason ||
+          progressData?.warnings
+        ) {
+          if (!finalResult) {
+            finalResult = {};
+          }
+
+          if (progressData?.content) {
+            finalResult.content = progressData.content;
+          }
+          if (progressData?.title) {
+            finalResult.title = progressData.title;
+          }
+          if (progressData?.analysisReason) {
+            finalResult.analysisReason = progressData.analysisReason;
+          }
+          if (progressData?.warnings) {
+            finalResult.warnings = progressData.warnings;
+          }
         }
       }
 

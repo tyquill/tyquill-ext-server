@@ -27,11 +27,7 @@ import { ExportHistory } from './repurpose/entities/export-history.entity';
 import { FormatRule } from './repurpose/entities/format-rule.entity';
 
 export default defineConfig({
-  host: process.env.DATABASE_HOST,
-  port: Number(process.env.DATABASE_PORT || 5432),
-  dbName: process.env.DATABASE_NAME,
-  user: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
+  clientUrl: process.env.DATABASE_URL,
   // 명시적으로 엔티티 지정
   entities: [
     Article,

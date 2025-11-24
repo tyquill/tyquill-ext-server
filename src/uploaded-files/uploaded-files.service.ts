@@ -38,20 +38,21 @@ export class UploadedFilesService {
     @InjectRepository(User)
     private readonly userRepository: EntityRepository<User>,
   ) {
-    this.bucket = process.env.AWS_S3_BUCKET || '';
-    if (this.bucket === '') {
-      throw new Error('AWS_S3_BUCKET is not set');
-    }
+    this.bucket = process.env.STORAGE_BUCKET!;
 
-    const region = process.env.AWS_REGION || 'us-east-1';
-    const accessKeyId = process.env.AWS_ACCESS_KEY_ID || '';
-    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || '';
-    if (accessKeyId === '' || secretAccessKey === '') {
-      throw new Error('AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY is not set');
+    const endpoint = process.env.STORAGE_ENDPOINT;
+    const accessKeyId = process.env.STORAGE_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.STORAGE_SECRET_ACCESS_KEY;
+
+    if (!endpoint || !accessKeyId || !secretAccessKey) {
+      throw new Error(
+        'STORAGE_ENDPOINT, STORAGE_ACCESS_KEY_ID, or STORAGE_SECRET_ACCESS_KEY is not set',
+      );
     }
 
     this.s3Client = new S3Client({
-      region: region,
+      region: process.env.STORAGE_REGION || 'auto',
+      endpoint: endpoint,
       credentials: {
         accessKeyId: accessKeyId,
         secretAccessKey: secretAccessKey,
@@ -161,7 +162,11 @@ export class UploadedFilesService {
       await this.s3Client.send(putCommand);
 
       // S3 URL 생성
-      const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${fileKey}`;
+      const publicUrl = process.env.STORAGE_PUBLIC_URL;
+      if (!publicUrl) {
+        throw new Error('STORAGE_PUBLIC_URL is not set');
+      }
+      const fileUrl = `${publicUrl}/${fileKey}`;
 
       // 데이터베이스에 파일 정보 저장 (공통 로직 사용)
       const uploadedFile = await this.persistScrapUpload({

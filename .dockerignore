@@ -1,5 +1,28 @@
+# Dependencies
 node_modules
+npm-debug.log
+
+# Build artifacts
 dist
+coverage
+
+# Env files
+.env
+.env.*
+!/.env.tracing.example
+
+# IDE and local configs
+.vscode/
+.cursor/
+.idea/
+.claude/
+
+# Misc
 *.log
 *.md
 .git
+.gitignore
+.dockerignore
+Dockerfile
+nest-cli.json
+.prettierrc

@@ -42,9 +42,6 @@ export class Job {
   maxRetries: number = 3;
 
   @Property({ nullable: true })
-  sqsMessageId?: string;
-
-  @Property({ nullable: true })
   queueName?: string;
 
   @Property()

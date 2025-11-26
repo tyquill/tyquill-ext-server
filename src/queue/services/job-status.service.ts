@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
-import { Job, JobType, JobStatus } from '../entities/job-status.entity';
+import { Job, JobStatus } from '../entities/job-status.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersService } from '../../users/users.service';
 import {
@@ -18,7 +18,7 @@ export class JobStatusService {
   ) {}
 
   async createJob(data: {
-    jobType: JobType;
+    jobType: string;
     userId: UserIdentifierLike;
     payload?: any;
     queueName?: string;
@@ -51,7 +51,6 @@ export class JobStatusService {
     data?: {
       result?: any;
       errorMessage?: string;
-      sqsMessageId?: string;
       retryCount?: number;
     },
   ): Promise<Job | null> {
@@ -82,8 +81,6 @@ export class JobStatusService {
         if (data.result !== undefined) job.result = data.result;
         if (data.errorMessage !== undefined)
           job.errorMessage = data.errorMessage;
-        if (data.sqsMessageId !== undefined)
-          job.sqsMessageId = data.sqsMessageId;
         if (data.retryCount !== undefined) job.retryCount = data.retryCount;
       }
       await this.em.flush();
@@ -96,7 +93,6 @@ export class JobStatusService {
     if (data) {
       if (data.result !== undefined) job.result = data.result;
       if (data.errorMessage !== undefined) job.errorMessage = data.errorMessage;
-      if (data.sqsMessageId !== undefined) job.sqsMessageId = data.sqsMessageId;
       if (data.retryCount !== undefined) job.retryCount = data.retryCount;
     }
 

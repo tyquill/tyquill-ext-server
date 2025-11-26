@@ -1,9 +1,5 @@
 import { Entity, PrimaryKey, Property, Enum } from '@mikro-orm/core';
 
-export enum JobType {
-  FILE_ANALYSIS = 'FILE_ANALYSIS',
-}
-
 export enum JobStatus {
   PENDING = 'PENDING',
   PROCESSING = 'PROCESSING',
@@ -17,8 +13,8 @@ export class Job {
   @PrimaryKey({ fieldName: 'job_id', type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
   jobUuid!: string; // Unique identifier for tracking (promoted to PK)
 
-  @Enum(() => JobType)
-  jobType!: JobType;
+  @Property()
+  jobType!: string;
 
   @Enum(() => JobStatus)
   status: JobStatus = JobStatus.PENDING;
@@ -40,9 +36,6 @@ export class Job {
 
   @Property()
   maxRetries: number = 3;
-
-  @Property({ nullable: true })
-  sqsMessageId?: string;
 
   @Property({ nullable: true })
   queueName?: string;

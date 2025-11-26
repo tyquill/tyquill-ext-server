@@ -39,15 +39,6 @@ export class TagIdParamPipe implements PipeTransform<string, string> {
       );
     }
 
-    const idType = getTagIdType(normalizedId);
-
-    // Log for debugging (remove in production if needed)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(
-        `[TagIdParamPipe] Validated ${idType} tag ID: ${normalizedId}`,
-      );
-    }
-
     return normalizedId;
   }
 }

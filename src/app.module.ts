@@ -46,7 +46,7 @@ import { APP_GUARD } from '@nestjs/core';
     LibraryItemsModule,
     FoldersModule, // 폴더 모듈 추가
     ContentModule, // 통합 콘텐츠 모듈 추가
-    QueueModule, // SQS 큐 모듈 추가
+    QueueModule, // Job Queue 모듈 추가
     AdminModule, // 관리자 모듈 추가
     SlackBotModule, // Slack Bot API 모듈 추가
     ArticleChatModule, // 채팅 세션 및 메시지 모듈 추가
@@ -66,7 +66,7 @@ export class AppModule {
 
   constructor() {
     this.logger.log(
-      '🚀 Application module initialized with OAuth authentication and SQS queues',
+      '🚀 Application module initialized with OAuth authentication',
     );
   }
 }

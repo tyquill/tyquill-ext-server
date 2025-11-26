@@ -88,7 +88,6 @@ export class RepurposeService {
       try {
         this.logger.log(`Generating ${format} format for article ${article.articleId}`);
 
-        // TODO: LangGraph 워크플로우 호출
         const generatedContent = await this.generateContentForFormat(
           article,
           format,
@@ -179,9 +178,6 @@ export class RepurposeService {
 
     this.em.persist(job);
     await this.em.flush();
-
-    // TODO: Bull Queue에 작업 추가
-    // await this.repurposeQueue.add('repurpose', { jobId: job.id, userId, request });
 
     return {
       jobId: job.id,

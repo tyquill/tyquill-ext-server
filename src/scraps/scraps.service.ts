@@ -592,7 +592,7 @@ export class ScrapsService {
 
   /**
    * 추출된 텍스트를 간단히 요약합니다
-   * TODO: 필요시 FastAPI 서비스를 호출하여 AI 요약 기능 구현
+   * 현재는 단순 텍스트 트리밍으로 구현됨
    */
   private async generateAiSummary(text: string): Promise<string> {
     if (!text || text.length < 50) {
@@ -600,8 +600,7 @@ export class ScrapsService {
     }
 
     try {
-      // 현재는 단순 텍스트 트리밍으로 대체
-      // 향후 필요시 FastAPI AI 요약 서비스 호출 가능
+      // 단순 텍스트 트리밍으로 구현
       return text.length > 500 ? text.substring(0, 500) + '...' : text;
     } catch (error) {
       console.error('요약 생성 실패:', error);

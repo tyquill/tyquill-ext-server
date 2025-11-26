@@ -39,15 +39,6 @@ export class WritingStyleIdParamPipe implements PipeTransform<string, string> {
       );
     }
 
-    const idType = getWritingStyleIdType(normalizedId);
-
-    // Log for debugging (remove in production if needed)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(
-        `[WritingStyleIdParamPipe] Validated ${idType} writing style ID: ${normalizedId}`,
-      );
-    }
-
     return normalizedId;
   }
 }

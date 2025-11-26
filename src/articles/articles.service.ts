@@ -87,13 +87,11 @@ export class ArticlesService {
    * 페이지 콘텐츠를 분석하여 구조화된 템플릿을 반환합니다.
    */
   async analyzePageStructure(content: string): Promise<any> {
-    console.log('analyzePageStructure');
     const result =
       await this.newsletterAgentService.analyzePageStructure(content);
 
     try {
       // LLM의 결과물이 항상 완벽한 JSON이 아닐 수 있으므로 파싱 시도
-      console.log(result);
       const jsonResult = JSON.stringify(result);
       return jsonResult;
     } catch (error) {
@@ -510,19 +508,8 @@ export class ArticlesService {
       const titleChanged = latestArchive?.title !== newTitle;
       const contentChanged = latestArchive?.content !== newContent;
 
-      console.log('🔍 Version Check:', {
-        latestArchiveTitle: latestArchive?.title,
-        newTitle,
-        titleChanged,
-        latestArchiveContent: latestArchive?.content?.substring(0, 100) + '...',
-        newContent: newContent.substring(0, 100) + '...',
-        contentChanged,
-      });
-
       if (titleChanged || contentChanged) {
         const newVersionNumber = (latestArchive?.versionNumber || 0) + 1;
-
-        console.log('📝 Creating new archive version:', newVersionNumber);
 
         const newArchive = new ArticleArchive();
         newArchive.title = newTitle;
@@ -532,10 +519,6 @@ export class ArticlesService {
         newArchive.article = article;
 
         await this.em.persistAndFlush(newArchive);
-
-        console.log('✅ New archive created successfully');
-      } else {
-        console.log('⚠️ No changes detected, skipping version creation');
       }
     }
 

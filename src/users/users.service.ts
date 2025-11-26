@@ -417,13 +417,6 @@ export class UsersService {
               user,
             );
 
-            console.log({
-              event: 'S3_DELETION_TRACKING',
-              userId,
-              s3FileCount: s3FilePaths.length,
-              bucketName,
-            });
-
             for (const filePath of s3FilePaths) {
               const [, ...keyParts] = filePath.split('/');
               const key = keyParts.join('/');
@@ -438,13 +431,6 @@ export class UsersService {
               em.persist(pendingRecord);
               pendingS3Records.push(pendingRecord);
             }
-          } else {
-            console.log({
-              event: 'S3_DELETION_SKIPPED',
-              userId,
-              skipS3Cleanup: options.skipS3Cleanup,
-              bucketName,
-            });
           }
 
           // 연관 엔티티 삭제
@@ -699,17 +685,5 @@ export class UsersService {
 
     // 감사 로그 저장 실패 시 예외 발생 (컴플라이언스 요구사항)
     await this.em.persistAndFlush(auditLog);
-
-    console.log({
-      event: 'ACCOUNT_DELETED',
-      userId,
-      userEmail,
-      deletedBy: options.deletedBy,
-      adminId: options.adminId,
-      timestamp: new Date(),
-      deletedEntityCounts: result.deletedCounts,
-      s3FilesDeleted: result.s3FilesDeleted,
-      errors: result.errors,
-    });
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
-import { Job, JobType, JobStatus } from '../entities/job-status.entity';
+import { Job, JobStatus } from '../entities/job-status.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersService } from '../../users/users.service';
 import {
@@ -18,7 +18,7 @@ export class JobStatusService {
   ) {}
 
   async createJob(data: {
-    jobType: JobType;
+    jobType: string;
     userId: UserIdentifierLike;
     payload?: any;
     queueName?: string;

@@ -22,6 +22,7 @@ import { ArticleChatModule } from './article-chat/article-chat.module';
 import { RepurposeModule } from './repurpose/repurpose.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { APP_GUARD } from '@nestjs/core';
       },
     ]),
     MikroOrmModule.forRoot(mikroOrmConfig),
+    HealthModule, // Health check 엔드포인트
     AuthModule, // 인증 모듈 추가
     UsersModule,
     ScrapsModule,

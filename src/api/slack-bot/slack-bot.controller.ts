@@ -17,10 +17,10 @@ import {
   ApiResponse,
   ApiHeader,
 } from '@nestjs/swagger';
-import { SlackBotService } from './slack-bot.service';
+import { SlackBotService } from '../../slack-bot/slack-bot.service';
 import { GenerateReportDto } from './dto/generate-report.dto';
 import { ReportResponseDto } from './dto/report-response.dto';
-import { ApiKeyAuthGuard } from './guards/api-key-auth.guard';
+import { ApiKeyAuthGuard } from '../../slack-bot/guards/api-key-auth.guard';
 
 /**
  * Slack Bot API 컨트롤러

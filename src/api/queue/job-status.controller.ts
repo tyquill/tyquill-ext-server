@@ -9,9 +9,9 @@ import {
   Version,
   BadRequestException,
 } from '@nestjs/common';
-import { JobStatusService } from '../services/job-status.service';
+import { JobStatusService } from '../../queue/services/job-status.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { Job } from '../entities/job-status.entity';
+import { Job } from '../../queue/entities/job-status.entity';
 
 @Controller('jobs')
 @UseGuards(JwtAuthGuard)

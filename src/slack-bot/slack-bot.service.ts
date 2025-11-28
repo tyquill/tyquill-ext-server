@@ -10,8 +10,8 @@ import {
   GenerateReportDto,
   SlackMessageDto,
   DateRangeDto,
-} from './dto/generate-report.dto';
-import { ReportResponseDto } from './dto/report-response.dto';
+} from '../api/slack-bot/dto/generate-report.dto';
+import { ReportResponseDto } from '../api/slack-bot/dto/report-response.dto';
 import { SlackReportGeneratorService } from './slack-report-generator.service';
 
 /**

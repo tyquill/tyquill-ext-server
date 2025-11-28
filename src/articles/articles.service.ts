@@ -52,7 +52,7 @@ import {
 } from '../writing-styles/utils/writing-style-identifier.util';
 import { FilterQuery } from '@mikro-orm/core';
 import { ArticleChatService } from '../article-chat/services/article-chat.service';
-import { ChatMessageRole } from '../article-chat/dto/chat-message.dto';
+import { ChatMessageRole } from '../api/article-chat/dto/chat-message.dto';
 // Analytics tracking migrated to extension client (PostHog).
 
 @Injectable()

@@ -16,7 +16,7 @@ import {
   AsyncRepurposeResponseDto,
   RepurposedContentResponseDto,
   JobStatusResponseDto,
-} from '../dto';
+} from '../../api/repurpose/dto';
 
 @Injectable()
 export class RepurposeService {

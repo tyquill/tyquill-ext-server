@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { SlackBotController } from './slack-bot.controller';
+import { SlackBotController } from '../api/slack-bot/slack-bot.controller';
 import { SlackBotService } from './slack-bot.service';
 import { SlackReportGeneratorService } from './slack-report-generator.service';
 import { AgentsModule } from '../agents/agents.module';

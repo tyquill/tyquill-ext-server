@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ContentFormat, JobStatus } from '../entities';
+import { ContentFormat, JobStatus } from '../../../repurpose/entities';
 
 /**
  * 생성된 콘텐츠 응답 DTO

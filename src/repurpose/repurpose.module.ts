@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { RepurposeController } from './repurpose.controller';
+import { RepurposeController } from '../api/repurpose/repurpose.controller';
 import { RepurposeService } from './services/repurpose.service';
 import {
   RepurposedContent,

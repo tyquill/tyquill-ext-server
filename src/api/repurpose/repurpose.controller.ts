@@ -17,8 +17,8 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RepurposeService } from './services/repurpose.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RepurposeService } from '../../repurpose/services/repurpose.service';
 import {
   RepurposeRequestDto,
   RepurposeResponseDto,

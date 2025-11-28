@@ -5,7 +5,7 @@ import { ArticleChatSession } from '../entities/article-chat-session.entity';
 import { ArticleChatMessage } from '../entities/article-chat-message.entity';
 import { Article } from '../../articles/entities/article.entity';
 import { User } from '../../users/entities/user.entity';
-import { ChatMessageDto, SaveConversationHistoryDto } from '../dto/chat-message.dto';
+import { ChatMessageDto, SaveConversationHistoryDto } from '../../api/article-chat/dto/chat-message.dto';
 
 @Injectable()
 export class ArticleChatService {

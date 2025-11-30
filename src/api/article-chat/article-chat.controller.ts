@@ -4,7 +4,7 @@ import { ArticleChatService } from '../../article-chat/services/article-chat.ser
 import {
   SessionListItemDto,
   SessionMessagesDto,
-} from '../../article-chat/dto/session-list.dto';
+} from './dto/session-list.dto';
 
 @Controller('article-chat')
 @UseGuards(JwtAuthGuard)

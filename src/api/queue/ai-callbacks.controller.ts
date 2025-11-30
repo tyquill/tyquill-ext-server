@@ -10,8 +10,8 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { JobStatusService } from '../services/job-status.service';
-import { JobStatus } from '../entities/job-status.entity';
+import { JobStatusService } from '../../queue/services/job-status.service';
+import { JobStatus } from '../../queue/entities/job-status.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/postgresql';
 import { Scrap } from '../../scraps/entities/scrap.entity';

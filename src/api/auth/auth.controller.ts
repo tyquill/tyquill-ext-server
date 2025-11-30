@@ -34,10 +34,10 @@ import {
   GoogleAuthDto,
   AuthResponse,
   ChromeExtensionTokenDto,
-} from './auth.service';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { AuthenticatedUser } from './strategies/jwt.strategy';
-import { UsersService } from '../users/users.service';
+} from '../../auth/auth.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
+import { UsersService } from '../../users/users.service';
 import { UpdateUserLanguageDto } from './dto/update-user-language.dto';
 
 /**

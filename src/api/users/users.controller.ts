@@ -18,8 +18,8 @@ import {
 } from '@nestjs/swagger';
 import { IsString, IsOptional } from 'class-validator';
 import { Throttle } from '@nestjs/throttler';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { UsersService } from './users.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { UsersService } from '../../users/users.service';
 
 export class ConfirmDeleteAccountDto {
   @ApiProperty({

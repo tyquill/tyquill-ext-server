@@ -12,7 +12,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ContentFormat } from '../entities';
+import { ContentFormat } from '../../../repurpose/entities';
 
 /**
  * 포맷별 세부 옵션

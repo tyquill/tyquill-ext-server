@@ -4,7 +4,7 @@ import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 import { UserOAuth } from './entities/user-oauth.entity';
 import { UserIdParamPipe } from './pipes/user-id.pipe';
-import { UsersController } from './users.controller';
+import { UsersController } from '../api/users/users.controller';
 import { AccountDeletionAudit } from './entities/account-deletion-audit.entity';
 import { PendingS3Deletion } from './entities/pending-s3-deletion.entity';
 // Analytics tracking moved to client; module no longer required here.

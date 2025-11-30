@@ -14,7 +14,6 @@ import { WritingStylesModule } from './writing-styles/writing-styles.module';
 import { UploadedFilesModule } from './uploaded-files/uploaded-files.module';
 import { LibraryItemsModule } from './library-items/library-items.module';
 import { QueueModule } from './queue/queue.module';
-import { AdminModule } from './api/admin/admin.module';
 import { FoldersModule } from './folders/folders.module';
 import { ContentModule } from './content/content.module';
 import { SlackBotModule } from './slack-bot/slack-bot.module';
@@ -49,7 +48,6 @@ import { HealthModule } from './health/health.module';
     FoldersModule, // 폴더 모듈 추가
     ContentModule, // 통합 콘텐츠 모듈 추가
     QueueModule, // Job Queue 모듈 추가
-    AdminModule, // 관리자 모듈 추가
     SlackBotModule, // Slack Bot API 모듈 추가
     ArticleChatModule, // 채팅 세션 및 메시지 모듈 추가
     RepurposeModule, // 멀티포맷 리퍼포징 모듈 추가

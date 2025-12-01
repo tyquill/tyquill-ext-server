@@ -7,7 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { ScrapsService } from '../scraps/scraps.service';
 import { UploadedFilesService } from '../uploaded-files/uploaded-files.service';
 import { CreateScrapDto } from '../api/scraps/dto/create-scrap.dto';
-import { Express } from 'express';
+import { UploadedFile } from '../types/uploaded-file';
 import {
   UserIdentifierLike,
   buildUserFilterFromInput,
@@ -89,7 +89,7 @@ export class LibraryItemsService {
   }
 
   async uploadViaS3(
-    file: Express.Multer.File,
+    file: UploadedFile,
     body: { title?: string; description?: string },
     userId: UserIdentifierLike,
   ) {

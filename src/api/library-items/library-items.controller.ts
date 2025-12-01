@@ -7,8 +7,6 @@ import {
   Request,
   UseGuards,
   Version,
-  UseInterceptors,
-  UploadedFile,
   BadRequestException,
   Delete,
   Param,
@@ -20,8 +18,11 @@ import {
   LibraryItemDto,
   LibraryItemType,
 } from '../../library-items/library-items.service';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateScrapDto } from '../scraps/dto/create-scrap.dto';
+import * as os from 'os';
+import * as fs from 'fs';
+import * as path from 'path';
+import { pipeline } from 'stream/promises';
 
 enum LibraryItemTypeEnum {
   SCRAP = 'SCRAP',
@@ -52,30 +53,46 @@ export class LibraryItemsController {
 
   @Version('1')
   @Post('upload')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit (adjust as needed)
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype !== 'application/pdf') {
-          return cb(
-            new BadRequestException('Only PDF files are supported'),
-            false,
-          );
+  async upload(@Request() req: any) {
+    if (!req.isMultipart()) {
+      throw new BadRequestException('Multipart request expected');
+    }
+
+    const parts = req.parts();
+    let fileInfo: any = null;
+    const fields: any = {};
+
+    for await (const part of parts) {
+      if (part.type === 'file') {
+        if (fileInfo) continue;
+
+        if (part.mimetype !== 'application/pdf') {
+          throw new BadRequestException('Only PDF files are supported');
         }
-        cb(null, true);
-      },
-    }),
-  )
-  async upload(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: { title?: string; description?: string },
-    @Request() req: any,
-  ) {
-    if (!file) {
+
+        const safeName = part.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        const tmpPath = path.join(os.tmpdir(), `${Date.now()}-${safeName}`);
+        await pipeline(part.file, fs.createWriteStream(tmpPath));
+
+        fileInfo = {
+          fieldname: part.fieldname,
+          originalname: part.filename,
+          encoding: part.encoding,
+          mimetype: part.mimetype,
+          path: tmpPath,
+          size: fs.statSync(tmpPath).size,
+        };
+      } else {
+        fields[part.fieldname] = part.value;
+      }
+    }
+
+    if (!fileInfo) {
       throw new BadRequestException('File is required');
     }
+
     const userId = req.user.id;
-    return this.libraryItemsService.uploadViaS3(file, body, userId);
+    return this.libraryItemsService.uploadViaS3(fileInfo, fields, userId);
   }
 
   @Version('1')

@@ -15,7 +15,11 @@ async function bootstrap() {
   );
 
   // Register multipart support
-  await app.register(multipart);
+  await app.register(multipart, {
+    limits: {
+      fileSize: 30 * 1024 * 1024 
+    }
+  });
 
   // 전역 ValidationPipe 설정
   app.useGlobalPipes(

@@ -151,7 +151,10 @@ export class UploadedFilesService {
       // 파일을 스트림으로 업로드 (메모리 부담 줄이기)
       const tmpPath = file.path;
       const bodyStream = tmpPath ? fs.createReadStream(tmpPath) : undefined;
-      const body = bodyStream ?? file.buffer; // fallback to buffer if needed
+      if (!bodyStream) {
+        throw new InternalServerErrorException('File stream is not available for upload');
+      }
+      const body = bodyStream;
 
       const putCommand = new PutObjectCommand({
         Bucket: this.bucket,

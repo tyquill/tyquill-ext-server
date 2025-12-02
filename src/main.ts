@@ -1,11 +1,25 @@
 import { NestFactory } from '@nestjs/core';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
 import { VersioningType, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import * as bodyParser from 'body-parser';
+import multipart from '@fastify/multipart';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ bodyLimit: 10 * 1024 * 1024 }),
+  );
+
+  // Register multipart support
+  await app.register(multipart, {
+    limits: {
+      fileSize: 30 * 1024 * 1024 
+    }
+  });
 
   // 전역 ValidationPipe 설정
   app.useGlobalPipes(
@@ -15,9 +29,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
-  app.use(bodyParser.json({ limit: '10mb' }));
-  app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
   // JWT 인증 설정 확인
   console.log('🔐 JWT authentication enabled');

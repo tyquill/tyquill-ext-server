@@ -9,15 +9,15 @@ import {
   UseGuards,
   Request,
   Version,
-  UseInterceptors,
-  UploadedFile,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
 import * as os from 'os';
-import { Express } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
+import { pipeline } from 'stream/promises';
 import { UploadedFilesService } from '../../uploaded-files/uploaded-files.service';
+import { UploadedFile, UploadFields } from '../../types/uploaded-file';
 // import { CreateUploadedFileDto } from './dto/create-uploaded-file.dto';
 import { UpdateUploadedFileDto } from './dto/update-uploaded-file.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -29,39 +29,59 @@ export class UploadedFilesController {
   @Version('1')
   @Post('upload')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => cb(null, os.tmpdir()),
-        filename: (req, file, cb) => {
-          const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-          cb(null, `${Date.now()}-${safe}`);
-        },
-      }),
-      limits: { fileSize: 30 * 1024 * 1024 }, // 30MB limit (adjust as needed)
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype !== 'application/pdf') {
-          return cb(null, false);
-        }
-        cb(null, true);
-      },
-    }),
-  )
-  async upload(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: { title?: string; description?: string },
-    @Request() req: any,
-  ) {
-    if (!file) {
-      throw new Error('File is required');
+  async upload(@Request() req: any) {
+    if (!req.isMultipart()) {
+      throw new BadRequestException('Multipart request expected');
     }
 
-    return this.uploadedFilesService.uploadToS3AndSave(
-      file,
-      body.title || file.originalname.replace(/\.[^/.]+$/, ''),
-      body.description || '',
-      req.user.id,
-    );
+    const parts = req.parts();
+    let fileInfo: UploadedFile | null = null;
+    const fields: UploadFields = {};
+
+    for await (const part of parts) {
+      if (part.type === 'file') {
+        if (fileInfo) continue; // Only process the first file
+
+        if (part.mimetype !== 'application/pdf') {
+          throw new BadRequestException('Only PDF files are allowed');
+        }
+
+        const safeName = part.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        const tmpPath = path.join(os.tmpdir(), `${Date.now()}-${safeName}`);
+        await pipeline(part.file, fs.createWriteStream(tmpPath));
+
+        fileInfo = {
+          fieldname: part.fieldname,
+          originalname: part.filename,
+          encoding: part.encoding,
+          mimetype: part.mimetype,
+          path: tmpPath,
+          size: fs.statSync(tmpPath).size,
+        };
+      } else {
+        fields[part.fieldname] = part.value;
+      }
+    }
+
+    if (!fileInfo) {
+      throw new BadRequestException('File is required');
+    }
+
+    try {
+      return await this.uploadedFilesService.uploadToS3AndSave(
+        fileInfo,
+        fields.title || fileInfo.originalname.replace(/\.[^/.]+$/, ''),
+        fields.description || '',
+        req.user.id,
+      );
+    } finally {
+      // 임시 파일 정리 (에러가 발생하더라도 실행)
+      if (fileInfo?.path && fs.existsSync(fileInfo.path)) {
+        fs.promises.unlink(fileInfo.path).catch((error) => {
+          console.warn(`Failed to delete temporary file: ${fileInfo.path}`, error);
+        });
+      }
+    }
   }
 
   // metadata-only create endpoint removed; use /uploaded-files/upload instead

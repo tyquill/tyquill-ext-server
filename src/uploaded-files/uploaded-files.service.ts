@@ -25,6 +25,8 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
+import { UploadedFile } from '../types/uploaded-file';
+
 @Injectable()
 export class UploadedFilesService {
   private readonly logger = new Logger(UploadedFilesService.name);
@@ -126,7 +128,7 @@ export class UploadedFilesService {
   }
 
   async uploadToS3AndSave(
-    file: Express.Multer.File,
+    file: UploadedFile,
     title: string,
     description: string,
     userId: UserIdentifierLike,
@@ -147,9 +149,12 @@ export class UploadedFilesService {
       const fileKey = `uploads/${hashDirectory}/${uuidv4()}`;
 
       // 파일을 스트림으로 업로드 (메모리 부담 줄이기)
-      const tmpPath = (file as any).path as string | undefined;
+      const tmpPath = file.path;
       const bodyStream = tmpPath ? fs.createReadStream(tmpPath) : undefined;
-      const body = bodyStream ?? file.buffer; // fallback to buffer if needed
+      if (!bodyStream) {
+        throw new InternalServerErrorException('File stream is not available for upload');
+      }
+      const body = bodyStream;
 
       const putCommand = new PutObjectCommand({
         Bucket: this.bucket,

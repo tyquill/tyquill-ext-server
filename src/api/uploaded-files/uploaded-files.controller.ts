@@ -17,6 +17,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { pipeline } from 'stream/promises';
 import { UploadedFilesService } from '../../uploaded-files/uploaded-files.service';
+import { UploadedFile, UploadFields } from '../../types/uploaded-file';
 // import { CreateUploadedFileDto } from './dto/create-uploaded-file.dto';
 import { UpdateUploadedFileDto } from './dto/update-uploaded-file.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -34,8 +35,8 @@ export class UploadedFilesController {
     }
 
     const parts = req.parts();
-    let fileInfo: any = null;
-    const fields: any = {};
+    let fileInfo: UploadedFile | null = null;
+    const fields: UploadFields = {};
 
     for await (const part of parts) {
       if (part.type === 'file') {

@@ -19,6 +19,7 @@ import {
   LibraryItemType,
 } from '../../library-items/library-items.service';
 import { CreateScrapDto } from '../scraps/dto/create-scrap.dto';
+import { UploadedFile, UploadFields } from '../../types/uploaded-file';
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -59,8 +60,8 @@ export class LibraryItemsController {
     }
 
     const parts = req.parts();
-    let fileInfo: any = null;
-    const fields: any = {};
+    let fileInfo: UploadedFile | null = null;
+    const fields: UploadFields = {};
 
     for await (const part of parts) {
       if (part.type === 'file') {

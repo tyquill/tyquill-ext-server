@@ -7,3 +7,9 @@ export interface UploadedFile {
   buffer?: Buffer;
   path?: string;
 }
+
+export interface UploadFields {
+  title?: string;
+  description?: string;
+  [key: string]: string | undefined;
+}

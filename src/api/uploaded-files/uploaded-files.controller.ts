@@ -66,12 +66,21 @@ export class UploadedFilesController {
       throw new BadRequestException('File is required');
     }
 
-    return this.uploadedFilesService.uploadToS3AndSave(
-      fileInfo,
-      fields.title || fileInfo.originalname.replace(/\.[^/.]+$/, ''),
-      fields.description || '',
-      req.user.id,
-    );
+    try {
+      return await this.uploadedFilesService.uploadToS3AndSave(
+        fileInfo,
+        fields.title || fileInfo.originalname.replace(/\.[^/.]+$/, ''),
+        fields.description || '',
+        req.user.id,
+      );
+    } finally {
+      // 임시 파일 정리 (에러가 발생하더라도 실행)
+      if (fileInfo?.path && fs.existsSync(fileInfo.path)) {
+        fs.promises.unlink(fileInfo.path).catch((error) => {
+          console.warn(`Failed to delete temporary file: ${fileInfo.path}`, error);
+        });
+      }
+    }
   }
 
   // metadata-only create endpoint removed; use /uploaded-files/upload instead

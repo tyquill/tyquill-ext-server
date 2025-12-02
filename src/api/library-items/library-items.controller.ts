@@ -92,7 +92,16 @@ export class LibraryItemsController {
     }
 
     const userId = req.user.id;
-    return this.libraryItemsService.uploadViaS3(fileInfo, fields, userId);
+    try {
+      return await this.libraryItemsService.uploadViaS3(fileInfo, fields, userId);
+    } finally {
+      // 임시 파일 정리 (에러가 발생하더라도 실행)
+      if (fileInfo?.path && fs.existsSync(fileInfo.path)) {
+        fs.promises.unlink(fileInfo.path).catch((error) => {
+          console.warn(`Failed to delete temporary file: ${fileInfo.path}`, error);
+        });
+      }
+    }
   }
 
   @Version('1')

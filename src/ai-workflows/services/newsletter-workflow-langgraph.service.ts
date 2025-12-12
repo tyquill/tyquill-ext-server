@@ -61,18 +61,6 @@ const WorkflowStateAnnotation = Annotation.Root({
 
 type WorkflowState = typeof WorkflowStateAnnotation.State;
 
-// Opik integration
-let OpikTracer: any;
-let OPIK_AVAILABLE = false;
-try {
-  // Dynamic import to make Opik optional
-  OpikTracer = require('opik').OpikTracer;
-  OPIK_AVAILABLE = true;
-} catch (error) {
-  // Opik not available, will use LangSmith only
-  OPIK_AVAILABLE = false;
-}
-
 @Injectable()
 export class NewsletterWorkflowLanggraphService {
   protected readonly logger = new Logger(NewsletterWorkflowLanggraphService.name);
@@ -84,7 +72,6 @@ export class NewsletterWorkflowLanggraphService {
   private readonly pdfModel: ChatVertexAI;
 
   private compiledWorkflow: ReturnType<typeof this.buildWorkflow>;
-  private opikTracer: any = null;
 
   constructor(
     private readonly vertexFactory: VertexAiFactory,
@@ -121,29 +108,8 @@ export class NewsletterWorkflowLanggraphService {
     // Build and compile the workflow graph
     this.compiledWorkflow = this.buildWorkflow();
 
-    // Initialize Opik tracer after workflow is compiled
-    this.initializeOpikTracer();
   }
 
-  /**
-   * Initialize Opik tracer for LangGraph
-   */
-  private initializeOpikTracer() {
-    if (!OPIK_AVAILABLE) {
-      this.logger.log('⚠️ Opik not available, using LangSmith only');
-      return;
-    }
-
-    try {
-      this.opikTracer = new OpikTracer({
-        tags: ['newsletter-workflow', 'langgraph', 'vertex-ai', 'typescript'],
-      });
-      this.logger.log('✅ Opik tracer initialized successfully');
-    } catch (error) {
-      this.logger.warn(`⚠️ Failed to initialize Opik tracer: ${error}`);
-      this.opikTracer = null;
-    }
-  }
 
   /**
    * Build the LangGraph workflow
@@ -226,12 +192,6 @@ export class NewsletterWorkflowLanggraphService {
         },
       };
 
-      // Add Opik tracer if available
-      if (this.opikTracer) {
-        config.callbacks = [this.opikTracer];
-        this.logger.log('🔍 Executing workflow with Opik tracing');
-      }
-
       // Invoke the compiled workflow
       const finalState = await this.compiledWorkflow.invoke(initialState, config);
 
@@ -284,11 +244,6 @@ export class NewsletterWorkflowLanggraphService {
         },
         streamMode: ['updates', 'tasks'],
       };
-
-      // Add Opik tracer if available
-      if (this.opikTracer) {
-        config.callbacks = [this.opikTracer];
-      }
 
       // Stream events from the workflow
       this.logger.log('📡 Starting LangGraph workflow stream...');

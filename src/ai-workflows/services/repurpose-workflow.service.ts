@@ -104,11 +104,11 @@ const PodcastResponseSchema = z.object({
 @Injectable()
 export class RepurposeWorkflowService {
   private readonly logger = new Logger(RepurposeWorkflowService.name);
-  private readonly promptTemplates: RepurposePromptTemplatesService;
 
-  constructor(private readonly vertexAiFactory: VertexAiFactory) {
-    this.promptTemplates = new RepurposePromptTemplatesService();
-  }
+  constructor(
+    private readonly vertexAiFactory: VertexAiFactory,
+    private readonly promptTemplates: RepurposePromptTemplatesService,
+  ) {}
 
   /**
    * 리퍼포징 워크플로우 실행
@@ -118,7 +118,7 @@ export class RepurposeWorkflowService {
 
     try {
       // 1. 포맷별 프롬프트 템플릿 가져오기
-      const template = this.promptTemplates.getTemplateByFormat(input.format);
+      const template = await this.promptTemplates.getTemplateByFormat(input.format);
 
       // 2. 프롬프트 변수 준비
       const promptVariables = this.preparePromptVariables(input);

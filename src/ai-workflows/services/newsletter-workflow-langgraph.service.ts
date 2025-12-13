@@ -569,8 +569,8 @@ export class NewsletterWorkflowLanggraphService {
       const isKorean = state.userLanguage === 'ko';
 
       const template = isKorean
-        ? this.promptTemplates.getKoreanNewsletterTemplate()
-        : this.promptTemplates.getSimpleNewsletterTemplate();
+        ? await this.promptTemplates.getKoreanNewsletterTemplate()
+        : await this.promptTemplates.getSimpleNewsletterTemplate();
 
       const prompt = await template.format({
         topic: state.topic ?? '',
@@ -610,8 +610,8 @@ export class NewsletterWorkflowLanggraphService {
       const isKorean = state.userLanguage === 'ko';
 
       const template = isKorean
-        ? this.promptTemplates.getKoreanNewsletterTitleTemplate()
-        : this.promptTemplates.getSimpleNewsletterTitleTemplate();
+        ? await this.promptTemplates.getKoreanNewsletterTitleTemplate()
+        : await this.promptTemplates.getSimpleNewsletterTitleTemplate();
 
       const prompt = await template.format({
         topic: state.topic ?? '',
@@ -641,8 +641,8 @@ export class NewsletterWorkflowLanggraphService {
       const isKorean = state.userLanguage === 'ko';
 
       const template = isKorean
-        ? this.promptTemplates.getKoreanArticleReflectorTemplate()
-        : this.promptTemplates.getArticleReflectorTemplate();
+        ? await this.promptTemplates.getKoreanArticleReflectorTemplate()
+        : await this.promptTemplates.getArticleReflectorTemplate();
 
       const prompt = await template.format({
         topic: state.topic ?? 'Empty',
@@ -690,8 +690,8 @@ export class NewsletterWorkflowLanggraphService {
       const isKorean = state.userLanguage === 'ko';
 
       const template = isKorean
-        ? this.promptTemplates.getKoreanWritingStyleRewriteTemplate()
-        : this.promptTemplates.getWritingStyleRewriteTemplate();
+        ? await this.promptTemplates.getKoreanWritingStyleRewriteTemplate()
+        : await this.promptTemplates.getWritingStyleRewriteTemplate();
 
       const prompt = await template.format({
         topic: state.topic ?? '',
@@ -752,7 +752,7 @@ export class NewsletterWorkflowLanggraphService {
 
   async analyzePageStructure(content: string): Promise<PageStructureAnalysis> {
     try {
-      const template = this.promptTemplates.getStructureAnalysisTemplate();
+      const template = await this.promptTemplates.getStructureAnalysisTemplate();
       const prompt = await template.format({ content });
       const structuredModel = this.newsletterModel.withStructuredOutput(
         PageStructureSchema,
@@ -770,7 +770,7 @@ export class NewsletterWorkflowLanggraphService {
       );
 
       try {
-        const template = this.promptTemplates.getStructureAnalysisTemplate();
+        const template = await this.promptTemplates.getStructureAnalysisTemplate();
         const prompt = await template.format({ content });
         const response = await this.newsletterModel.invoke(prompt);
         const text = this.extractMessageText(response);

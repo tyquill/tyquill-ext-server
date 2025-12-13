@@ -37,6 +37,7 @@
     "@langchain/core": "^1.0.4",
     "@langchain/google-vertexai": "^1.0.0",
     "@langchain/langgraph": "^1.0.2",
+    "@langfuse/client": "^4.4.9",
     "@langfuse/core": "^4.4.9",
     "@langfuse/langchain": "^4.4.9",
     "@langfuse/otel": "^4.4.9",

@@ -20,6 +20,7 @@ import { ScrapCombinationService } from './scrap-combination.service';
 import { VertexAiFactory } from './vertex-ai.factory';
 import { LangfuseService } from './langfuse.service';
 import { NodeName } from '../models/streaming';
+import type { RunnableConfig } from '@langchain/core/runnables';
 
 const VERTEX_MODEL_NEWSLETTER = 'gemini-2.5-flash';
 const VERTEX_MODEL_TITLE = 'gemini-2.5-flash';
@@ -110,6 +111,32 @@ export class NewsletterWorkflowLanggraphService {
     // Build and compile the workflow graph
     this.compiledWorkflow = this.buildWorkflow();
 
+  }
+
+  private buildModelConfig(
+    config?: RunnableConfig,
+    runName?: string,
+  ): RunnableConfig | undefined {
+    if (!config && !runName) {
+      return undefined;
+    }
+
+    const modelConfig: RunnableConfig = {};
+
+    if (config?.callbacks) {
+      modelConfig.callbacks = config.callbacks;
+    }
+    if (config?.tags) {
+      modelConfig.tags = config.tags;
+    }
+    if (config?.metadata) {
+      modelConfig.metadata = config.metadata;
+    }
+    if (runName) {
+      modelConfig.runName = runName;
+    }
+
+    return modelConfig;
   }
 
 
@@ -484,6 +511,7 @@ export class NewsletterWorkflowLanggraphService {
   protected async processSinglePdf(
     pdfItem: PdfReference,
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<string> {
     const fileUrl = pdfItem.url ?? '';
     const usagePrompt = pdfItem.usagePrompt ?? '';
@@ -511,7 +539,10 @@ export class NewsletterWorkflowLanggraphService {
         fileUrl,
       );
 
-      const response = await this.pdfModel.invoke([message]);
+      const response = await this.pdfModel.invoke(
+        [message],
+        this.buildModelConfig(config, 'newsletter.pdf'),
+      );
       const text = this.extractMessageText(response);
 
       if (usagePrompt) {
@@ -530,6 +561,7 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async processPdfContentNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const pdfItems = state.pdfUrlsWithPrompts ?? [];
@@ -542,7 +574,7 @@ export class NewsletterWorkflowLanggraphService {
       }
 
       const processed = await Promise.all(
-        pdfItems.map((item) => this.processSinglePdf(item, state)),
+        pdfItems.map((item) => this.processSinglePdf(item, state, config)),
       );
 
       return {
@@ -562,6 +594,7 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async generateNewsletterNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const feedbacks = state.feedbacks ?? [];
@@ -585,7 +618,10 @@ export class NewsletterWorkflowLanggraphService {
             : 'Empty',
       });
 
-      const response = await this.newsletterModel.invoke(prompt);
+      const response = await this.newsletterModel.invoke(
+        prompt,
+        this.buildModelConfig(config, 'newsletter.generate'),
+      );
       const result = this.extractMessageText(response);
 
       return {
@@ -605,6 +641,7 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async generateTitleNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const isKorean = state.userLanguage === 'ko';
@@ -619,7 +656,10 @@ export class NewsletterWorkflowLanggraphService {
         generationParams: state.generationParams ?? 'Empty',
         content: state.content ?? '',
       });
-      const response = await this.titleModel.invoke(prompt);
+      const response = await this.titleModel.invoke(
+        prompt,
+        this.buildModelConfig(config, 'newsletter.title'),
+      );
       const result = this.extractMessageText(response);
 
       return {
@@ -636,6 +676,7 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async articleReflectorNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const isKorean = state.userLanguage === 'ko';
@@ -653,7 +694,10 @@ export class NewsletterWorkflowLanggraphService {
           state.articleStructureTemplate ?? [],
         ),
       });
-      const response = await this.reflectorModel.invoke(prompt);
+      const response = await this.reflectorModel.invoke(
+        prompt,
+        this.buildModelConfig(config, 'newsletter.reflector'),
+      );
       const result = this.extractMessageText(response);
 
       const feedback: Feedback = {
@@ -674,6 +718,7 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async rewriteWritingStyleNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const examples = state.writingStyleExampleContents ?? [];
@@ -699,7 +744,10 @@ export class NewsletterWorkflowLanggraphService {
         content: state.content ?? '',
         writingStyleExamples: examples.join('\n\n---\n\n'),
       });
-      const response = await this.rewriteModel.invoke(prompt);
+      const response = await this.rewriteModel.invoke(
+        prompt,
+        this.buildModelConfig(config, 'newsletter.rewrite'),
+      );
       const result = this.extractMessageText(response);
 
       return {

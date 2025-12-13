@@ -1,7 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LangfuseClient } from '@langfuse/client';
 import { PromptTemplate } from '@langchain/core/prompts';
+import type { ChatPromptClient, LangfuseClient, TextPromptClient } from '@langfuse/client' with { "resolution-mode": "import" };
+
+type ChatPromptTemplate = ReturnType<ChatPromptClient['getLangchainPrompt']>;
+type ChatPromptContent = ChatPromptClient['prompt'];
 
 /**
  * Langfuse Prompt Management Service
@@ -17,28 +20,47 @@ import { PromptTemplate } from '@langchain/core/prompts';
 @Injectable()
 export class LangfusePromptService implements OnModuleInit {
   private readonly logger = new Logger(LangfusePromptService.name);
-  private langfuseClient: LangfuseClient;
+  private langfuseClient: LangfuseClient | null = null;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {}
+
+  private async initLangfuseClient(): Promise<LangfuseClient | null> {
+    if (this.langfuseClient) {
+      return this.langfuseClient;
+    }
+
     const secretKey = this.configService.get<string>('LANGFUSE_SECRET_KEY');
     const publicKey = this.configService.get<string>('LANGFUSE_PUBLIC_KEY');
     const baseUrl = this.configService.get<string>('LANGFUSE_BASE_URL');
 
     if (!secretKey || !publicKey || !baseUrl) {
       this.logger.warn('Langfuse credentials not found. Prompt management features will be disabled.');
-      this.langfuseClient = null as any;
-    } else {
-      this.langfuseClient = new LangfuseClient({
-        secretKey,
-        publicKey,
-        baseUrl,
-      });
-      this.logger.log('Langfuse Prompt Management initialized');
+      return null;
     }
+
+    const { LangfuseClient } = await import('@langfuse/client');
+
+    this.langfuseClient = new LangfuseClient({
+      secretKey,
+      publicKey,
+      baseUrl,
+    });
+    this.logger.log('Langfuse Prompt Management initialized');
+
+    return this.langfuseClient;
+  }
+
+  private async getClientOrThrow(): Promise<LangfuseClient> {
+    const client = await this.initLangfuseClient();
+    if (!client) {
+      throw new Error('Langfuse client is not initialized. Please check your configuration.');
+    }
+    return client;
   }
 
   async onModuleInit() {
-    if (!this.langfuseClient) {
+    const client = await this.initLangfuseClient();
+    if (!client) {
       this.logger.warn('Langfuse client is not initialized. Skipping module initialization.');
       return;
     }
@@ -56,24 +78,54 @@ export class LangfusePromptService implements OnModuleInit {
     options?: {
       version?: number;
       label?: string;
+      type?: 'text';
+    },
+  ): Promise<PromptTemplate>;
+  async getPrompt(
+    name: string,
+    options: {
+      version?: number;
+      label?: string;
+      type: 'chat';
+    },
+  ): Promise<ChatPromptTemplate>;
+  async getPrompt(
+    name: string,
+    options?: {
+      version?: number;
+      label?: string;
       type?: 'text' | 'chat';
     },
-  ): Promise<PromptTemplate> {
-    if (!this.langfuseClient) {
-      throw new Error('Langfuse client is not initialized. Please check your configuration.');
-    }
+  ): Promise<PromptTemplate | ChatPromptTemplate> {
+    const client = await this.getClientOrThrow();
 
     try {
-      const prompt = await this.langfuseClient.prompt.get(name, {
+      const label = options?.label || 'production';
+
+      if (options?.type === 'chat') {
+        const prompt = await client.prompt.get(name, {
+          version: options?.version,
+          label,
+          type: 'chat',
+        });
+
+        const langchainPrompt = prompt.getLangchainPrompt();
+
+        this.logger.debug(`Loaded prompt '${name}' from Langfuse (version: ${prompt.version}, label: ${label}, type: chat)`);
+
+        return langchainPrompt;
+      }
+
+      const prompt = await client.prompt.get(name, {
         version: options?.version,
-        label: options?.label || 'production',
-        type: options?.type || 'text',
+        label,
+        type: 'text',
       });
 
       // Convert Langfuse prompt to Langchain PromptTemplate
       const langchainPromptString = prompt.getLangchainPrompt();
 
-      this.logger.debug(`Loaded prompt '${name}' from Langfuse (version: ${prompt.version}, label: ${options?.label || 'production'})`);
+      this.logger.debug(`Loaded prompt '${name}' from Langfuse (version: ${prompt.version}, label: ${label}, type: text)`);
 
       return PromptTemplate.fromTemplate(langchainPromptString);
     } catch (error) {
@@ -93,21 +145,49 @@ export class LangfusePromptService implements OnModuleInit {
     options?: {
       version?: number;
       label?: string;
+      type?: 'text';
+    },
+  ): Promise<TextPromptClient['prompt']>;
+  async getRawPrompt(
+    name: string,
+    options: {
+      version?: number;
+      label?: string;
+      type: 'chat';
+    },
+  ): Promise<ChatPromptContent>;
+  async getRawPrompt(
+    name: string,
+    options?: {
+      version?: number;
+      label?: string;
       type?: 'text' | 'chat';
     },
-  ): Promise<string> {
-    if (!this.langfuseClient) {
-      throw new Error('Langfuse client is not initialized. Please check your configuration.');
-    }
+  ): Promise<TextPromptClient['prompt'] | ChatPromptContent> {
+    const client = await this.getClientOrThrow();
 
     try {
-      const prompt = await this.langfuseClient.prompt.get(name, {
+      const label = options?.label || 'production';
+
+      if (options?.type === 'chat') {
+        const prompt = await client.prompt.get(name, {
+          version: options?.version,
+          label,
+          type: 'chat',
+        });
+
+        this.logger.debug(`Loaded raw prompt '${name}' from Langfuse (version: ${prompt.version}, type: chat)`);
+
+        return prompt.prompt;
+      }
+
+      const prompt = await client.prompt.get(name, {
         version: options?.version,
-        label: options?.label || 'production',
-        type: options?.type || 'text',
+        label,
+        type: 'text',
       });
 
-      this.logger.debug(`Loaded raw prompt '${name}' from Langfuse (version: ${prompt.version})`);
+      this.logger.debug(`Loaded raw prompt '${name}' from Langfuse (version: ${prompt.version}, type: text)`);
 
       return prompt.prompt;
     } catch (error) {
@@ -127,28 +207,70 @@ export class LangfusePromptService implements OnModuleInit {
     options?: {
       version?: number;
       label?: string;
-      type?: 'text' | 'chat';
+      type?: 'text';
     },
   ): Promise<{
     template: PromptTemplate;
     config: any;
     version: number;
+  }>;
+  async getPromptWithConfig(
+    name: string,
+    options: {
+      version?: number;
+      label?: string;
+      type: 'chat';
+    },
+  ): Promise<{
+    template: ChatPromptTemplate;
+    config: any;
+    version: number;
+  }>;
+  async getPromptWithConfig(
+    name: string,
+    options?: {
+      version?: number;
+      label?: string;
+      type?: 'text' | 'chat';
+    },
+  ): Promise<{
+    template: PromptTemplate | ChatPromptTemplate;
+    config: any;
+    version: number;
   }> {
-    if (!this.langfuseClient) {
-      throw new Error('Langfuse client is not initialized. Please check your configuration.');
-    }
+    const client = await this.getClientOrThrow();
 
     try {
-      const prompt = await this.langfuseClient.prompt.get(name, {
+      const label = options?.label || 'production';
+
+      if (options?.type === 'chat') {
+        const prompt = await client.prompt.get(name, {
+          version: options?.version,
+          label,
+          type: 'chat',
+        });
+
+        const template = prompt.getLangchainPrompt();
+
+        this.logger.debug(`Loaded prompt with config '${name}' from Langfuse (version: ${prompt.version}, type: chat)`);
+
+        return {
+          template,
+          config: prompt.config,
+          version: prompt.version,
+        };
+      }
+
+      const prompt = await client.prompt.get(name, {
         version: options?.version,
-        label: options?.label || 'production',
-        type: options?.type || 'text',
+        label,
+        type: 'text',
       });
 
       const langchainPromptString = prompt.getLangchainPrompt();
       const template = PromptTemplate.fromTemplate(langchainPromptString);
 
-      this.logger.debug(`Loaded prompt with config '${name}' from Langfuse (version: ${prompt.version})`);
+      this.logger.debug(`Loaded prompt with config '${name}' from Langfuse (version: ${prompt.version}, type: text)`);
 
       return {
         template,
@@ -169,7 +291,29 @@ export class LangfusePromptService implements OnModuleInit {
    */
   async createOrUpdatePrompt(
     name: string,
-    prompt: string,
+    prompt: TextPromptClient['prompt'],
+    options?: {
+      type?: 'text';
+      labels?: string[];
+      config?: any;
+      tags?: string[];
+      commitMessage?: string;
+    },
+  ): Promise<void>;
+  async createOrUpdatePrompt(
+    name: string,
+    prompt: ChatPromptContent,
+    options: {
+      type: 'chat';
+      labels?: string[];
+      config?: any;
+      tags?: string[];
+      commitMessage?: string;
+    },
+  ): Promise<void>;
+  async createOrUpdatePrompt(
+    name: string,
+    prompt: TextPromptClient['prompt'] | ChatPromptContent,
     options?: {
       type?: 'text' | 'chat';
       labels?: string[];
@@ -178,16 +322,30 @@ export class LangfusePromptService implements OnModuleInit {
       commitMessage?: string;
     },
   ): Promise<void> {
-    if (!this.langfuseClient) {
-      throw new Error('Langfuse client is not initialized. Please check your configuration.');
-    }
+    const client = await this.getClientOrThrow();
 
     try {
-      await this.langfuseClient.prompt.create({
+      const labels = options?.labels || ['production'];
+
+      if (options?.type === 'chat') {
+        await client.prompt.create({
+          name,
+          prompt: prompt as ChatPromptContent,
+          type: 'chat',
+          labels,
+          config: options?.config,
+          tags: options?.tags,
+        });
+
+        this.logger.log(`Successfully created/updated chat prompt '${name}' in Langfuse`);
+        return;
+      }
+
+      await client.prompt.create({
         name,
-        prompt,
-        type: options?.type || 'text',
-        labels: options?.labels || ['production'],
+        prompt: prompt as TextPromptClient['prompt'],
+        type: 'text',
+        labels,
         config: options?.config,
         tags: options?.tags,
       });
@@ -203,10 +361,7 @@ export class LangfusePromptService implements OnModuleInit {
    * Get the Langfuse client instance
    * @returns LangfuseClient instance
    */
-  getClient(): LangfuseClient {
-    if (!this.langfuseClient) {
-      throw new Error('Langfuse client is not initialized. Please check your configuration.');
-    }
-    return this.langfuseClient;
+  async getClient(): Promise<LangfuseClient> {
+    return this.getClientOrThrow();
   }
 }

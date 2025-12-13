@@ -6,10 +6,12 @@ import { ScrapCombinationService } from '../ai-workflows/services/scrap-combinat
 import { NewsletterPromptTemplatesService } from '../ai-workflows/prompts/newsletter-prompt-templates.service';
 import { NewsletterWorkflowLanggraphService } from '../ai-workflows/services/newsletter-workflow-langgraph.service';
 import { ArticleRegeneratorService } from '../ai-workflows/services/article-regenerator.service';
+import { LangfuseService } from '../ai-workflows/services/langfuse.service';
 
 @Module({
   imports: [ConfigModule],
   providers: [
+    LangfuseService,
     VertexAiFactory,
     ScrapCombinationService,
     NewsletterPromptTemplatesService,
@@ -18,6 +20,7 @@ import { ArticleRegeneratorService } from '../ai-workflows/services/article-rege
     NewsletterAgentService,
   ],
   exports: [
+    LangfuseService, // Export for use in other modules
     VertexAiFactory, // Export for use in other modules
     NewsletterAgentService,
     NewsletterWorkflowLanggraphService, // Export the new LangGraph service

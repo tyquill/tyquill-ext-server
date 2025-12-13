@@ -7,6 +7,7 @@ import { AppModule } from './app.module';
 import { VersioningType, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import multipart from '@fastify/multipart';
+import './tracing';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(

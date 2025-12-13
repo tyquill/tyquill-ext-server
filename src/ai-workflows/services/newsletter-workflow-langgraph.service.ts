@@ -18,6 +18,7 @@ import {
 import { NewsletterPromptTemplatesService } from '../prompts/newsletter-prompt-templates.service';
 import { ScrapCombinationService } from './scrap-combination.service';
 import { VertexAiFactory } from './vertex-ai.factory';
+import { LangfuseService } from './langfuse.service';
 import { NodeName } from '../models/streaming';
 
 const VERTEX_MODEL_NEWSLETTER = 'gemini-2.5-flash';
@@ -77,6 +78,7 @@ export class NewsletterWorkflowLanggraphService {
     private readonly vertexFactory: VertexAiFactory,
     private readonly scrapCombinationService: ScrapCombinationService,
     private readonly promptTemplates: NewsletterPromptTemplatesService,
+    private readonly langfuseService: LangfuseService,
   ) {
     this.newsletterModel = this.vertexFactory.buildChat({
       model: VERTEX_MODEL_NEWSLETTER,
@@ -192,6 +194,21 @@ export class NewsletterWorkflowLanggraphService {
         },
       };
 
+      // Add Langfuse CallbackHandler for tracing
+      const langfuseHandler = this.langfuseService.createHandler({
+        metadata: {
+          topic: input.topic,
+          userLanguage: input.userLanguage || 'en',
+          scrapsCount: input.scrapsWithComments?.length || 0,
+        },
+        tags: ['newsletter', 'langgraph'],
+      });
+
+      if (langfuseHandler) {
+        config.callbacks = [langfuseHandler];
+        this.logger.log('✅ Langfuse tracing enabled for this workflow');
+      }
+
       // Invoke the compiled workflow
       const finalState = await this.compiledWorkflow.invoke(initialState, config);
 
@@ -244,6 +261,21 @@ export class NewsletterWorkflowLanggraphService {
         },
         streamMode: ['updates', 'tasks'],
       };
+
+      // Add Langfuse CallbackHandler for tracing
+      const langfuseHandler = this.langfuseService.createHandler({
+        metadata: {
+          topic: input.topic,
+          userLanguage: input.userLanguage || 'en',
+          scrapsCount: input.scrapsWithComments?.length || 0,
+        },
+        tags: ['newsletter', 'langgraph', 'streaming'],
+      });
+
+      if (langfuseHandler) {
+        config.callbacks = [langfuseHandler];
+        this.logger.log('✅ Langfuse tracing enabled for streaming workflow');
+      }
 
       // Stream events from the workflow
       this.logger.log('📡 Starting LangGraph workflow stream...');

@@ -222,11 +222,7 @@ export class NewsletterWorkflowLanggraphService {
 
       // Add Langfuse CallbackHandler for tracing
       const langfuseHandler = this.langfuseService.createHandler({
-        metadata: {
-          topic: input.topic,
-          userLanguage: input.userLanguage || 'en',
-          scrapsCount: input.scrapsWithComments?.length || 0,
-        },
+        metadata: config.metadata,
         tags: ['newsletter', 'langgraph'],
       });
 
@@ -290,11 +286,7 @@ export class NewsletterWorkflowLanggraphService {
 
       // Add Langfuse CallbackHandler for tracing
       const langfuseHandler = this.langfuseService.createHandler({
-        metadata: {
-          topic: input.topic,
-          userLanguage: input.userLanguage || 'en',
-          scrapsCount: input.scrapsWithComments?.length || 0,
-        },
+        metadata: config.metadata,
         tags: ['newsletter', 'langgraph', 'streaming'],
       });
 

@@ -13,6 +13,8 @@ import { Article } from '../articles/entities/article.entity';
 import { User } from '../users/entities/user.entity';
 import { RepurposeWorkflowService } from '../ai-workflows/services/repurpose-workflow.service';
 import { VertexAiFactory } from '../ai-workflows/services/vertex-ai.factory';
+import { LangfusePromptService } from '../ai-workflows/services/langfuse-prompt.service';
+import { RepurposePromptTemplatesService } from '../ai-workflows/prompts/repurpose-prompt-templates.service';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { VertexAiFactory } from '../ai-workflows/services/vertex-ai.factory';
   providers: [
     RepurposeService,
     RepurposeWorkflowService,
+    LangfusePromptService,
+    RepurposePromptTemplatesService,
     VertexAiFactory,
     {
       provide: 'REPURPOSE_SERVICE_INIT',

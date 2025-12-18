@@ -18,7 +18,9 @@ import {
 import { NewsletterPromptTemplatesService } from '../prompts/newsletter-prompt-templates.service';
 import { ScrapCombinationService } from './scrap-combination.service';
 import { VertexAiFactory } from './vertex-ai.factory';
+import { LangfuseService } from './langfuse.service';
 import { NodeName } from '../models/streaming';
+import type { RunnableConfig } from '@langchain/core/runnables';
 
 const VERTEX_MODEL_NEWSLETTER = 'gemini-2.5-flash';
 const VERTEX_MODEL_TITLE = 'gemini-2.5-flash';
@@ -61,18 +63,6 @@ const WorkflowStateAnnotation = Annotation.Root({
 
 type WorkflowState = typeof WorkflowStateAnnotation.State;
 
-// Opik integration
-let OpikTracer: any;
-let OPIK_AVAILABLE = false;
-try {
-  // Dynamic import to make Opik optional
-  OpikTracer = require('opik').OpikTracer;
-  OPIK_AVAILABLE = true;
-} catch (error) {
-  // Opik not available, will use LangSmith only
-  OPIK_AVAILABLE = false;
-}
-
 @Injectable()
 export class NewsletterWorkflowLanggraphService {
   protected readonly logger = new Logger(NewsletterWorkflowLanggraphService.name);
@@ -84,12 +74,12 @@ export class NewsletterWorkflowLanggraphService {
   private readonly pdfModel: ChatVertexAI;
 
   private compiledWorkflow: ReturnType<typeof this.buildWorkflow>;
-  private opikTracer: any = null;
 
   constructor(
     private readonly vertexFactory: VertexAiFactory,
     private readonly scrapCombinationService: ScrapCombinationService,
     private readonly promptTemplates: NewsletterPromptTemplatesService,
+    private readonly langfuseService: LangfuseService,
   ) {
     this.newsletterModel = this.vertexFactory.buildChat({
       model: VERTEX_MODEL_NEWSLETTER,
@@ -121,28 +111,32 @@ export class NewsletterWorkflowLanggraphService {
     // Build and compile the workflow graph
     this.compiledWorkflow = this.buildWorkflow();
 
-    // Initialize Opik tracer after workflow is compiled
-    this.initializeOpikTracer();
   }
 
-  /**
-   * Initialize Opik tracer for LangGraph
-   */
-  private initializeOpikTracer() {
-    if (!OPIK_AVAILABLE) {
-      this.logger.log('⚠️ Opik not available, using LangSmith only');
-      return;
+  private buildModelConfig(
+    config?: RunnableConfig,
+    runName?: string,
+  ): RunnableConfig | undefined {
+    if (!config && !runName) {
+      return undefined;
     }
 
-    try {
-      this.opikTracer = new OpikTracer({
-        tags: ['newsletter-workflow', 'langgraph', 'vertex-ai', 'typescript'],
-      });
-      this.logger.log('✅ Opik tracer initialized successfully');
-    } catch (error) {
-      this.logger.warn(`⚠️ Failed to initialize Opik tracer: ${error}`);
-      this.opikTracer = null;
+    const modelConfig: RunnableConfig = {};
+
+    if (config?.callbacks) {
+      modelConfig.callbacks = config.callbacks;
     }
+    if (config?.tags) {
+      modelConfig.tags = config.tags;
+    }
+    if (config?.metadata) {
+      modelConfig.metadata = config.metadata;
+    }
+    if (runName) {
+      modelConfig.runName = runName;
+    }
+
+    return modelConfig;
   }
 
   /**
@@ -226,10 +220,15 @@ export class NewsletterWorkflowLanggraphService {
         },
       };
 
-      // Add Opik tracer if available
-      if (this.opikTracer) {
-        config.callbacks = [this.opikTracer];
-        this.logger.log('🔍 Executing workflow with Opik tracing');
+      // Add Langfuse CallbackHandler for tracing
+      const langfuseHandler = this.langfuseService.createHandler({
+        metadata: config.metadata,
+        tags: ['newsletter', 'langgraph'],
+      });
+
+      if (langfuseHandler) {
+        config.callbacks = [langfuseHandler];
+        this.logger.log('✅ Langfuse tracing enabled for this workflow');
       }
 
       // Invoke the compiled workflow
@@ -285,9 +284,15 @@ export class NewsletterWorkflowLanggraphService {
         streamMode: ['updates', 'tasks'],
       };
 
-      // Add Opik tracer if available
-      if (this.opikTracer) {
-        config.callbacks = [this.opikTracer];
+      // Add Langfuse CallbackHandler for tracing
+      const langfuseHandler = this.langfuseService.createHandler({
+        metadata: config.metadata,
+        tags: ['newsletter', 'langgraph', 'streaming'],
+      });
+
+      if (langfuseHandler) {
+        config.callbacks = [langfuseHandler];
+        this.logger.log('✅ Langfuse tracing enabled for streaming workflow');
       }
 
       // Stream events from the workflow
@@ -497,6 +502,7 @@ export class NewsletterWorkflowLanggraphService {
   protected async processSinglePdf(
     pdfItem: PdfReference,
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<string> {
     const fileUrl = pdfItem.url ?? '';
     const usagePrompt = pdfItem.usagePrompt ?? '';
@@ -524,7 +530,10 @@ export class NewsletterWorkflowLanggraphService {
         fileUrl,
       );
 
-      const response = await this.pdfModel.invoke([message]);
+      const response = await this.pdfModel.invoke(
+        [message],
+        this.buildModelConfig(config, 'newsletter.pdf'),
+      );
       const text = this.extractMessageText(response);
 
       if (usagePrompt) {
@@ -543,6 +552,7 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async processPdfContentNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const pdfItems = state.pdfUrlsWithPrompts ?? [];
@@ -555,7 +565,7 @@ export class NewsletterWorkflowLanggraphService {
       }
 
       const processed = await Promise.all(
-        pdfItems.map((item) => this.processSinglePdf(item, state)),
+        pdfItems.map((item) => this.processSinglePdf(item, state, config)),
       );
 
       return {
@@ -575,6 +585,7 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async generateNewsletterNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const feedbacks = state.feedbacks ?? [];
@@ -582,8 +593,8 @@ export class NewsletterWorkflowLanggraphService {
       const isKorean = state.userLanguage === 'ko';
 
       const template = isKorean
-        ? this.promptTemplates.getKoreanNewsletterTemplate()
-        : this.promptTemplates.getSimpleNewsletterTemplate();
+        ? await this.promptTemplates.getKoreanNewsletterTemplate()
+        : await this.promptTemplates.getSimpleNewsletterTemplate();
 
       const prompt = await template.format({
         topic: state.topic ?? '',
@@ -598,7 +609,10 @@ export class NewsletterWorkflowLanggraphService {
             : 'Empty',
       });
 
-      const response = await this.newsletterModel.invoke(prompt);
+      const response = await this.newsletterModel.invoke(
+        prompt,
+        this.buildModelConfig(config, 'newsletter.generate'),
+      );
       const result = this.extractMessageText(response);
 
       return {
@@ -618,13 +632,14 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async generateTitleNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const isKorean = state.userLanguage === 'ko';
 
       const template = isKorean
-        ? this.promptTemplates.getKoreanNewsletterTitleTemplate()
-        : this.promptTemplates.getSimpleNewsletterTitleTemplate();
+        ? await this.promptTemplates.getKoreanNewsletterTitleTemplate()
+        : await this.promptTemplates.getSimpleNewsletterTitleTemplate();
 
       const prompt = await template.format({
         topic: state.topic ?? '',
@@ -632,7 +647,10 @@ export class NewsletterWorkflowLanggraphService {
         generationParams: state.generationParams ?? 'Empty',
         content: state.content ?? '',
       });
-      const response = await this.titleModel.invoke(prompt);
+      const response = await this.titleModel.invoke(
+        prompt,
+        this.buildModelConfig(config, 'newsletter.title'),
+      );
       const result = this.extractMessageText(response);
 
       return {
@@ -649,13 +667,14 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async articleReflectorNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const isKorean = state.userLanguage === 'ko';
 
       const template = isKorean
-        ? this.promptTemplates.getKoreanArticleReflectorTemplate()
-        : this.promptTemplates.getArticleReflectorTemplate();
+        ? await this.promptTemplates.getKoreanArticleReflectorTemplate()
+        : await this.promptTemplates.getArticleReflectorTemplate();
 
       const prompt = await template.format({
         topic: state.topic ?? 'Empty',
@@ -666,7 +685,10 @@ export class NewsletterWorkflowLanggraphService {
           state.articleStructureTemplate ?? [],
         ),
       });
-      const response = await this.reflectorModel.invoke(prompt);
+      const response = await this.reflectorModel.invoke(
+        prompt,
+        this.buildModelConfig(config, 'newsletter.reflector'),
+      );
       const result = this.extractMessageText(response);
 
       const feedback: Feedback = {
@@ -687,6 +709,7 @@ export class NewsletterWorkflowLanggraphService {
 
   protected async rewriteWritingStyleNode(
     state: WorkflowState,
+    config?: RunnableConfig,
   ): Promise<Partial<WorkflowState>> {
     try {
       const examples = state.writingStyleExampleContents ?? [];
@@ -703,8 +726,8 @@ export class NewsletterWorkflowLanggraphService {
       const isKorean = state.userLanguage === 'ko';
 
       const template = isKorean
-        ? this.promptTemplates.getKoreanWritingStyleRewriteTemplate()
-        : this.promptTemplates.getWritingStyleRewriteTemplate();
+        ? await this.promptTemplates.getKoreanWritingStyleRewriteTemplate()
+        : await this.promptTemplates.getWritingStyleRewriteTemplate();
 
       const prompt = await template.format({
         topic: state.topic ?? '',
@@ -712,7 +735,10 @@ export class NewsletterWorkflowLanggraphService {
         content: state.content ?? '',
         writingStyleExamples: examples.join('\n\n---\n\n'),
       });
-      const response = await this.rewriteModel.invoke(prompt);
+      const response = await this.rewriteModel.invoke(
+        prompt,
+        this.buildModelConfig(config, 'newsletter.rewrite'),
+      );
       const result = this.extractMessageText(response);
 
       return {
@@ -765,7 +791,7 @@ export class NewsletterWorkflowLanggraphService {
 
   async analyzePageStructure(content: string): Promise<PageStructureAnalysis> {
     try {
-      const template = this.promptTemplates.getStructureAnalysisTemplate();
+      const template = await this.promptTemplates.getStructureAnalysisTemplate();
       const prompt = await template.format({ content });
       const structuredModel = this.newsletterModel.withStructuredOutput(
         PageStructureSchema,
@@ -783,7 +809,7 @@ export class NewsletterWorkflowLanggraphService {
       );
 
       try {
-        const template = this.promptTemplates.getStructureAnalysisTemplate();
+        const template = await this.promptTemplates.getStructureAnalysisTemplate();
         const prompt = await template.format({ content });
         const response = await this.newsletterModel.invoke(prompt);
         const text = this.extractMessageText(response);

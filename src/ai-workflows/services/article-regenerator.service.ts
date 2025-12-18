@@ -10,6 +10,7 @@ import {
 } from '../dto/regenerate.dto';
 import { VertexAiFactory } from './vertex-ai.factory';
 import { ScrapCombinationService } from './scrap-combination.service';
+import { LangfuseService } from './langfuse.service';
 
 const REGENERATOR_MODEL = 'gemini-2.5-flash-lite';
 
@@ -30,6 +31,7 @@ export class ArticleRegeneratorService {
   constructor(
     vertexFactory: VertexAiFactory,
     private readonly scrapCombinationService: ScrapCombinationService,
+    private readonly langfuseService: LangfuseService,
   ) {
     this.llm = vertexFactory.buildChat({
       model: REGENERATOR_MODEL,
@@ -46,6 +48,22 @@ export class ArticleRegeneratorService {
     const startTime = Date.now();
     const prompt = await this.buildPrompt(input);
 
+    // Create Langfuse CallbackHandler for tracing
+    const langfuseHandler = this.langfuseService.createHandler({
+      metadata: {
+        topic: input.topic,
+        conversationLength: input.conversationHistory?.length || 0,
+        hasAddedScraps: (input.addedScraps?.length || 0) > 0,
+        hasAdditionalScraps: (input.additionalScraps?.length || 0) > 0,
+      },
+      tags: ['article-regeneration', 'structured-output'],
+    });
+
+    const config = langfuseHandler ? { callbacks: [langfuseHandler] } : {};
+    if (langfuseHandler) {
+      this.logger.log('✅ Langfuse tracing enabled for article regeneration');
+    }
+
     // Create structured LLM with Zod schema
     const structuredLLM = this.llm.withStructuredOutput(
       RegenerateResponseSchema,
@@ -60,7 +78,7 @@ export class ArticleRegeneratorService {
 
     try {
       // Attempt structured output
-      const structuredResponse = await structuredLLM.invoke(prompt);
+      const structuredResponse = await structuredLLM.invoke(prompt, config);
       const latencyMs = Date.now() - startTime;
 
       this.logger.log('Structured output received successfully');
@@ -84,7 +102,7 @@ export class ArticleRegeneratorService {
       );
 
       // Fallback to original text parsing
-      response = await this.llm.invoke(prompt);
+      response = await this.llm.invoke(prompt, config);
       const latencyMs = Date.now() - startTime;
 
       const text = this.extractMessageText(response?.content ?? '');

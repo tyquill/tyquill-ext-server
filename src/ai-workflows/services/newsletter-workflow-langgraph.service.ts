@@ -139,7 +139,6 @@ export class NewsletterWorkflowLanggraphService {
     return modelConfig;
   }
 
-
   /**
    * Build the LangGraph workflow
    */

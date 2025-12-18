@@ -63,7 +63,7 @@ LANGFUSE_BASE_URL=https://cloud.langfuse.com
 ### 3. 프롬프트 업로드
 
 마이그레이션 스크립트를 실행하여 모든 프롬프트를 Langfuse에 업로드:
-
+(이미 진행 완료 했음)
 ```bash
 cd backend
 npm run prompts:upload
